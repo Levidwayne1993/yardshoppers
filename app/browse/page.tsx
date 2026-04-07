@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
@@ -24,12 +24,11 @@ const CATEGORIES = [
 
 type SortOption = "newest" | "oldest";
 
-export default function BrowsePage() {
+function BrowseContent() {
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  /* Read initial values from URL */
   const initialSearch = searchParams.get("search") || "";
   const initialCategory = searchParams.get("category") || "All";
 
@@ -40,7 +39,6 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
-  /* ── Fetch listings from Supabase ────────── */
   const fetchListings = useCallback(async () => {
     setLoading(true);
 
@@ -48,19 +46,16 @@ export default function BrowsePage() {
       .from("listings")
       .select("*, listing_photos(*)", { count: "exact" });
 
-    /* Filter by search term */
     if (search.trim()) {
       query = query.or(
         `title.ilike.%${search.trim()}%,description.ilike.%${search.trim()}%,city.ilike.%${search.trim()}%`
       );
     }
 
-    /* Filter by category */
     if (activeCategory !== "All") {
       query = query.eq("category", activeCategory);
     }
 
-    /* Sort */
     query = query.order("created_at", {
       ascending: sort === "oldest",
     });
@@ -76,7 +71,6 @@ export default function BrowsePage() {
     fetchListings();
   }, [fetchListings]);
 
-  /* ── Update URL when filters change ──────── */
   function updateURL(newSearch: string, newCategory: string) {
     const params = new URLSearchParams();
     if (newSearch.trim()) params.set("search", newSearch.trim());
@@ -107,10 +101,9 @@ export default function BrowsePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ── Header Bar ──────────────────────── */}
+      {/* Header Bar */}
       <div className="bg-white border-b border-gray-200 sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          {/* Search + Sort Row */}
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <form onSubmit={handleSearch} className="flex-1 flex gap-2">
               <div className="flex items-center flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 gap-2 focus-within:border-ys-600 focus-within:ring-2 focus-within:ring-ys-600/20 transition-all">
@@ -184,9 +177,8 @@ export default function BrowsePage() {
         </div>
       </div>
 
-      {/* ── Results ─────────────────────────── */}
+      {/* Results */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* Result count */}
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-gray-500">
             {loading ? (
@@ -218,7 +210,6 @@ export default function BrowsePage() {
         </div>
 
         {loading ? (
-          /* Loading skeletons */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
@@ -235,14 +226,12 @@ export default function BrowsePage() {
             ))}
           </div>
         ) : listings.length > 0 ? (
-          /* Listings grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {listings.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
           </div>
         ) : (
-          /* Empty state */
           <div className="text-center py-20">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
               <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" />
@@ -276,5 +265,19 @@ export default function BrowsePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function BrowsePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-gray-500">
+          Loading listings...
+        </div>
+      }
+    >
+      <BrowseContent />
+    </Suspense>
   );
 }
