@@ -1,210 +1,179 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect } from "react";
-import { FiSearch, FiMenu } from "react-icons/fi";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase-browser";
 
-export function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+export default function Navbar() {
+  const supabase = createClient();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const supabase = createClientComponentClient();
-
-  // ⭐ Load logged-in user
   useEffect(() => {
-    const loadUser = async () => {
+    async function getUser() {
       const {
-        data: { user },
+        data: { user: u },
       } = await supabase.auth.getUser();
-      setUser(user);
-    };
+      setUser(u);
+      setLoading(false);
+    }
+    getUser();
 
-    loadUser();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // ⭐ Logout
-  const handleLogout = async () => {
+  async function handleLogout() {
     await supabase.auth.signOut();
-    window.location.href = "/";
-  };
+    setUser(null);
+    router.push("/");
+    router.refresh();
+  }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-5 px-5 py-3">
-
+    <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
         {/* Logo */}
-        <Link
-          href="/"
-          className="flex flex-shrink-0 items-center gap-2 text-xl font-bold text-emerald-700"
-        >
-          <span className="text-2xl text-emerald-400">🛒</span>
-          <span>
-            Yard<span className="text-emerald-400">Shoppers</span>
+        <Link href="/" className="flex items-center gap-2 shrink-0">
+          <span className="text-2xl">🏷️</span>
+          <span className="text-xl font-extrabold text-ys-900 tracking-tight hidden sm:inline">
+            Yard<span className="text-ys-700">Shoppers</span>
           </span>
         </Link>
 
-        {/* Search (desktop) */}
-        <div className="hidden flex-1 max-w-md items-center md:flex">
-          <div className="relative w-full">
-            <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search local yard sales, items, neighborhoods..."
-              className="w-full rounded-full border-2 border-gray-200 bg-gray-50 px-10 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
-            />
-          </div>
-        </div>
-
-        {/* Desktop links */}
-        <div className="hidden items-center gap-2 md:flex">
-
+        {/* Desktop Nav */}
+        <div className="hidden md:flex items-center gap-1">
           <Link
             href="/browse"
-            className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
+            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-ys-800 rounded-lg hover:bg-ys-50 transition-all"
           >
-            Browse sales
+            Browse Sales
           </Link>
+          <a
+            href="#how-it-works"
+            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-ys-800 rounded-lg hover:bg-ys-50 transition-all"
+          >
+            How It Works
+          </a>
+        </div>
 
-          {/* ⭐ NOT LOGGED IN */}
-          {!user && (
+        {/* Desktop Buttons */}
+        <div className="hidden md:flex items-center gap-3">
+          {loading ? (
+            <div className="w-20 h-9 bg-gray-100 rounded-lg animate-pulse" />
+          ) : user ? (
+            <>
+              <Link
+                href="/post"
+                className="flex items-center gap-2 bg-ys-800 hover:bg-ys-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-all hover:shadow-lg"
+              >
+                <i className="fa-solid fa-plus text-xs" />
+                Post a Sale
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-red-600 rounded-lg hover:bg-red-50 transition-all"
+              >
+                <i className="fa-solid fa-right-from-bracket text-xs" />
+                Log out
+              </button>
+            </>
+          ) : (
             <>
               <Link
                 href="/login"
-                className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-ys-800 transition"
               >
-                Login
+                Log in
               </Link>
-
               <Link
                 href="/signup"
-                className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
+                className="bg-ys-800 hover:bg-ys-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-all hover:shadow-lg"
               >
-                Sign up
+                Sign up free
               </Link>
             </>
           )}
-
-          {/* ⭐ LOGGED IN */}
-          {user && (
-            <>
-              <Link
-                href="/saved"
-                className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
-              >
-                Saved
-              </Link>
-
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
-              >
-                My account
-              </Link>
-
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition"
-              >
-                Logout
-              </button>
-            </>
-          )}
-
-          <Link
-            href="/post"
-            className="flex items-center gap-1 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-md"
-          >
-            Post a sale
-          </Link>
         </div>
 
-        {/* Mobile menu button */}
+        {/* Mobile Menu Button */}
         <button
-          className="inline-flex items-center rounded-full p-2 text-xl text-gray-600 hover:bg-gray-100 md:hidden"
-          onClick={() => setMobileOpen((v) => !v)}
+          onClick={() => setOpen(!open)}
+          className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition"
+          aria-label="Menu"
         >
-          <FiMenu />
+          <i className={`fa-solid ${open ? "fa-xmark" : "fa-bars"} text-lg text-gray-700`} />
         </button>
       </div>
 
-      {/* Mobile dropdown */}
-      {mobileOpen && (
-        <div className="border-t border-gray-200 bg-white px-5 pb-4 pt-2 md:hidden">
+      {/* Mobile Menu */}
+      {open && (
+        <div className="md:hidden border-t border-gray-100 bg-white px-4 pb-4 pt-2 space-y-1">
+          <Link
+            href="/browse"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-ys-50 hover:text-ys-800 rounded-lg transition"
+          >
+            Browse Sales
+          </Link>
+          <a
+            href="#how-it-works"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-ys-50 hover:text-ys-800 rounded-lg transition"
+          >
+            How It Works
+          </a>
 
-          {/* Mobile search */}
-          <div className="mb-3">
-            <div className="relative">
-              <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search yard sales..."
-                className="w-full rounded-full border-2 border-gray-200 bg-gray-50 px-10 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
-              />
-            </div>
-          </div>
-
-          {/* Mobile links */}
-          <div className="flex flex-col gap-2">
-
-            <Link
-              href="/browse"
-              className="rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-            >
-              Browse sales
-            </Link>
-
-            {/* ⭐ NOT LOGGED IN */}
-            {!user && (
+          <div className="border-t border-gray-100 pt-2 mt-2 space-y-1">
+            {loading ? (
+              <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+            ) : user ? (
+              <>
+                <Link
+                  href="/post"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-ys-800 hover:bg-ys-50 rounded-lg transition"
+                >
+                  <i className="fa-solid fa-plus text-xs" />
+                  Post a Sale
+                </Link>
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    handleLogout();
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition"
+                >
+                  <i className="fa-solid fa-right-from-bracket text-xs" />
+                  Log out
+                </button>
+              </>
+            ) : (
               <>
                 <Link
                   href="/login"
-                  className="rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  onClick={() => setOpen(false)}
+                  className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-ys-50 rounded-lg transition"
                 >
-                  Login
+                  Log in
                 </Link>
-
                 <Link
                   href="/signup"
-                  className="rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  onClick={() => setOpen(false)}
+                  className="block px-4 py-2.5 text-sm font-semibold text-ys-800 bg-ys-50 rounded-lg text-center"
                 >
-                  Sign up
+                  Sign up free
                 </Link>
               </>
             )}
-
-            {/* ⭐ LOGGED IN */}
-            {user && (
-              <>
-                <Link
-                  href="/saved"
-                  className="rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                >
-                  Saved
-                </Link>
-
-                <Link
-                  href="/dashboard"
-                  className="rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                >
-                  My account
-                </Link>
-
-                <button
-                  onClick={handleLogout}
-                  className="rounded-full px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-                >
-                  Logout
-                </button>
-              </>
-            )}
-
-            <Link
-              href="/post"
-              className="rounded-full bg-emerald-700 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-emerald-600"
-            >
-              Post a sale
-            </Link>
           </div>
         </div>
       )}

@@ -1,0 +1,450 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase-browser";
+
+interface Listing {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  category: string;
+  sale_date: string;
+  sale_time_start: string;
+  sale_time_end: string;
+  created_at: string;
+  user_id: string;
+  profiles?: { display_name?: string };
+  listing_photos?: { id: string; photo_url: string }[];
+}
+
+export default function ListingDetailClient({
+  listingId,
+}: {
+  listingId: string;
+}) {
+  const supabase = createClient();
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activePhoto, setActivePhoto] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      /* Current user */
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      setUser(u);
+
+      /* Listing + photos + seller */
+      const { data } = await supabase
+        .from("listings")
+        .select("*, listing_photos(*), profiles(display_name)")
+        .eq("id", listingId)
+        .single();
+
+      if (data) setListing(data);
+
+      /* Check if saved */
+      if (u) {
+        const { data: s } = await supabase
+          .from("saved_listings")
+          .select("id")
+          .eq("user_id", u.id)
+          .eq("listing_id", listingId)
+          .maybeSingle();
+        setSaved(!!s);
+      }
+
+      setLoading(false);
+    }
+    load();
+  }, [listingId]);
+
+  /* ── Save / Unsave toggle ────────────────── */
+  async function toggleSave() {
+    if (!user) return;
+    if (saved) {
+      await supabase
+        .from("saved_listings")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("listing_id", listingId);
+      setSaved(false);
+    } else {
+      await supabase
+        .from("saved_listings")
+        .insert({ user_id: user.id, listing_id: listingId });
+      setSaved(true);
+    }
+  }
+
+  /* ── Share ───────────────────────────────── */
+  async function handleShare() {
+    const url = window.location.href;
+    if (navigator.share) {
+      await navigator.share({
+        title: listing?.title,
+        text: `Check out this yard sale on YardShoppers!`,
+        url,
+      });
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  /* ── Loading ─────────────────────────────── */
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        <div className="animate-pulse space-y-6">
+          <div className="h-4 w-40 bg-gray-200 rounded" />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <div className="lg:col-span-3 aspect-[4/3] bg-gray-200 rounded-2xl" />
+            <div className="lg:col-span-2 space-y-4">
+              <div className="h-6 bg-gray-200 rounded w-3/4" />
+              <div className="h-8 bg-gray-200 rounded w-1/3" />
+              <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="h-4 bg-gray-200 rounded w-2/3" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Not Found ───────────────────────────── */
+  if (!listing) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-5">
+          <i className="fa-solid fa-ghost text-3xl text-gray-300" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          Listing Not Found
+        </h1>
+        <p className="text-gray-500 mb-6">
+          This listing may have been removed or doesn&apos;t exist.
+        </p>
+        <Link
+          href="/browse"
+          className="px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
+        >
+          Browse Sales
+        </Link>
+      </div>
+    );
+  }
+
+  const photos = listing.listing_photos || [];
+  const location = [listing.address, listing.city, listing.state, listing.zip_code]
+    .filter(Boolean)
+    .join(", ");
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+
+  const saleDay = listing.sale_date
+    ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      {/* ── Breadcrumb ─────────────────────── */}
+      <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+        <Link href="/" className="hover:text-ys-800 transition">
+          Home
+        </Link>
+        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
+        <Link href="/browse" className="hover:text-ys-800 transition">
+          Browse
+        </Link>
+        {listing.category && (
+          <>
+            <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
+            <Link
+              href={`/browse?category=${encodeURIComponent(listing.category)}`}
+              className="hover:text-ys-800 transition"
+            >
+              {listing.category}
+            </Link>
+          </>
+        )}
+        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
+        <span className="text-gray-900 font-medium truncate max-w-[200px]">
+          {listing.title}
+        </span>
+      </nav>
+
+      {/* ── Main Layout ────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        {/* ── Photos (left, 3 cols) ────────── */}
+        <div className="lg:col-span-3">
+          {/* Main Photo */}
+          <div className="relative aspect-[4/3] bg-gray-100 rounded-2xl overflow-hidden">
+            {photos.length > 0 ? (
+              <Image
+                src={photos[activePhoto].photo_url}
+                alt={listing.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 60vw"
+                priority
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full bg-ys-50">
+                <i className="fa-solid fa-camera text-5xl text-ys-300 mb-3" />
+                <p className="text-sm text-ys-400">No photos available</p>
+              </div>
+            )}
+
+            {/* Photo counter */}
+            {photos.length > 1 && (
+              <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm">
+                {activePhoto + 1} / {photos.length}
+              </div>
+            )}
+
+            {/* Prev / Next arrows */}
+            {photos.length > 1 && (
+              <>
+                <button
+                  onClick={() =>
+                    setActivePhoto((p) =>
+                      p === 0 ? photos.length - 1 : p - 1
+                    )
+                  }
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
+                >
+                  <i className="fa-solid fa-chevron-left text-sm text-gray-700" />
+                </button>
+                <button
+                  onClick={() =>
+                    setActivePhoto((p) =>
+                      p === photos.length - 1 ? 0 : p + 1
+                    )
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
+                >
+                  <i className="fa-solid fa-chevron-right text-sm text-gray-700" />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Thumbnails */}
+          {photos.length > 1 && (
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+              {photos.map((photo, i) => (
+                <button
+                  key={photo.id}
+                  onClick={() => setActivePhoto(i)}
+                  className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                    i === activePhoto
+                      ? "border-ys-600 shadow-md"
+                      : "border-transparent opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <Image
+                    src={photo.photo_url}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* ── Description (under photos) ── */}
+          {listing.description && (
+            <div className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">
+                About This Sale
+              </h2>
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+                {listing.description}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Info Panel (right, 2 cols) ──── */}
+        <div className="lg:col-span-2">
+          <div className="lg:sticky lg:top-24 space-y-5">
+            {/* Main Info Card */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              {/* Category */}
+              {listing.category && (
+                <Link
+                  href={`/browse?category=${encodeURIComponent(listing.category)}`}
+                  className="inline-block text-xs font-semibold text-ys-800 bg-ys-100 px-3 py-1 rounded-full hover:bg-ys-200 transition mb-3"
+                >
+                  {listing.category}
+                </Link>
+              )}
+
+              {/* Title + Save */}
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-xl font-bold text-gray-900 leading-tight">
+                  {listing.title}
+                </h1>
+                <button
+                  onClick={toggleSave}
+                  className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center border transition-all ${
+                    saved
+                      ? "bg-red-50 border-red-200 text-red-500"
+                      : "bg-gray-50 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"
+                  }`}
+                  title={saved ? "Unsave" : "Save"}
+                >
+                  <i
+                    className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`}
+                  />
+                </button>
+              </div>
+
+              {/* Price */}
+              {listing.price && (
+                <p className="text-2xl font-extrabold text-ys-800 mt-2">
+                  {listing.price}
+                </p>
+              )}
+
+              {/* Details Grid */}
+              <div className="mt-5 space-y-3">
+                {location && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                      <i className="fa-solid fa-location-dot text-sm text-ys-700" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Location
+                      </p>
+                      <p className="text-sm text-gray-500">{location}</p>
+                    </div>
+                  </div>
+                )}
+
+                {saleDay && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                      <i className="fa-regular fa-calendar text-sm text-ys-700" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Date</p>
+                      <p className="text-sm text-gray-500">{saleDay}</p>
+                    </div>
+                  </div>
+                )}
+
+                {(listing.sale_time_start || listing.sale_time_end) && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                      <i className="fa-regular fa-clock text-sm text-ys-700" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Time</p>
+                      <p className="text-sm text-gray-500">
+                        {listing.sale_time_start}
+                        {listing.sale_time_end
+                          ? ` – ${listing.sale_time_end}`
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 flex gap-3">
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 bg-ys-800 hover:bg-ys-900 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
+                >
+                  <i className="fa-solid fa-diamond-turn-right text-sm" />
+                  Directions
+                </a>
+                <button
+                  onClick={handleShare}
+                  className="flex items-center justify-center gap-2 px-5 py-3 border border-gray-200 rounded-xl text-gray-700 hover:border-ys-600 hover:text-ys-800 transition-all"
+                >
+                  <i
+                    className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`}
+                  />
+                  {copied ? "Copied!" : "Share"}
+                </button>
+              </div>
+            </div>
+
+            {/* Seller Card */}
+            {listing.profiles && (
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Posted by
+                </h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
+                    <i className="fa-solid fa-user text-ys-700" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {listing.profiles.display_name || "YardShoppers Seller"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Joined{" "}
+                      {new Date(listing.created_at).toLocaleDateString(
+                        "en-US",
+                        { month: "long", year: "numeric" }
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {!user && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                    <p className="text-xs text-amber-800">
+                      <Link
+                        href="/login"
+                        className="font-semibold underline hover:no-underline"
+                      >
+                        Log in
+                      </Link>{" "}
+                      to contact the seller or save this listing.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Report */}
+            <p className="text-center">
+              <button className="text-xs text-gray-400 hover:text-red-500 transition">
+                <i className="fa-regular fa-flag mr-1" />
+                Report this listing
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

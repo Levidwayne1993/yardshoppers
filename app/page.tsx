@@ -1,151 +1,300 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 
-export default function HomePage() {
-  const supabase = createClientComponentClient();
+/* ── Category data ─────────────────────────── */
+const CATEGORIES = [
+  { name: "Furniture", emoji: "🛋️" },
+  { name: "Electronics", emoji: "📱" },
+  { name: "Clothing", emoji: "👕" },
+  { name: "Toys & Games", emoji: "🎮" },
+  { name: "Tools", emoji: "🔧" },
+  { name: "Kitchen", emoji: "🍳" },
+  { name: "Sports", emoji: "⚽" },
+  { name: "Books", emoji: "📚" },
+  { name: "Antiques", emoji: "🏺" },
+  { name: "Garden", emoji: "🌿" },
+  { name: "Baby & Kids", emoji: "👶" },
+  { name: "Vehicles", emoji: "🚗" },
+  { name: "Free Stuff", emoji: "🎁" },
+];
 
-  const [featured, setFeatured] = useState<any[]>([]);
+/* ── How‑it‑works steps ────────────────────── */
+const STEPS = [
+  {
+    icon: "fa-solid fa-magnifying-glass",
+    title: "Search",
+    text: "Browse yard sales by location, category, or keyword. Find exactly what you're looking for.",
+  },
+  {
+    icon: "fa-solid fa-heart",
+    title: "Save",
+    text: "Save your favorite listings and get notified when new sales pop up in your area.",
+  },
+  {
+    icon: "fa-solid fa-map-location-dot",
+    title: "Visit",
+    text: "Get directions, see sale times, and show up ready to score incredible deals.",
+  },
+];
+
+/* ── Trust signals ─────────────────────────── */
+const TRUST = [
+  { icon: "fa-solid fa-dollar-sign", title: "100% Free", text: "Post and browse — always free" },
+  { icon: "fa-solid fa-shield-halved", title: "Safe & Local", text: "Verified community sellers" },
+  { icon: "fa-solid fa-bolt", title: "Instant Post", text: "Live in under 60 seconds" },
+  { icon: "fa-solid fa-earth-americas", title: "Nationwide", text: "Every city, every state" },
+];
+
+/* ═══════════════════════════════════════════ */
+
+export default function HomePage() {
+  const supabase = createClient();
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ⭐ Load featured listings (latest 6)
   useEffect(() => {
-    const loadFeatured = async () => {
-      setLoading(true);
-
-      const { data: listings } = await supabase
+    async function fetchListings() {
+      const { data } = await supabase
         .from("listings")
-        .select("*")
+        .select("*, listing_photos(*)")
         .order("created_at", { ascending: false })
         .limit(6);
 
-      if (!listings) {
-        setFeatured([]);
-        setLoading(false);
-        return;
-      }
-
-      // Load photos
-      const ids = listings.map((l) => l.id);
-
-      const { data: photos } = await supabase
-        .from("listing_photos")
-        .select("*")
-        .in("listing_id", ids)
-        .order("display_order", { ascending: true });
-
-      const withPhotos = listings.map((l) => {
-        const photo = photos?.find((p) => p.listing_id === l.id);
-        return {
-          ...l,
-          imageUrl: photo?.photo_url || "/placeholder.jpg",
-        };
-      });
-
-      setFeatured(withPhotos);
+      setListings(data || []);
       setLoading(false);
-    };
-
-    loadFeatured();
+    }
+    fetchListings();
   }, []);
 
-  return (
-    <div className="min-h-screen bg-gray-50">
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (search.trim()) {
+      router.push(`/browse?search=${encodeURIComponent(search.trim())}`);
+    }
+  }
 
-      {/* ⭐ HERO SECTION */}
-      <section className="bg-gradient-to-br from-emerald-600 to-emerald-400 text-white py-20 px-6">
-        <div className="max-w-5xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold mb-4">
-            Discover Local Yard Sales Near You
+  return (
+    <>
+      {/* ━━━━━ HERO ━━━━━ */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-ys-900 via-ys-800 to-ys-700 text-white">
+        {/* Decorative blobs */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-ys-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-ys-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-24 text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-medium mb-8 backdrop-blur-sm">
+            <span className="w-2 h-2 bg-ys-400 rounded-full animate-pulse" />
+            The #1 Yard Sale Marketplace
+          </div>
+
+          {/* Headline */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight tracking-tight max-w-3xl mx-auto">
+            Discover Amazing{" "}
+            <span className="relative">
+              <span className="relative z-10">Yard Sales</span>
+              <span className="absolute bottom-1 left-0 w-full h-3 bg-ys-500/40 rounded-sm -z-0" />
+            </span>{" "}
+            Near You
           </h1>
-          <p className="text-lg md:text-xl opacity-90 mb-8">
-            Find hidden treasures, great deals, and community events — all in one place.
+
+          <p className="mt-5 text-lg sm:text-xl text-ys-200 max-w-2xl mx-auto leading-relaxed">
+            Find hidden treasures in your neighborhood. Post your sale for free and
+            reach thousands of local buyers.
           </p>
 
-          <Link
-            href="/browse"
-            className="inline-block bg-white text-emerald-700 font-semibold px-8 py-3 rounded-full shadow hover:bg-gray-100 transition"
+          {/* Search Card */}
+          <form
+            onSubmit={handleSearch}
+            className="mt-10 max-w-2xl mx-auto bg-white rounded-2xl p-2 shadow-2xl flex flex-col sm:flex-row gap-2"
           >
-            Browse Yard Sales
-          </Link>
-        </div>
-      </section>
-
-      {/* ⭐ CATEGORIES */}
-      <section className="max-w-5xl mx-auto px-6 py-12">
-        <h2 className="text-2xl font-bold mb-6">Popular Categories</h2>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-          {[
-            "Furniture",
-            "Tools",
-            "Clothing",
-            "Electronics",
-            "Toys",
-            "Collectibles",
-          ].map((cat) => (
-            <Link
-              key={cat}
-              href="/browse"
-              className="bg-white border rounded-lg shadow-sm p-4 text-center hover:bg-emerald-50 transition"
-            >
-              <span className="font-medium text-gray-700">{cat}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ⭐ FEATURED LISTINGS */}
-      <section className="max-w-5xl mx-auto px-6 py-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Featured Listings</h2>
-          <Link href="/browse" className="text-emerald-700 hover:underline">
-            View all →
-          </Link>
-        </div>
-
-        {loading ? (
-          <p className="text-gray-600">Loading featured listings...</p>
-        ) : featured.length === 0 ? (
-          <p className="text-gray-600">No listings available yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featured.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                id={listing.id}
-                title={listing.title}
-                city={listing.city}
-                state={listing.state}
-                date={listing.sale_date_start}
-                time={listing.sale_time_start}
-                description={listing.description}
-                imageUrl={listing.imageUrl}
+            <div className="flex items-center gap-3 flex-1 px-4 py-3">
+              <i className="fa-solid fa-magnifying-glass text-ys-600" />
+              <input
+                type="text"
+                placeholder="What are you looking for?"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex-1 bg-transparent text-gray-900 placeholder:text-gray-400 outline-none text-base"
               />
+            </div>
+            <button
+              type="submit"
+              className="bg-ys-800 hover:bg-ys-900 text-white font-semibold px-8 py-3.5 rounded-xl transition-all hover:shadow-lg shrink-0"
+            >
+              Search Sales
+            </button>
+          </form>
+
+          {/* Stats */}
+          <div className="mt-14 flex flex-wrap justify-center gap-x-12 gap-y-4">
+            {[
+              ["10,000+", "Listings Posted"],
+              ["500+", "Cities Covered"],
+              ["50,000+", "Happy Shoppers"],
+            ].map(([num, label]) => (
+              <div key={label} className="text-center">
+                <div className="text-2xl sm:text-3xl font-extrabold">{num}</div>
+                <div className="text-sm text-ys-300 mt-0.5">{label}</div>
+              </div>
             ))}
           </div>
-        )}
-      </section>
-
-      {/* ⭐ CTA BANNER */}
-      <section className="bg-white border-t py-16 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">Hosting a Yard Sale?</h2>
-          <p className="text-gray-600 mb-8">
-            Reach more shoppers in your neighborhood by posting your sale on YardShoppers.
-          </p>
-
-          <Link
-            href="/post"
-            className="inline-block bg-emerald-700 text-white font-semibold px-8 py-3 rounded-full shadow hover:bg-emerald-600 transition"
-          >
-            Post Your Sale
-          </Link>
         </div>
       </section>
-    </div>
+
+      {/* ━━━━━ CATEGORIES ━━━━━ */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900">Browse by Category</h2>
+            <p className="text-gray-500 mt-2">Find exactly what you&apos;re looking for</p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {CATEGORIES.map((cat) => (
+              <Link
+                key={cat.name}
+                href={`/browse?category=${encodeURIComponent(cat.name)}`}
+                className="group flex flex-col items-center gap-3 p-5 bg-ys-50 border border-ys-100 rounded-2xl hover:border-ys-400 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+              >
+                <span className="text-3xl group-hover:scale-110 transition-transform duration-300">
+                  {cat.emoji}
+                </span>
+                <span className="text-sm font-semibold text-gray-800 group-hover:text-ys-800 transition-colors">
+                  {cat.name}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ━━━━━ RECENT LISTINGS ━━━━━ */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">Recently Posted</h2>
+              <p className="text-gray-500 mt-1">Fresh finds from your community</p>
+            </div>
+            <Link
+              href="/browse"
+              className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-ys-800 hover:text-ys-900 transition"
+            >
+              View all <i className="fa-solid fa-arrow-right text-xs" />
+            </Link>
+          </div>
+
+          {loading ? (
+            /* Loading skeleton */
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
+                  <div className="aspect-[4/3] bg-gray-200" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    <div className="h-5 bg-gray-200 rounded w-1/4" />
+                    <div className="h-3 bg-gray-200 rounded w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : listings.length > 0 ? (
+            /* Real listings */
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {listings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          ) : (
+            /* Empty state */
+            <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
+              <div className="w-20 h-20 bg-ys-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <i className="fa-solid fa-tag text-3xl text-ys-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                No listings yet — be the first!
+              </h3>
+              <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                Your community is waiting. Post your yard sale and start reaching local buyers today.
+              </p>
+              <Link
+                href="/post"
+                className="inline-flex items-center gap-2 bg-ys-800 hover:bg-ys-900 text-white px-6 py-3 rounded-full font-semibold transition-all hover:shadow-lg"
+              >
+                <i className="fa-solid fa-plus text-sm" /> Post Your First Sale
+              </Link>
+            </div>
+          )}
+
+          {/* Mobile "View all" link */}
+          {listings.length > 0 && (
+            <div className="mt-8 text-center sm:hidden">
+              <Link
+                href="/browse"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-ys-800 hover:text-ys-900 transition"
+              >
+                View all listings <i className="fa-solid fa-arrow-right text-xs" />
+              </Link>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ━━━━━ HOW IT WORKS ━━━━━ */}
+      <section id="how-it-works" className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold text-gray-900">How YardShoppers Works</h2>
+            <p className="text-gray-500 mt-2">Three simple steps to treasure hunting</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            {STEPS.map((step, i) => (
+              <div
+                key={step.title}
+                className="relative text-center p-8 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+              >
+                {/* Step number */}
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-ys-800 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-md">
+                  {i + 1}
+                </div>
+                <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center mx-auto mb-5 mt-2">
+                  <i className={`${step.icon} text-xl text-ys-700`} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">{step.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{step.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ━━━━━ TRUST SIGNALS ━━━━━ */}
+      <section className="py-16 bg-ys-50 border-y border-ys-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {TRUST.map((item) => (
+              <div key={item.title} className="flex flex-col items-center text-center gap-3 p-6">
+                <div className="w-12 h-12 bg-ys-200 rounded-full flex items-center justify-center">
+                  <i className={`${item.icon} text-lg text-ys-800`} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-900">{item.title}</h4>
+                  <p className="text-sm text-gray-500 mt-0.5">{item.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

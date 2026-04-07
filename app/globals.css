@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  /* YardShoppers Brand Greens */
+  --color-ys-900: #1B4332;
+  --color-ys-800: #2D6A4F;
+  --color-ys-700: #40916C;
+  --color-ys-600: #52B788;
+  --color-ys-500: #74C69D;
+  --color-ys-400: #95D5B2;
+  --color-ys-300: #B7E4C7;
+  --color-ys-200: #D8F3DC;
+  --color-ys-100: #E8F8EE;
+  --color-ys-50: #F0FFF4;
+
+  /* Font */
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Smooth scroll & clean defaults */
+html { scroll-behavior: smooth; }
+body { -webkit-font-smoothing: antialiased; }
+
+/* Focus ring for accessibility */
+*:focus-visible {
+  outline: 2px solid #52B788;
+  outline-offset: 2px;
+}
+
+/* Checkbox + radio brand color */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #2D6A4F;
+}

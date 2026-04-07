@@ -1,63 +1,38 @@
+import type { Metadata } from "next";
+import { Poppins } from "next/font/google";
 import "./globals.css";
-import type { ReactNode } from "react";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
-// ⭐ GLOBAL SEO + METADATA
-export const metadata = {
-  metadataBase: new URL("https://yardshoppers.com"),
-  title: {
-    default: "YardShoppers — Find Local Yard Sales Near You",
-    template: "%s | YardShoppers",
-  },
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-poppins",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "YardShoppers — Discover Yard Sales Near You",
   description:
-    "Discover local yard sales, garage sales, estate sales, and community events near you. Post your own yard sale for free and reach more local shoppers.",
-  keywords: [
-    "yard sales",
-    "garage sales",
-    "estate sales",
-    "yard sales near me",
-    "garage sales near me",
-    "Olympia yard sales",
-    "local yard sale listings",
-    "post a yard sale",
-    "community yard sale map",
-  ],
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: "https://yardshoppers.com",
-    siteName: "YardShoppers",
-    title: "YardShoppers — Find Local Yard Sales Near You",
-    description:
-      "Browse local yard sales, garage sales, and estate sales. Post your own sale and reach more shoppers.",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "YardShoppers — Local Yard Sales",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "YardShoppers — Find Local Yard Sales Near You",
-    description:
-      "Discover local yard sales, garage sales, and estate sales. Post your sale for free.",
-    images: ["/og-image.jpg"],
-  },
-  icons: {
-    icon: "/favicon.ico",
-  },
+    "Find amazing yard sales, garage sales, and estate sales in your area. Post your sale for free and reach thousands of local buyers.",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en">
-      <body className="bg-white text-gray-800">
+    <html lang="en" className={poppins.variable}>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        />
+      </head>
+      <body className="font-sans bg-white text-gray-900 min-h-screen flex flex-col">
         <Navbar />
-        {children}
+        <main className="flex-1">{children}</main>
         <Footer />
       </body>
     </html>

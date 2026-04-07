@@ -1,83 +1,176 @@
 import Link from "next/link";
 
-export function Footer() {
+export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-400 pt-16 pb-6">
-      <div className="mx-auto max-w-6xl px-5">
-        {/* GRID */}
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-4 mb-12">
-          
-          {/* BRAND */}
+    <footer className="bg-gray-900 text-gray-300">
+      {/* Top CTA Band */}
+      <div className="bg-gradient-to-r from-ys-900 via-ys-800 to-ys-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div>
-            <div className="flex items-center gap-2 text-white text-xl font-bold mb-3">
-              <span className="text-emerald-400 text-2xl">🛒</span>
-              Yard<span className="text-emerald-400">Shoppers</span>
-            </div>
-
-            <p className="text-sm leading-relaxed">
-              The nationwide marketplace for yard sales, garage sales, and estate sales. 
-              Find hidden treasures in your neighborhood or post your own sale to reach thousands of local buyers.
+            <h3 className="text-xl font-bold text-white">
+              Ready to turn your clutter into cash?
+            </h3>
+            <p className="text-ys-300 text-sm mt-1">
+              Post your yard sale in under 2 minutes — completely free.
             </p>
+          </div>
+          <Link
+            href="/post"
+            className="px-8 py-3 bg-white text-ys-800 font-semibold rounded-full hover:bg-ys-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          >
+            Post a Sale — It&apos;s Free
+          </Link>
+        </div>
+      </div>
 
-            <div className="flex gap-3 mt-4">
-              <a className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition">
-                <i className="fa-brands fa-facebook-f"></i>
+      {/* Main Footer Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-14">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
+          {/* Brand */}
+          <div className="col-span-2 md:col-span-1">
+            <Link href="/" className="flex items-center gap-2 mb-4">
+              <span className="text-2xl">🏷️</span>
+              <span className="text-lg font-extrabold text-white tracking-tight">
+                Yard<span className="text-ys-500">Shoppers</span>
+              </span>
+            </Link>
+            <p className="text-sm leading-relaxed text-gray-400">
+              Your neighborhood marketplace for yard sales, garage sales, and
+              estate sales. Buy local, save big, reduce waste.
+            </p>
+            <div className="flex gap-3 mt-5">
+              <a
+                href="#"
+                aria-label="Facebook"
+                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
+              >
+                <i className="fa-brands fa-facebook-f text-sm" />
               </a>
-              <a className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition">
-                <i className="fa-brands fa-instagram"></i>
+              <a
+                href="#"
+                aria-label="Instagram"
+                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
+              >
+                <i className="fa-brands fa-instagram text-sm" />
               </a>
-              <a className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition">
-                <i className="fa-brands fa-tiktok"></i>
+              <a
+                href="#"
+                aria-label="Twitter"
+                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
+              >
+                <i className="fa-brands fa-x-twitter text-sm" />
               </a>
-              <a className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition">
-                <i className="fa-brands fa-x-twitter"></i>
+              <a
+                href="#"
+                aria-label="TikTok"
+                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
+              >
+                <i className="fa-brands fa-tiktok text-sm" />
               </a>
             </div>
           </div>
 
-          {/* EXPLORE */}
+          {/* Explore */}
           <div>
-            <h4 className="text-white font-semibold mb-4">Explore</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/browse" className="hover:text-emerald-400">Browse Sales</Link></li>
-              <li><Link href="/post" className="hover:text-emerald-400">Post a Sale</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">Sale Map</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">This Weekend</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">Estate Sales</Link></li>
+            <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
+              Explore
+            </h4>
+            <ul className="space-y-2.5">
+              <li>
+                <Link href="/browse" className="text-sm hover:text-white transition">
+                  Browse Sales
+                </Link>
+              </li>
+              <li>
+                <Link href="/browse?category=Furniture" className="text-sm hover:text-white transition">
+                  Furniture
+                </Link>
+              </li>
+              <li>
+                <Link href="/browse?category=Electronics" className="text-sm hover:text-white transition">
+                  Electronics
+                </Link>
+              </li>
+              <li>
+                <Link href="/browse?category=Clothing" className="text-sm hover:text-white transition">
+                  Clothing
+                </Link>
+              </li>
+              <li>
+                <Link href="/browse?category=Free+Stuff" className="text-sm hover:text-white transition">
+                  Free Stuff
+                </Link>
+              </li>
             </ul>
           </div>
 
-          {/* COMPANY */}
+          {/* Sellers */}
           <div>
-            <h4 className="text-white font-semibold mb-4">Company</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="#" className="hover:text-emerald-400">About Us</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">How It Works</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">Blog</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">Contact</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">Careers</Link></li>
+            <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
+              Sellers
+            </h4>
+            <ul className="space-y-2.5">
+              <li>
+                <Link href="/post" className="text-sm hover:text-white transition">
+                  Post a Sale
+                </Link>
+              </li>
+              <li>
+                <Link href="/dashboard" className="text-sm hover:text-white transition">
+                  Seller Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link href="/pricing" className="text-sm hover:text-white transition">
+                  Featured Listings
+                </Link>
+              </li>
+              <li>
+                <Link href="/tips" className="text-sm hover:text-white transition">
+                  Selling Tips
+                </Link>
+              </li>
             </ul>
           </div>
 
-          {/* SUPPORT */}
+          {/* Company */}
           <div>
-            <h4 className="text-white font-semibold mb-4">Support</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="#" className="hover:text-emerald-400">Help Center</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">Safety Tips</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">Privacy Policy</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">Terms of Service</Link></li>
-              <li><Link href="#" className="hover:text-emerald-400">Advertise With Us</Link></li>
+            <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
+              Company
+            </h4>
+            <ul className="space-y-2.5">
+              <li>
+                <Link href="/about" className="text-sm hover:text-white transition">
+                  About Us
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="text-sm hover:text-white transition">
+                  Contact
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacy" className="text-sm hover:text-white transition">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="text-sm hover:text-white transition">
+                  Terms of Service
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
+      </div>
 
-        {/* BOTTOM */}
-        <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row justify-between text-xs text-gray-500">
-          <span>© 2026 YardShoppers.com — All Rights Reserved.</span>
-          <span className="mt-2 md:mt-0">
-            Made with <span className="text-red-500">♥</span> for treasure hunters everywhere
-          </span>
+      {/* Bottom Bar */}
+      <div className="border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+          <p>&copy; {new Date().getFullYear()} YardShoppers. All rights reserved.</p>
+          <p>
+            Made with <span className="text-red-400">♥</span> for treasure hunters everywhere
+          </p>
         </div>
       </div>
     </footer>
