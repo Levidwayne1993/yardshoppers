@@ -32,13 +32,11 @@ export default function PostPage() {
   const [error, setError] = useState("");
   const [dragActive, setDragActive] = useState(false);
 
-  /* Boost modal state */
   const [showBoostModal, setShowBoostModal] = useState(false);
   const [newListingId, setNewListingId] = useState<string | null>(null);
   const [newListingTitle, setNewListingTitle] = useState("");
   const [boostLoading, setBoostLoading] = useState(false);
 
-  /* Form fields */
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -154,7 +152,9 @@ export default function PostPage() {
 
       for (const photo of photos) {
         const ext = photo.name.split(".").pop();
-        const path = `${user.id}/${listing.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const path = `${user.id}/${listing.id}/${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}.${ext}`;
 
         const { error: upErr } = await supabase.storage
           .from("listing-photos")
@@ -172,7 +172,18 @@ export default function PostPage() {
         }
       }
 
-      /* Show boost modal instead of redirecting immediately */
+      try {
+        const fullAddress = [address, city, state, zipCode].filter(Boolean).join(", ");
+        const geoRes = await fetch(`/api/geocode?address=${encodeURIComponent(fullAddress)}`);
+        const geoData = await geoRes.json();
+        if (geoData.lat && geoData.lng) {
+          await supabase
+            .from("listings")
+            .update({ latitude: geoData.lat, longitude: geoData.lng })
+            .eq("id", listing.id);
+        }
+      } catch {}
+
       setNewListingId(listing.id);
       setNewListingTitle(listing.title);
       setShowBoostModal(true);
@@ -186,7 +197,6 @@ export default function PostPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-ys-50 to-white">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
-        {/* Header */}
         <div className="text-center mb-10">
           <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <i className="fa-solid fa-camera-retro text-2xl text-ys-700" />
@@ -197,7 +207,6 @@ export default function PostPage() {
           </p>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
             <i className="fa-solid fa-circle-exclamation text-red-500 mt-0.5" />
@@ -206,7 +215,6 @@ export default function PostPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Card: Basic Info */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-gray-900 mb-5 flex items-center gap-2">
               <i className="fa-solid fa-pen text-ys-600 text-sm" />
@@ -235,7 +243,7 @@ export default function PostPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
-                placeholder="Describe what you're selling – the more detail, the more buyers you'll attract..."
+                placeholder="Describe what you're selling..."
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-ys-600 focus:ring-2 focus:ring-ys-600/20 transition-all outline-none resize-y"
               />
             </div>
@@ -253,11 +261,12 @@ export default function PostPage() {
               />
             </div>
 
-            {/* Multi-Category Select */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Categories <span className="text-red-500">*</span>
-                <span className="text-xs font-normal text-gray-400 ml-1">(select all that apply)</span>
+                <span className="text-xs font-normal text-gray-400 ml-1">
+                  (select all that apply)
+                </span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {CATEGORIES.map((cat) => (
@@ -288,7 +297,6 @@ export default function PostPage() {
             </div>
           </div>
 
-          {/* Card: Location */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-gray-900 mb-5 flex items-center gap-2">
               <i className="fa-solid fa-location-dot text-ys-600 text-sm" />
@@ -352,7 +360,6 @@ export default function PostPage() {
             </div>
           </div>
 
-          {/* Card: Date & Time */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-gray-900 mb-5 flex items-center gap-2">
               <i className="fa-regular fa-calendar text-ys-600 text-sm" />
@@ -396,7 +403,6 @@ export default function PostPage() {
             </div>
           </div>
 
-          {/* Card: Photos */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
               <i className="fa-solid fa-images text-ys-600 text-sm" />
@@ -435,18 +441,13 @@ export default function PostPage() {
                 <span className="font-semibold text-ys-800">Click to upload</span>{" "}
                 or drag and drop
               </p>
-              <p className="text-xs text-gray-400 mt-1">
-                PNG, JPG, WEBP up to 5MB each
-              </p>
+              <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP up to 5MB each</p>
             </div>
 
             {previews.length > 0 && (
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mt-4">
                 {previews.map((src, i) => (
-                  <div
-                    key={i}
-                    className="relative aspect-square rounded-xl overflow-hidden group"
-                  >
+                  <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
                     <Image
                       src={src}
                       alt={`Preview ${i + 1}`}
@@ -472,7 +473,6 @@ export default function PostPage() {
             )}
           </div>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={submitting}
@@ -504,36 +504,27 @@ export default function PostPage() {
         </form>
       </div>
 
-      {/* ━━━ BOOST MODAL ━━━ */}
       {showBoostModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
-            {/* Success check */}
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
               <i className="fa-solid fa-check text-3xl text-emerald-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Sale Posted! 🎉
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Sale Posted! 🎉</h2>
             <p className="text-gray-500 text-sm mb-6">
               &ldquo;{newListingTitle}&rdquo; is now live.
             </p>
 
-            {/* Boost upsell */}
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <i className="fa-solid fa-rocket text-amber-600" />
-                <h3 className="font-bold text-amber-900">
-                  Want more buyers?
-                </h3>
+                <h3 className="font-bold text-amber-900">Want more buyers?</h3>
               </div>
               <p className="text-sm text-amber-800 mb-1">
-                Boost your listing to the <strong>top of search results</strong> and
-                get up to <strong>10x more views</strong>.
+                Boost your listing to the <strong>top of search results</strong> and get up to{" "}
+                <strong>10x more views</strong>.
               </p>
-              <p className="text-2xl font-extrabold text-amber-900 mt-3">
-                Just $2.99
-              </p>
+              <p className="text-2xl font-extrabold text-amber-900 mt-3">Just $2.99</p>
             </div>
 
             <div className="flex flex-col gap-3">

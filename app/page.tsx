@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
+import DistanceSelector from "@/components/DistanceSelector";
 import { useLocation } from "@/lib/useLocation";
 
 const CATEGORIES = [
@@ -47,10 +48,18 @@ const STEPS = [
 export default function HomePage() {
   const supabase = createClient();
   const router = useRouter();
-  const { city, region, loading: locationLoading } = useLocation();
+  const {
+    city,
+    region,
+    lat,
+    lng,
+    precise,
+    loading: locationLoading,
+  } = useLocation();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [search, setSearch] = useState("");
+  const [radius, setRadius] = useState(25);
   const [nearbyListings, setNearbyListings] = useState<any[]>([]);
   const [recentListings, setRecentListings] = useState<any[]>([]);
   const [isNearby, setIsNearby] = useState(true);
@@ -60,6 +69,7 @@ export default function HomePage() {
     async function fetchListings() {
       setLoadingListings(true);
 
+      // Always fetch recent
       const { data: recent } = await supabase
         .from("listings")
         .select("*, listing_photos(*)")
@@ -69,34 +79,65 @@ export default function HomePage() {
 
       setRecentListings(recent || []);
 
-      if (city) {
+      // Try distance-based if we have lat/lng
+      if (lat && lng && radius < 999) {
+        const milesToDeg = radius / 69;
+        const lngDeg =
+          radius / (69 * Math.cos((lat * Math.PI) / 180));
+
         const { data: nearby } = await supabase
           .from("listings")
           .select("*, listing_photos(*)")
-          .or(
-            `city.ilike.%${city}%,state.ilike.%${region}%`
-          )
-          .order("is_boosted", { ascending: false, nullsFirst: false })
+          .gte("latitude", lat - milesToDeg)
+          .lte("latitude", lat + milesToDeg)
+          .gte("longitude", lng - lngDeg)
+          .lte("longitude", lng + lngDeg)
+          .order("is_boosted", {
+            ascending: false,
+            nullsFirst: false,
+          })
           .order("created_at", { ascending: false })
           .limit(6);
 
         if (nearby && nearby.length > 0) {
           setNearbyListings(nearby);
           setIsNearby(true);
-        } else {
-          setNearbyListings(recent || []);
-          setIsNearby(false);
+          setLoadingListings(false);
+          return;
         }
-      } else {
-        setNearbyListings([]);
-        setIsNearby(false);
       }
 
+      // Fall back to city/state text match
+      if (city) {
+        const { data: textMatch } = await supabase
+          .from("listings")
+          .select("*, listing_photos(*)")
+          .or(
+            `city.ilike.%${city}%,state.ilike.%${region}%`
+          )
+          .order("is_boosted", {
+            ascending: false,
+            nullsFirst: false,
+          })
+          .order("created_at", { ascending: false })
+          .limit(6);
+
+        if (textMatch && textMatch.length > 0) {
+          setNearbyListings(textMatch);
+          setIsNearby(true);
+          setLoadingListings(false);
+          return;
+        }
+      }
+
+      // Nothing nearby — show all with message
+      setNearbyListings(recent || []);
+      setIsNearby(false);
       setLoadingListings(false);
     }
 
     if (!locationLoading) fetchListings();
-  }, [city, region, locationLoading]);
+  }, [city, region, lat, lng, radius, locationLoading]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -131,15 +172,25 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative bg-gradient-to-br from-ys-800 via-ys-700 to-ys-600 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 text-6xl">🏷️</div>
-          <div className="absolute top-32 right-20 text-5xl">🛋️</div>
-          <div className="absolute bottom-20 left-1/4 text-4xl">📦</div>
-          <div className="absolute bottom-10 right-1/3 text-5xl">🎸</div>
+          <div className="absolute top-10 left-10 text-6xl">
+            🏷️
+          </div>
+          <div className="absolute top-32 right-20 text-5xl">
+            🛋️
+          </div>
+          <div className="absolute bottom-20 left-1/4 text-4xl">
+            📦
+          </div>
+          <div className="absolute bottom-10 right-1/3 text-5xl">
+            🎸
+          </div>
         </div>
         <div className="max-w-6xl mx-auto px-4 py-20 md:py-28 text-center relative z-10">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 mb-6 text-sm font-medium">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            Live yard sales near you
+            {city
+              ? `📍 Located in ${city}, ${region}`
+              : "Live yard sales near you"}
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
             Discover Yard Sales
@@ -148,8 +199,8 @@ export default function HomePage() {
             </span>
           </h1>
           <p className="mt-4 text-lg md:text-xl text-ys-100 max-w-2xl mx-auto">
-            Find incredible deals at yard sales near you. Post your own
-            sale and reach hundreds of local shoppers.
+            Find incredible deals at yard sales near you. Post your
+            own sale and reach hundreds of local shoppers.
           </p>
           <form
             onSubmit={handleSearch}
@@ -193,29 +244,45 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Nearby Listings */}
-      {!locationLoading && city && (
+      {/* Nearby Listings with Distance Selector */}
+      {!locationLoading && (city || lat) && (
         <section className="max-w-6xl mx-auto px-4 py-14">
           {isNearby ? (
             <>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
                     <i className="fa-solid fa-location-dot text-ys-600 mr-2" />
-                    Near You in {city}, {region}
+                    Near You
+                    {city ? ` in ${city}, ${region}` : ""}
                   </h2>
                   <p className="text-gray-500 text-sm mt-1">
                     Yard sales happening in your area
+                    {precise && (
+                      <span className="ml-1 text-green-600">
+                        • Precise location
+                      </span>
+                    )}
                   </p>
                 </div>
-                <Link
-                  href={`/browse?search=${encodeURIComponent(
-                    city
-                  )}`}
-                  className="text-ys-700 hover:text-ys-800 font-semibold text-sm"
-                >
-                  View All →
-                </Link>
+                <div className="flex items-center gap-3">
+                  <DistanceSelector
+                    value={radius}
+                    onChange={setRadius}
+                  />
+                  <Link
+                    href={
+                      city
+                        ? `/browse?search=${encodeURIComponent(
+                            city
+                          )}`
+                        : "/browse"
+                    }
+                    className="text-ys-700 hover:text-ys-800 font-semibold text-sm whitespace-nowrap"
+                  >
+                    View All →
+                  </Link>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {nearbyListings.map((l: any) => (
@@ -225,30 +292,39 @@ export default function HomePage() {
             </>
           ) : (
             <>
-              <div className="mb-6">
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-                  <div className="flex items-center gap-3">
-                    <i className="fa-solid fa-location-crosshairs text-amber-600 text-lg" />
-                    <div>
-                      <p className="font-semibold text-amber-800">
-                        No yard sales near {city} yet
-                      </p>
-                      <p className="text-amber-600 text-sm">
-                        Here are some sales from other areas — be
-                        the first to post in your neighborhood!
-                      </p>
-                    </div>
-                    <Link
-                      href="/post"
-                      className="ml-auto px-4 py-2 bg-ys-600 text-white rounded-lg text-sm font-semibold hover:bg-ys-700 transition whitespace-nowrap"
-                    >
-                      Post a Sale
-                    </Link>
-                  </div>
-                </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Sales From Other Areas
+                  Yard Sales
                 </h2>
+                <DistanceSelector
+                  value={radius}
+                  onChange={setRadius}
+                />
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <i className="fa-solid fa-location-crosshairs text-amber-600 text-lg" />
+                  <div>
+                    <p className="font-semibold text-amber-800">
+                      No yard sales
+                      {city ? ` near ${city}` : ""} within{" "}
+                      {radius < 999
+                        ? `${radius} miles`
+                        : "any distance"}{" "}
+                      yet
+                    </p>
+                    <p className="text-amber-600 text-sm">
+                      Here are some sales from other areas — be
+                      the first to post in your neighborhood!
+                    </p>
+                  </div>
+                  <Link
+                    href="/post"
+                    className="ml-auto px-4 py-2 bg-ys-600 text-white rounded-lg text-sm font-semibold hover:bg-ys-700 transition whitespace-nowrap"
+                  >
+                    Post a Sale
+                  </Link>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {nearbyListings.map((l: any) => (
@@ -368,7 +444,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How YardShoppers Works — NOW INTERACTIVE */}
+      {/* How YardShoppers Works */}
       <section className="max-w-6xl mx-auto px-4 py-14">
         <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
           How YardShoppers Works

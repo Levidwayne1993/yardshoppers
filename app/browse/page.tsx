@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
+import DistanceSelector from "@/components/DistanceSelector";
+import { useLocation } from "@/lib/useLocation";
 
 const CATEGORIES = [
   "All",
@@ -28,15 +30,17 @@ function BrowseContent() {
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { lat, lng, city, loading: locationLoading } = useLocation();
 
   const initialSearch = searchParams.get("search") || "";
   const initialCategory = searchParams.get("category") || "";
 
   const [search, setSearch] = useState(initialSearch);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    initialCategory ? [initialCategory] : []
-  );
+  const [selectedCategories, setSelectedCategories] = useState<
+    string[]
+  >(initialCategory ? [initialCategory] : []);
   const [sort, setSort] = useState<SortOption>("newest");
+  const [radius, setRadius] = useState(999);
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
@@ -61,6 +65,18 @@ function BrowseContent() {
       query = query.overlaps("categories", selectedCategories);
     }
 
+    // Distance filter
+    if (lat && lng && radius < 999) {
+      const milesToDeg = radius / 69;
+      const lngDeg =
+        radius / (69 * Math.cos((lat * Math.PI) / 180));
+      query = query
+        .gte("latitude", lat - milesToDeg)
+        .lte("latitude", lat + milesToDeg)
+        .gte("longitude", lng - lngDeg)
+        .lte("longitude", lng + lngDeg);
+    }
+
     query = query
       .order("is_boosted", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: sort === "oldest" });
@@ -69,11 +85,11 @@ function BrowseContent() {
     setListings(data || []);
     setTotalCount(count || 0);
     setLoading(false);
-  }, [search, selectedCategories, sort]);
+  }, [search, selectedCategories, sort, radius, lat, lng]);
 
   useEffect(() => {
-    fetchListings();
-  }, [fetchListings]);
+    if (!locationLoading) fetchListings();
+  }, [fetchListings, locationLoading]);
 
   function updateURL(newSearch: string, cats: string[]) {
     const params = new URLSearchParams();
@@ -107,15 +123,17 @@ function BrowseContent() {
     setSearch("");
     setSelectedCategories([]);
     setSort("newest");
+    setRadius(999);
     router.replace("/browse", { scroll: false });
   }
 
   const hasFilters =
-    search.trim() || selectedCategories.length > 0;
+    search.trim() ||
+    selectedCategories.length > 0 ||
+    radius < 999;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Bar */}
       <div className="bg-white border-b border-gray-200 sticky top-16 z-40">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <form
@@ -143,6 +161,16 @@ function BrowseContent() {
               <option value="oldest">Oldest First</option>
             </select>
           </form>
+
+          {/* Distance Selector */}
+          {(lat || city) && (
+            <div className="mb-3 pb-3 border-b border-gray-100">
+              <DistanceSelector
+                value={radius}
+                onChange={setRadius}
+              />
+            </div>
+          )}
 
           {/* Multi-Select Category Pills */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -178,7 +206,6 @@ function BrowseContent() {
         </div>
       </div>
 
-      {/* Results */}
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-500">
@@ -190,6 +217,11 @@ function BrowseContent() {
             {selectedCategories.length > 0 && (
               <span className="ml-1 text-ys-700 font-medium">
                 in {selectedCategories.join(", ")}
+              </span>
+            )}
+            {radius < 999 && (
+              <span className="ml-1 text-ys-700 font-medium">
+                within {radius} mi
               </span>
             )}
           </p>
@@ -215,7 +247,10 @@ function BrowseContent() {
         ) : listings.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
+              <ListingCard
+                key={listing.id}
+                listing={listing}
+              />
             ))}
           </div>
         ) : (
@@ -225,7 +260,9 @@ function BrowseContent() {
               No sales found
             </h3>
             <p className="text-gray-500 text-sm mb-4">
-              Try adjusting your search or category filters
+              {radius < 999
+                ? `No sales within ${radius} miles. Try increasing the radius or clearing filters.`
+                : "Try adjusting your search or category filters"}
             </p>
             <button
               onClick={clearFilters}
