@@ -8,6 +8,17 @@ interface CountdownTimerProps {
   saleTimeEnd?: string;
 }
 
+function parseDateTime(date: string, time?: string): Date {
+  if (!time) return new Date(`${date}T08:00:00`);
+
+  // Strip any seconds if already present (e.g. "12:46:00" → "12:46")
+  // Then rebuild with consistent format
+  const parts = time.split(":");
+  const hours = parts[0] || "08";
+  const minutes = parts[1] || "00";
+  return new Date(`${date}T${hours}:${minutes}:00`);
+}
+
 export default function CountdownTimer({
   saleDate,
   saleTimeStart,
@@ -23,12 +34,16 @@ export default function CountdownTimer({
 
     function calculate() {
       const now = new Date();
-      const start = new Date(
-        `${saleDate}T${saleTimeStart || "08:00"}:00`
-      );
+      const start = parseDateTime(saleDate!, saleTimeStart);
       const end = saleTimeEnd
-        ? new Date(`${saleDate}T${saleTimeEnd}:00`)
+        ? parseDateTime(saleDate!, saleTimeEnd)
         : new Date(start.getTime() + 8 * 60 * 60 * 1000);
+
+      // If parsing failed, bail out
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        setStatus("none");
+        return;
+      }
 
       if (now >= end) {
         setStatus("ended");
