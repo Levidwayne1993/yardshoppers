@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
+import { useLocation } from "@/lib/useLocation";
 
-/* ── Category data ─────────────────────────── */
 const CATEGORIES = [
   { name: "Furniture", emoji: "🛋️" },
   { name: "Electronics", emoji: "📱" },
-  { name: "Clothing", emoji: "👕" },
-  { name: "Toys & Games", emoji: "🎮" },
+  { name: "Clothing", emoji: "👗" },
+  { name: "Toys & Games", emoji: "🧸" },
   { name: "Tools", emoji: "🔧" },
   { name: "Kitchen", emoji: "🍳" },
   { name: "Sports", emoji: "⚽" },
@@ -20,322 +20,412 @@ const CATEGORIES = [
   { name: "Garden", emoji: "🌿" },
   { name: "Baby & Kids", emoji: "👶" },
   { name: "Vehicles", emoji: "🚗" },
-  { name: "Free Stuff", emoji: "🎁" },
+  { name: "Free Stuff", emoji: "🆓" },
 ];
 
-/* ── How‑it‑works steps ────────────────────── */
 const STEPS = [
   {
-    icon: "fa-solid fa-magnifying-glass",
+    icon: "fa-magnifying-glass",
     title: "Search",
-    text: "Browse yard sales by location, category, or keyword. Find exactly what you're looking for.",
+    desc: "Browse yard sales by location, category, or keyword. Find exactly what you're looking for.",
+    action: "search",
   },
   {
-    icon: "fa-solid fa-heart",
+    icon: "fa-heart",
     title: "Save",
-    text: "Save your favorite listings and get notified when new sales pop up in your area.",
+    desc: "Save your favorite sales and get reminders so you never miss a deal.",
+    action: "save",
   },
   {
-    icon: "fa-solid fa-map-location-dot",
+    icon: "fa-map-location-dot",
     title: "Visit",
-    text: "Get directions, see sale times, and show up ready to score incredible deals.",
+    desc: "Get directions, see sale times, and show up ready to score incredible deals.",
+    action: "visit",
   },
-];
-
-/* ── Trust signals ─────────────────────────── */
-const TRUST = [
-  { icon: "fa-solid fa-dollar-sign", title: "100% Free", text: "Post and browse – always free" },
-  { icon: "fa-solid fa-shield-halved", title: "Safe & Local", text: "Verified community sellers" },
-  { icon: "fa-solid fa-bolt", title: "Instant Post", text: "Live in under 60 seconds" },
-  { icon: "fa-solid fa-earth-americas", title: "Nationwide", text: "Every city, every state" },
 ];
 
 export default function HomePage() {
   const supabase = createClient();
   const router = useRouter();
+  const { city, region, loading: locationLoading } = useLocation();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const [search, setSearch] = useState("");
-  const [listings, setListings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [nearbyListings, setNearbyListings] = useState<any[]>([]);
+  const [recentListings, setRecentListings] = useState<any[]>([]);
+  const [isNearby, setIsNearby] = useState(true);
+  const [loadingListings, setLoadingListings] = useState(true);
 
   useEffect(() => {
     async function fetchListings() {
-      const { data } = await supabase
+      setLoadingListings(true);
+
+      const { data: recent } = await supabase
         .from("listings")
         .select("*, listing_photos(*)")
         .order("is_boosted", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(6);
-      setListings(data || []);
-      setLoading(false);
+
+      setRecentListings(recent || []);
+
+      if (city) {
+        const { data: nearby } = await supabase
+          .from("listings")
+          .select("*, listing_photos(*)")
+          .or(
+            `city.ilike.%${city}%,state.ilike.%${region}%`
+          )
+          .order("is_boosted", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(6);
+
+        if (nearby && nearby.length > 0) {
+          setNearbyListings(nearby);
+          setIsNearby(true);
+        } else {
+          setNearbyListings(recent || []);
+          setIsNearby(false);
+        }
+      } else {
+        setNearbyListings([]);
+        setIsNearby(false);
+      }
+
+      setLoadingListings(false);
     }
-    fetchListings();
-  }, []);
+
+    if (!locationLoading) fetchListings();
+  }, [city, region, locationLoading]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    if (search.trim()) {
-      router.push(`/browse?search=${encodeURIComponent(search.trim())}`);
+    if (search.trim())
+      router.push(
+        `/browse?search=${encodeURIComponent(search.trim())}`
+      );
+  }
+
+  function handleStepClick(action: string) {
+    if (action === "search") {
+      searchInputRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      setTimeout(() => searchInputRef.current?.focus(), 500);
+    } else if (action === "save") {
+      router.push("/browse");
+    } else if (action === "visit") {
+      if (city) {
+        router.push(
+          `/browse?search=${encodeURIComponent(city)}`
+        );
+      } else {
+        router.push("/browse");
+      }
     }
   }
 
   return (
-    <>
-      {/* ━━━━━ HERO ━━━━━ */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-ys-900 via-ys-800 to-ys-700 text-white">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-ys-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-ys-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-24 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-medium mb-8 backdrop-blur-sm">
-            <span className="w-2 h-2 bg-ys-400 rounded-full animate-pulse" />
-            The #1 Yard Sale Marketplace
+    <div className="min-h-screen">
+      {/* Hero */}
+      <section className="relative bg-gradient-to-br from-ys-800 via-ys-700 to-ys-600 text-white overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 text-6xl">🏷️</div>
+          <div className="absolute top-32 right-20 text-5xl">🛋️</div>
+          <div className="absolute bottom-20 left-1/4 text-4xl">📦</div>
+          <div className="absolute bottom-10 right-1/3 text-5xl">🎸</div>
+        </div>
+        <div className="max-w-6xl mx-auto px-4 py-20 md:py-28 text-center relative z-10">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 mb-6 text-sm font-medium">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            Live yard sales near you
           </div>
-
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight tracking-tight max-w-3xl mx-auto">
-            Discover Amazing{" "}
-            <span className="relative">
-              <span className="relative z-10">Yard Sales</span>
-              <span className="absolute bottom-1 left-0 w-full h-3 bg-ys-500/40 rounded-sm -z-0" />
-            </span>{" "}
-            Near You
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
+            Discover Yard Sales
+            <span className="block text-ys-200">
+              In Your Neighborhood
+            </span>
           </h1>
-
-          <p className="mt-5 text-lg sm:text-xl text-ys-200 max-w-2xl mx-auto leading-relaxed">
-            Find hidden treasures in your neighborhood. Post your sale for free and
-            reach thousands of local buyers.
+          <p className="mt-4 text-lg md:text-xl text-ys-100 max-w-2xl mx-auto">
+            Find incredible deals at yard sales near you. Post your own
+            sale and reach hundreds of local shoppers.
           </p>
-
           <form
             onSubmit={handleSearch}
-            className="mt-10 max-w-2xl mx-auto bg-white rounded-2xl p-2 shadow-2xl flex flex-col sm:flex-row gap-2"
+            className="mt-8 max-w-2xl mx-auto flex gap-2"
           >
-            <div className="flex items-center gap-3 flex-1 px-4 py-3">
-              <i className="fa-solid fa-magnifying-glass text-ys-600" />
+            <div className="flex-1 relative">
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
+                ref={searchInputRef}
                 type="text"
-                placeholder="What are you looking for?"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 bg-transparent text-gray-900 placeholder:text-gray-400 outline-none text-base"
+                placeholder={
+                  city
+                    ? `Search sales near ${city}...`
+                    : "Search by city, keyword, or category..."
+                }
+                className="w-full pl-11 pr-4 py-4 rounded-xl text-gray-900 bg-white shadow-xl focus:outline-none focus:ring-4 focus:ring-ys-300 text-base"
               />
             </div>
             <button
               type="submit"
-              className="bg-ys-800 hover:bg-ys-900 text-white font-semibold px-8 py-3.5 rounded-xl transition-all hover:shadow-lg shrink-0"
+              className="px-8 py-4 bg-ys-500 hover:bg-ys-400 text-white font-semibold rounded-xl shadow-xl transition-all duration-200 hover:shadow-2xl"
             >
-              Search Sales
+              Search
             </button>
           </form>
-
-          <div className="mt-14 flex flex-wrap justify-center gap-x-12 gap-y-4">
-            {[
-              ["10,000+", "Listings Posted"],
-              ["500+", "Cities Covered"],
-              ["50,000+", "Happy Shoppers"],
-            ].map(([num, label]) => (
-              <div key={label} className="text-center">
-                <div className="text-2xl sm:text-3xl font-extrabold">{num}</div>
-                <div className="text-sm text-ys-300 mt-0.5">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ━━━━━ CATEGORIES ━━━━━ */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">Browse by Category</h2>
-            <p className="text-gray-500 mt-2">Find exactly what you&apos;re looking for</p>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {CATEGORIES.map((cat) => (
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {CATEGORIES.slice(0, 6).map((cat) => (
               <Link
                 key={cat.name}
-                href={`/browse?category=${encodeURIComponent(cat.name)}`}
-                className="group flex flex-col items-center gap-3 p-5 bg-ys-50 border border-ys-100 rounded-2xl hover:border-ys-400 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                href={`/browse?category=${encodeURIComponent(
+                  cat.name
+                )}`}
+                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 rounded-full px-3 py-1.5 text-sm transition-all duration-200"
               >
-                <span className="text-3xl group-hover:scale-110 transition-transform duration-300">
-                  {cat.emoji}
-                </span>
-                <span className="text-sm font-semibold text-gray-800 group-hover:text-ys-800 transition-colors">
-                  {cat.name}
-                </span>
+                {cat.emoji} {cat.name}
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ━━━━━ RECENT LISTINGS ━━━━━ */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-end justify-between mb-10">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900">Recently Posted</h2>
-              <p className="text-gray-500 mt-1">Fresh finds from your community</p>
-            </div>
-            <Link
-              href="/browse"
-              className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-ys-800 hover:text-ys-900 transition"
-            >
-              View all <i className="fa-solid fa-arrow-right text-xs" />
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
-                  <div className="aspect-[4/3] bg-gray-200" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-5 bg-gray-200 rounded w-1/4" />
-                    <div className="h-3 bg-gray-200 rounded w-1/2" />
+      {/* Nearby Listings */}
+      {!locationLoading && city && (
+        <section className="max-w-6xl mx-auto px-4 py-14">
+          {isNearby ? (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    <i className="fa-solid fa-location-dot text-ys-600 mr-2" />
+                    Near You in {city}, {region}
+                  </h2>
+                  <p className="text-gray-500 text-sm mt-1">
+                    Yard sales happening in your area
+                  </p>
+                </div>
+                <Link
+                  href={`/browse?search=${encodeURIComponent(
+                    city
+                  )}`}
+                  className="text-ys-700 hover:text-ys-800 font-semibold text-sm"
+                >
+                  View All →
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {nearbyListings.map((l: any) => (
+                  <ListingCard key={l.id} listing={l} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-6">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <i className="fa-solid fa-location-crosshairs text-amber-600 text-lg" />
+                    <div>
+                      <p className="font-semibold text-amber-800">
+                        No yard sales near {city} yet
+                      </p>
+                      <p className="text-amber-600 text-sm">
+                        Here are some sales from other areas — be
+                        the first to post in your neighborhood!
+                      </p>
+                    </div>
+                    <Link
+                      href="/post"
+                      className="ml-auto px-4 py-2 bg-ys-600 text-white rounded-lg text-sm font-semibold hover:bg-ys-700 transition whitespace-nowrap"
+                    >
+                      Post a Sale
+                    </Link>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : listings.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {listings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
-              <div className="w-20 h-20 bg-ys-100 rounded-full flex items-center justify-center mx-auto mb-5">
-                <i className="fa-solid fa-tag text-3xl text-ys-600" />
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Sales From Other Areas
+                </h2>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                No listings yet &mdash; be the first!
-              </h3>
-              <p className="text-gray-500 mb-6 max-w-md mx-auto">
-                Your community is waiting. Post your yard sale and start reaching local buyers today.
-              </p>
-              <Link
-                href="/post"
-                className="inline-flex items-center gap-2 bg-ys-800 hover:bg-ys-900 text-white px-6 py-3 rounded-full font-semibold transition-all hover:shadow-lg"
-              >
-                <i className="fa-solid fa-plus text-sm" /> Post Your First Sale
-              </Link>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {nearbyListings.map((l: any) => (
+                  <ListingCard key={l.id} listing={l} />
+                ))}
+              </div>
+            </>
           )}
+        </section>
+      )}
 
-          {listings.length > 0 && (
-            <div className="mt-8 text-center sm:hidden">
-              <Link
-                href="/browse"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-ys-800 hover:text-ys-900 transition"
-              >
-                View all listings <i className="fa-solid fa-arrow-right text-xs" />
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ━━━━━ BOOST YOUR SALE CTA ━━━━━ */}
-      <section className="py-16 bg-gradient-to-r from-amber-50 to-orange-50 border-y border-amber-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 rounded-full px-4 py-1.5 text-sm font-semibold mb-6">
-            <i className="fa-solid fa-rocket text-xs" />
-            New Feature
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
-            Boost Your Sale to the Top 🚀
+      {/* Recently Posted */}
+      <section className="max-w-6xl mx-auto px-4 py-14">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">
+            Recently Posted
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-4">
-            Want more buyers at your yard sale? Boosted listings appear{" "}
-            <strong>first in search results</strong> and get up to{" "}
-            <strong>10x more views</strong>.
-          </p>
-          <p className="text-3xl font-extrabold text-amber-600 mb-8">
-            Just $2.99
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link
+            href="/browse"
+            className="text-ys-700 hover:text-ys-800 font-semibold text-sm"
+          >
+            Browse All →
+          </Link>
+        </div>
+        {loadingListings ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-gray-100 rounded-2xl h-72 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : recentListings.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {recentListings.map((l: any) => (
+              <ListingCard key={l.id} listing={l} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 bg-gray-50 rounded-2xl">
+            <i className="fa-solid fa-store text-4xl text-gray-300 mb-3" />
+            <p className="text-gray-500">
+              No yard sales posted yet. Be the first!
+            </p>
             <Link
               href="/post"
-              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-8 py-3.5 rounded-full font-bold transition-all hover:shadow-lg"
+              className="mt-4 inline-block px-6 py-3 bg-ys-600 text-white rounded-lg font-semibold hover:bg-ys-700 transition"
             >
-              <i className="fa-solid fa-plus text-sm" />
-              Post &amp; Boost a Sale
+              Post a Sale
+            </Link>
+          </div>
+        )}
+      </section>
+
+      {/* Boost CTA */}
+      <section className="bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border-y border-amber-100">
+        <div className="max-w-6xl mx-auto px-4 py-14 text-center">
+          <span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full mb-4">
+            New Feature
+          </span>
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
+            Boost Your Sale to the Top 🚀
+          </h2>
+          <p className="text-gray-600 mb-2">
+            Get 10x more views and appear first in search results.
+          </p>
+          <p className="text-2xl font-bold text-ys-800 mb-6">
+            Just $2.99
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
+            <Link
+              href="/post"
+              className="px-8 py-3 bg-ys-600 text-white rounded-xl font-semibold hover:bg-ys-700 transition shadow-md"
+            >
+              Post & Boost a Sale
             </Link>
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 text-amber-700 hover:text-amber-900 font-semibold transition"
+              className="px-8 py-3 bg-white text-ys-700 border-2 border-ys-200 rounded-xl font-semibold hover:border-ys-400 transition"
             >
-              Boost an existing listing <i className="fa-solid fa-arrow-right text-xs" />
+              Boost an existing listing
             </Link>
           </div>
-
-          <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
             {[
-              { icon: "fa-solid fa-arrow-up-wide-short", title: "Top Placement", text: "Always appears first in browse & search" },
-              { icon: "fa-solid fa-eye", title: "10x More Views", text: "Stand out with a highlighted listing" },
-              { icon: "fa-solid fa-bolt", title: "Instant Activation", text: "Goes live the moment you pay" },
-            ].map((item) => (
-              <div key={item.title} className="flex flex-col items-center gap-2 p-4">
-                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                  <i className={`${item.icon} text-amber-700`} />
-                </div>
-                <h4 className="font-bold text-gray-900 text-sm">{item.title}</h4>
-                <p className="text-xs text-gray-500">{item.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ━━━━━ HOW IT WORKS ━━━━━ */}
-      <section id="how-it-works" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold text-gray-900">How YardShoppers Works</h2>
-            <p className="text-gray-500 mt-2">Three simple steps to treasure hunting</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            {STEPS.map((step, i) => (
+              {
+                icon: "fa-arrow-up",
+                label: "Top Placement",
+                sub: "Appear first in results",
+              },
+              {
+                icon: "fa-eye",
+                label: "10x More Views",
+                sub: "Maximum visibility",
+              },
+              {
+                icon: "fa-bolt",
+                label: "Instant Activation",
+                sub: "Goes live immediately",
+              },
+            ].map((b) => (
               <div
-                key={step.title}
-                className="relative text-center p-8 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                key={b.label}
+                className="bg-white rounded-xl p-4 shadow-sm border border-amber-100"
               >
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-ys-800 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-md">
-                  {i + 1}
-                </div>
-                <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center mx-auto mb-5 mt-2">
-                  <i className={`${step.icon} text-xl text-ys-700`} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{step.text}</p>
+                <i
+                  className={`fa-solid ${b.icon} text-amber-500 text-xl mb-2`}
+                />
+                <p className="font-semibold text-gray-900 text-sm">
+                  {b.label}
+                </p>
+                <p className="text-gray-500 text-xs">{b.sub}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ━━━━━ TRUST SIGNALS ━━━━━ */}
-      <section className="py-16 bg-ys-50 border-y border-ys-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {TRUST.map((item) => (
-              <div key={item.title} className="flex flex-col items-center text-center gap-3 p-6">
-                <div className="w-12 h-12 bg-ys-200 rounded-full flex items-center justify-center">
-                  <i className={`${item.icon} text-lg text-ys-800`} />
+      {/* How YardShoppers Works — NOW INTERACTIVE */}
+      <section className="max-w-6xl mx-auto px-4 py-14">
+        <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
+          How YardShoppers Works
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {STEPS.map((step, i) => (
+            <button
+              key={step.title}
+              onClick={() => handleStepClick(step.action)}
+              className="bg-white border border-gray-100 rounded-2xl p-8 text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
+            >
+              <div className="w-16 h-16 bg-ys-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-ys-100 transition-colors">
+                <i
+                  className={`fa-solid ${step.icon} text-2xl text-ys-700`}
+                />
+              </div>
+              <div className="text-xs font-bold text-ys-600 mb-1">
+                Step {i + 1}
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {step.title}
+              </h3>
+              <p className="text-gray-500 text-sm">{step.desc}</p>
+              <span className="inline-block mt-3 text-ys-700 text-sm font-semibold group-hover:underline">
+                {step.action === "search"
+                  ? "Go to Search →"
+                  : step.action === "save"
+                  ? "Browse Sales →"
+                  : "Sales Near You →"}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Trust Signals */}
+      <section className="bg-gray-50 border-t border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            {[
+              { val: "100%", label: "Free to Browse" },
+              { val: "📍", label: "Location Based" },
+              { val: "⚡", label: "Instant Posting" },
+              { val: "🔒", label: "Secure & Private" },
+            ].map((t) => (
+              <div key={t.label}>
+                <div className="text-2xl font-extrabold text-ys-700">
+                  {t.val}
                 </div>
-                <div>
-                  <h4 className="font-bold text-gray-900">{item.title}</h4>
-                  <p className="text-sm text-gray-500 mt-0.5">{item.text}</p>
-                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t.label}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

@@ -30,10 +30,12 @@ function BrowseContent() {
   const searchParams = useSearchParams();
 
   const initialSearch = searchParams.get("search") || "";
-  const initialCategory = searchParams.get("category") || "All";
+  const initialCategory = searchParams.get("category") || "";
 
   const [search, setSearch] = useState(initialSearch);
-  const [activeCategory, setActiveCategory] = useState(initialCategory);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initialCategory ? [initialCategory] : []
+  );
   const [sort, setSort] = useState<SortOption>("newest");
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,6 @@ function BrowseContent() {
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
-
     let query = supabase
       .from("listings")
       .select("*, listing_photos(*)", { count: "exact" });
@@ -52,216 +53,186 @@ function BrowseContent() {
       );
     }
 
-    if (activeCategory !== "All") {
-      query = query.eq("category", activeCategory);
+    if (selectedCategories.length === 1) {
+      query = query.or(
+        `category.eq.${selectedCategories[0]},categories.cs.{${selectedCategories[0]}}`
+      );
+    } else if (selectedCategories.length > 1) {
+      query = query.overlaps("categories", selectedCategories);
     }
 
-    // Boosted listings always appear first, then sort by date
     query = query
       .order("is_boosted", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: sort === "oldest" });
 
     const { data, count } = await query.limit(24);
-
     setListings(data || []);
     setTotalCount(count || 0);
     setLoading(false);
-  }, [search, activeCategory, sort]);
+  }, [search, selectedCategories, sort]);
 
   useEffect(() => {
     fetchListings();
   }, [fetchListings]);
 
-  function updateURL(newSearch: string, newCategory: string) {
+  function updateURL(newSearch: string, cats: string[]) {
     const params = new URLSearchParams();
     if (newSearch.trim()) params.set("search", newSearch.trim());
-    if (newCategory !== "All") params.set("category", newCategory);
-    router.replace(`/browse${params.toString() ? `?${params}` : ""}`, {
-      scroll: false,
-    });
+    if (cats.length === 1) params.set("category", cats[0]);
+    router.replace(
+      `/browse${params.toString() ? `?${params}` : ""}`,
+      { scroll: false }
+    );
   }
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    updateURL(search, activeCategory);
+    updateURL(search, selectedCategories);
   }
 
-  function handleCategoryClick(cat: string) {
-    setActiveCategory(cat);
-    updateURL(search, cat);
+  function toggleCategory(cat: string) {
+    if (cat === "All") {
+      setSelectedCategories([]);
+      updateURL(search, []);
+      return;
+    }
+    const updated = selectedCategories.includes(cat)
+      ? selectedCategories.filter((c) => c !== cat)
+      : [...selectedCategories, cat];
+    setSelectedCategories(updated);
+    updateURL(search, updated);
   }
 
   function clearFilters() {
     setSearch("");
-    setActiveCategory("All");
+    setSelectedCategories([]);
     setSort("newest");
     router.replace("/browse", { scroll: false });
   }
 
-  const hasFilters = search.trim() || activeCategory !== "All";
+  const hasFilters =
+    search.trim() || selectedCategories.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Bar */}
       <div className="bg-white border-b border-gray-200 sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-            <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-              <div className="flex items-center flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 gap-2 focus-within:border-ys-600 focus-within:ring-2 focus-within:ring-ys-600/20 transition-all">
-                <i className="fa-solid fa-magnifying-glass text-gray-400 text-sm" />
-                <input
-                  type="text"
-                  placeholder="Search by keyword, city, or item..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 outline-none"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch("");
-                      updateURL("", activeCategory);
-                    }}
-                    className="text-gray-400 hover:text-gray-600 transition"
-                  >
-                    <i className="fa-solid fa-xmark text-xs" />
-                  </button>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="bg-ys-800 hover:bg-ys-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shrink-0"
-              >
-                Search
-              </button>
-            </form>
-
-            <div className="flex items-center gap-3">
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortOption)}
-                className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-ys-600 transition cursor-pointer"
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-              </select>
-
-              {hasFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="text-sm text-gray-500 hover:text-red-500 transition whitespace-nowrap"
-                >
-                  <i className="fa-solid fa-xmark mr-1" />
-                  Clear all
-                </button>
-              )}
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <form
+            onSubmit={handleSearch}
+            className="flex gap-2 mb-3"
+          >
+            <div className="flex-1 relative">
+              <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by keyword, city, or item..."
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-ys-500 focus:border-transparent text-sm"
+              />
             </div>
-          </div>
+            <select
+              value={sort}
+              onChange={(e) =>
+                setSort(e.target.value as SortOption)
+              }
+              className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ys-500"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+            </select>
+          </form>
 
-          {/* Category Pills */}
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => handleCategoryClick(cat)}
-                className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                  activeCategory === cat
-                    ? "bg-ys-800 text-white border-ys-800 shadow-sm"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-ys-600 hover:text-ys-800"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+          {/* Multi-Select Category Pills */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <button
+              onClick={() => toggleCategory("All")}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                selectedCategories.length === 0
+                  ? "bg-ys-700 text-white shadow-sm"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              All
+            </button>
+            {CATEGORIES.filter((c) => c !== "All").map(
+              (cat) => (
+                <button
+                  key={cat}
+                  onClick={() => toggleCategory(cat)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                    selectedCategories.includes(cat)
+                      ? "bg-ys-700 text-white shadow-sm"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {cat}
+                  {selectedCategories.includes(cat) && (
+                    <span className="ml-1">✕</span>
+                  )}
+                </button>
+              )
+            )}
           </div>
         </div>
       </div>
 
       {/* Results */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-500">
-            {loading ? (
-              "Searching..."
-            ) : (
-              <>
-                <span className="font-semibold text-gray-900">{totalCount}</span>{" "}
-                {totalCount === 1 ? "listing" : "listings"} found
-                {activeCategory !== "All" && (
-                  <span className="ml-1">
-                    in{" "}
-                    <span className="font-medium text-ys-800">
-                      {activeCategory}
-                    </span>
-                  </span>
-                )}
-                {search.trim() && (
-                  <span className="ml-1">
-                    for &ldquo;
-                    <span className="font-medium text-ys-800">
-                      {search.trim()}
-                    </span>
-                    &rdquo;
-                  </span>
-                )}
-              </>
+            {loading
+              ? "Searching..."
+              : `${totalCount} sale${
+                  totalCount !== 1 ? "s" : ""
+                } found`}
+            {selectedCategories.length > 0 && (
+              <span className="ml-1 text-ys-700 font-medium">
+                in {selectedCategories.join(", ")}
+              </span>
             )}
           </p>
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-sm text-ys-700 hover:text-ys-800 font-medium"
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {Array.from({ length: 8 }).map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse"
-              >
-                <div className="aspect-[4/3] bg-gray-200" />
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-gray-200 rounded w-3/4" />
-                  <div className="h-5 bg-gray-200 rounded w-1/4" />
-                  <div className="h-3 bg-gray-200 rounded w-1/2" />
-                </div>
-              </div>
+                className="bg-white rounded-2xl h-72 animate-pulse border border-gray-100"
+              />
             ))}
           </div>
         ) : listings.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {listings.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
           </div>
         ) : (
           <div className="text-center py-20">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
-              <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No listings found
+            <i className="fa-solid fa-magnifying-glass text-4xl text-gray-300 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+              No sales found
             </h3>
-            <p className="text-gray-500 mb-6 max-w-md mx-auto">
-              {hasFilters
-                ? "Try adjusting your search or filters to find what you're looking for."
-                : "Be the first to post a yard sale in your area!"}
+            <p className="text-gray-500 text-sm mb-4">
+              Try adjusting your search or category filters
             </p>
-            <div className="flex items-center justify-center gap-3">
-              {hasFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="px-5 py-2.5 border border-gray-200 rounded-full text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
-                >
-                  Clear Filters
-                </button>
-              )}
-              <a
-                href="/post"
-                className="px-5 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full text-sm font-semibold transition-all"
-              >
-                <i className="fa-solid fa-plus mr-1.5" />
-                Post a Sale
-              </a>
-            </div>
+            <button
+              onClick={clearFilters}
+              className="px-6 py-2.5 bg-ys-600 text-white rounded-lg font-semibold hover:bg-ys-700 transition"
+            >
+              Clear All Filters
+            </button>
           </div>
         )}
       </div>
@@ -273,8 +244,8 @@ export default function BrowsePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center text-gray-500">
-          Loading listings...
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ys-600" />
         </div>
       }
     >

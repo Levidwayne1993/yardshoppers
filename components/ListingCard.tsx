@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import CountdownTimer from "./CountdownTimer";
 
 interface ListingCardProps {
   listing: {
@@ -13,6 +14,7 @@ interface ListingCardProps {
     city?: string;
     state?: string;
     category?: string;
+    categories?: string[];
     sale_date?: string;
     sale_time_start?: string;
     sale_time_end?: string;
@@ -30,15 +32,23 @@ export default function ListingCard({ listing }: ListingCardProps) {
       ? listing.listing_photos[0].photo_url
       : null;
 
-  const location = [listing.city, listing.state].filter(Boolean).join(", ");
+  const location = [listing.city, listing.state]
+    .filter(Boolean)
+    .join(", ");
 
   const saleDay = listing.sale_date
-    ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      })
+    ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString(
+        "en-US",
+        { weekday: "short", month: "short", day: "numeric" }
+      )
     : null;
+
+  const displayCategories: string[] =
+    listing.categories && listing.categories.length > 0
+      ? listing.categories
+      : listing.category
+      ? [listing.category]
+      : [];
 
   function badgeColor(cat: string) {
     const colors: Record<string, string> = {
@@ -68,7 +78,6 @@ export default function ListingCard({ listing }: ListingCardProps) {
             : "border border-gray-100"
         }`}
       >
-        {/* Image */}
         <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
           {photo ? (
             <Image
@@ -87,25 +96,32 @@ export default function ListingCard({ listing }: ListingCardProps) {
             </div>
           )}
 
-          {/* Category Badge */}
-          {listing.category && (
-            <span
-              className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${badgeColor(
-                listing.category
-              )}`}
-            >
-              {listing.category}
-            </span>
+          {displayCategories.length > 0 && (
+            <div className="absolute top-3 left-3 flex flex-wrap gap-1 max-w-[70%]">
+              {displayCategories.slice(0, 3).map((cat) => (
+                <span
+                  key={cat}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${badgeColor(
+                    cat
+                  )}`}
+                >
+                  {cat}
+                </span>
+              ))}
+              {displayCategories.length > 3 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600">
+                  +{displayCategories.length - 3}
+                </span>
+              )}
+            </div>
           )}
 
-          {/* Boosted Badge */}
           {listing.is_boosted && (
-            <span className="absolute top-3 left-3 mt-8 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+            <span className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
               🚀 Boosted
             </span>
           )}
 
-          {/* Save Button */}
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -119,26 +135,31 @@ export default function ListingCard({ listing }: ListingCardProps) {
             }`}
             aria-label={saved ? "Unsave" : "Save"}
           >
-            <i className={`${saved ? "fa-solid" : "fa-regular"} fa-heart text-sm`} />
+            <i
+              className={`${
+                saved ? "fa-solid" : "fa-regular"
+              } fa-heart text-sm`}
+            />
           </button>
 
-          {/* Photo Count */}
-          {listing.listing_photos && listing.listing_photos.length > 1 && (
-            <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">
-              <i className="fa-solid fa-images text-[10px]" />
-              {listing.listing_photos.length}
-            </div>
-          )}
+          {listing.listing_photos &&
+            listing.listing_photos.length > 1 && (
+              <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">
+                <i className="fa-solid fa-images text-[10px]" />
+                {listing.listing_photos.length}
+              </div>
+            )}
         </div>
 
-        {/* Info */}
         <div className="p-4">
           <h3 className="font-semibold text-gray-900 text-[15px] leading-snug line-clamp-2 group-hover:text-ys-800 transition-colors">
             {listing.title}
           </h3>
 
           {listing.price && (
-            <p className="text-ys-800 font-bold text-lg mt-1.5">{listing.price}</p>
+            <p className="text-ys-800 font-bold text-lg mt-1.5">
+              {listing.price}
+            </p>
           )}
 
           <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2.5 text-xs text-gray-500">
@@ -156,13 +177,13 @@ export default function ListingCard({ listing }: ListingCardProps) {
             )}
           </div>
 
-          {listing.sale_time_start && (
-            <div className="mt-2 text-xs text-gray-400">
-              <i className="fa-regular fa-clock mr-1" />
-              {listing.sale_time_start}
-              {listing.sale_time_end ? ` – ${listing.sale_time_end}` : ""}
-            </div>
-          )}
+          <div className="mt-2">
+            <CountdownTimer
+              saleDate={listing.sale_date}
+              saleTimeStart={listing.sale_time_start}
+              saleTimeEnd={listing.sale_time_end}
+            />
+          </div>
         </div>
       </div>
     </Link>

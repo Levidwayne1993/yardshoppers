@@ -42,7 +42,7 @@ export default function PostPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -121,8 +121,8 @@ export default function PostPage() {
     e.preventDefault();
     setError("");
 
-    if (!title.trim() || !category || !city.trim() || !state.trim()) {
-      setError("Please fill in all required fields.");
+    if (!title.trim() || categories.length === 0 || !city.trim() || !state.trim()) {
+      setError("Please fill in all required fields (including at least one category).");
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -137,7 +137,8 @@ export default function PostPage() {
           title: title.trim(),
           description: description.trim(),
           price: price.trim(),
-          category,
+          category: categories[0] || "Other",
+          categories,
           address: address.trim(),
           city: city.trim(),
           state: state.trim().toUpperCase(),
@@ -239,37 +240,51 @@ export default function PostPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Price Range
-                </label>
-                <input
-                  type="text"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="e.g. $5 – $200"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-ys-600 focus:ring-2 focus:ring-ys-600/20 transition-all outline-none"
-                />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Price Range
+              </label>
+              <input
+                type="text"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="e.g. $5 – $200"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-ys-600 focus:ring-2 focus:ring-ys-600/20 transition-all outline-none"
+              />
+            </div>
+
+            {/* Multi-Category Select */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Categories <span className="text-red-500">*</span>
+                <span className="text-xs font-normal text-gray-400 ml-1">(select all that apply)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() =>
+                      setCategories((prev) =>
+                        prev.includes(cat)
+                          ? prev.filter((c) => c !== cat)
+                          : [...prev, cat]
+                      )
+                    }
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      categories.includes(cat)
+                        ? "bg-ys-700 text-white shadow-sm"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {cat}
+                    {categories.includes(cat) && <span className="ml-1">✕</span>}
+                  </button>
+                ))}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Category <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-ys-600 focus:ring-2 focus:ring-ys-600/20 transition-all outline-none bg-white cursor-pointer"
-                  required
-                >
-                  <option value="">Select a category</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {categories.length === 0 && (
+                <p className="text-xs text-gray-400 mt-1">Pick at least one category</p>
+              )}
             </div>
           </div>
 
@@ -492,7 +507,7 @@ export default function PostPage() {
       {/* ━━━ BOOST MODAL ━━━ */}
       {showBoostModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center animate-in fade-in zoom-in duration-300">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
             {/* Success check */}
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
               <i className="fa-solid fa-check text-3xl text-emerald-600" />
