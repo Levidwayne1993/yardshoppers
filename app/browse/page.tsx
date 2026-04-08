@@ -56,9 +56,10 @@ function BrowseContent() {
       query = query.eq("category", activeCategory);
     }
 
-    query = query.order("created_at", {
-      ascending: sort === "oldest",
-    });
+    // Boosted listings always appear first, then sort by date
+    query = query
+      .order("is_boosted", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: sort === "oldest" });
 
     const { data, count } = await query.limit(24);
 

@@ -17,6 +17,7 @@ interface ListingCardProps {
     sale_time_start?: string;
     sale_time_end?: string;
     created_at?: string;
+    is_boosted?: boolean;
     listing_photos?: { photo_url: string }[];
   };
 }
@@ -31,7 +32,6 @@ export default function ListingCard({ listing }: ListingCardProps) {
 
   const location = [listing.city, listing.state].filter(Boolean).join(", ");
 
-  /* Format the sale date nicely */
   const saleDay = listing.sale_date
     ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString("en-US", {
         weekday: "short",
@@ -40,7 +40,6 @@ export default function ListingCard({ listing }: ListingCardProps) {
       })
     : null;
 
-  /* Badge color by category */
   function badgeColor(cat: string) {
     const colors: Record<string, string> = {
       Furniture: "bg-amber-100 text-amber-800",
@@ -62,7 +61,13 @@ export default function ListingCard({ listing }: ListingCardProps) {
 
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+      <div
+        className={`bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+          listing.is_boosted
+            ? "border-2 border-amber-300 shadow-md"
+            : "border border-gray-100"
+        }`}
+      >
         {/* Image */}
         <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
           {photo ? (
@@ -90,6 +95,13 @@ export default function ListingCard({ listing }: ListingCardProps) {
               )}`}
             >
               {listing.category}
+            </span>
+          )}
+
+          {/* Boosted Badge */}
+          {listing.is_boosted && (
+            <span className="absolute top-3 left-3 mt-8 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+              🚀 Boosted
             </span>
           )}
 
@@ -125,12 +137,10 @@ export default function ListingCard({ listing }: ListingCardProps) {
             {listing.title}
           </h3>
 
-          {/* Price */}
           {listing.price && (
             <p className="text-ys-800 font-bold text-lg mt-1.5">{listing.price}</p>
           )}
 
-          {/* Location & Date */}
           <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2.5 text-xs text-gray-500">
             {location && (
               <span className="flex items-center gap-1">
@@ -146,7 +156,6 @@ export default function ListingCard({ listing }: ListingCardProps) {
             )}
           </div>
 
-          {/* Time */}
           {listing.sale_time_start && (
             <div className="mt-2 text-xs text-gray-400">
               <i className="fa-regular fa-clock mr-1" />
