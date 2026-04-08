@@ -44,13 +44,11 @@ const STEPS = [
 
 /* ── Trust signals ─────────────────────────── */
 const TRUST = [
-  { icon: "fa-solid fa-dollar-sign", title: "100% Free", text: "Post and browse — always free" },
+  { icon: "fa-solid fa-dollar-sign", title: "100% Free", text: "Post and browse – always free" },
   { icon: "fa-solid fa-shield-halved", title: "Safe & Local", text: "Verified community sellers" },
   { icon: "fa-solid fa-bolt", title: "Instant Post", text: "Live in under 60 seconds" },
   { icon: "fa-solid fa-earth-americas", title: "Nationwide", text: "Every city, every state" },
 ];
-
-/* ═══════════════════════════════════════════ */
 
 export default function HomePage() {
   const supabase = createClient();
@@ -64,9 +62,9 @@ export default function HomePage() {
       const { data } = await supabase
         .from("listings")
         .select("*, listing_photos(*)")
+        .order("is_boosted", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(6);
-
       setListings(data || []);
       setLoading(false);
     }
@@ -84,18 +82,15 @@ export default function HomePage() {
     <>
       {/* ━━━━━ HERO ━━━━━ */}
       <section className="relative overflow-hidden bg-gradient-to-br from-ys-900 via-ys-800 to-ys-700 text-white">
-        {/* Decorative blobs */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-ys-600/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-ys-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-24 text-center">
-          {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-5 py-2 text-sm font-medium mb-8 backdrop-blur-sm">
             <span className="w-2 h-2 bg-ys-400 rounded-full animate-pulse" />
             The #1 Yard Sale Marketplace
           </div>
 
-          {/* Headline */}
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight tracking-tight max-w-3xl mx-auto">
             Discover Amazing{" "}
             <span className="relative">
@@ -110,7 +105,6 @@ export default function HomePage() {
             reach thousands of local buyers.
           </p>
 
-          {/* Search Card */}
           <form
             onSubmit={handleSearch}
             className="mt-10 max-w-2xl mx-auto bg-white rounded-2xl p-2 shadow-2xl flex flex-col sm:flex-row gap-2"
@@ -133,7 +127,6 @@ export default function HomePage() {
             </button>
           </form>
 
-          {/* Stats */}
           <div className="mt-14 flex flex-wrap justify-center gap-x-12 gap-y-4">
             {[
               ["10,000+", "Listings Posted"],
@@ -193,7 +186,6 @@ export default function HomePage() {
           </div>
 
           {loading ? (
-            /* Loading skeleton */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
@@ -207,20 +199,18 @@ export default function HomePage() {
               ))}
             </div>
           ) : listings.length > 0 ? (
-            /* Real listings */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {listings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}
             </div>
           ) : (
-            /* Empty state */
             <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
               <div className="w-20 h-20 bg-ys-100 rounded-full flex items-center justify-center mx-auto mb-5">
                 <i className="fa-solid fa-tag text-3xl text-ys-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                No listings yet — be the first!
+                No listings yet &mdash; be the first!
               </h3>
               <p className="text-gray-500 mb-6 max-w-md mx-auto">
                 Your community is waiting. Post your yard sale and start reaching local buyers today.
@@ -234,7 +224,6 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Mobile "View all" link */}
           {listings.length > 0 && (
             <div className="mt-8 text-center sm:hidden">
               <Link
@@ -245,6 +234,59 @@ export default function HomePage() {
               </Link>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ━━━━━ BOOST YOUR SALE CTA ━━━━━ */}
+      <section className="py-16 bg-gradient-to-r from-amber-50 to-orange-50 border-y border-amber-100">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 rounded-full px-4 py-1.5 text-sm font-semibold mb-6">
+            <i className="fa-solid fa-rocket text-xs" />
+            New Feature
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
+            Boost Your Sale to the Top 🚀
+          </h2>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-4">
+            Want more buyers at your yard sale? Boosted listings appear{" "}
+            <strong>first in search results</strong> and get up to{" "}
+            <strong>10x more views</strong>.
+          </p>
+          <p className="text-3xl font-extrabold text-amber-600 mb-8">
+            Just $2.99
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/post"
+              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-8 py-3.5 rounded-full font-bold transition-all hover:shadow-lg"
+            >
+              <i className="fa-solid fa-plus text-sm" />
+              Post &amp; Boost a Sale
+            </Link>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 text-amber-700 hover:text-amber-900 font-semibold transition"
+            >
+              Boost an existing listing <i className="fa-solid fa-arrow-right text-xs" />
+            </Link>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+            {[
+              { icon: "fa-solid fa-arrow-up-wide-short", title: "Top Placement", text: "Always appears first in browse & search" },
+              { icon: "fa-solid fa-eye", title: "10x More Views", text: "Stand out with a highlighted listing" },
+              { icon: "fa-solid fa-bolt", title: "Instant Activation", text: "Goes live the moment you pay" },
+            ].map((item) => (
+              <div key={item.title} className="flex flex-col items-center gap-2 p-4">
+                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                  <i className={`${item.icon} text-amber-700`} />
+                </div>
+                <h4 className="font-bold text-gray-900 text-sm">{item.title}</h4>
+                <p className="text-xs text-gray-500">{item.text}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -262,7 +304,6 @@ export default function HomePage() {
                 key={step.title}
                 className="relative text-center p-8 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
               >
-                {/* Step number */}
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-ys-800 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-md">
                   {i + 1}
                 </div>

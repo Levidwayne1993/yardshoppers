@@ -63,6 +63,15 @@ export default function Navbar() {
           >
             How It Works
           </a>
+          {!loading && user && (
+            <Link
+              href="/dashboard"
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-ys-800 rounded-lg hover:bg-ys-50 transition-all flex items-center gap-1.5"
+            >
+              <i className="fa-solid fa-user text-xs" />
+              My Account
+            </Link>
+          )}
         </div>
 
         {/* Desktop Buttons */}
@@ -137,6 +146,14 @@ export default function Navbar() {
               <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
             ) : user ? (
               <>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-ys-800 hover:bg-ys-50 rounded-lg transition"
+                >
+                  <i className="fa-solid fa-user text-xs" />
+                  My Account
+                </Link>
                 <Link
                   href="/post"
                   onClick={() => setOpen(false)}
