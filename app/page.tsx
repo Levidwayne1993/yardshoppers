@@ -53,7 +53,6 @@ export default function HomePage() {
     getUser();
   }, []);
 
-  // When user picks a distance filter, request precise GPS
   function handleDistanceChange(value: number) {
     setDistance(value);
     if (value < 999) {
@@ -216,7 +215,32 @@ export default function HomePage() {
           </div>
         )}
 
-        <section className="mt-16 bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 rounded-3xl p-8 sm:p-10 text-center">
+        {/* Route Planner CTA */}
+        <section className="mt-12 bg-gradient-to-r from-ys-50 to-emerald-50 border border-ys-200 rounded-3xl p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row items-center gap-5">
+            <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center shrink-0">
+              <i className="fa-solid fa-route text-2xl text-ys-700" aria-hidden="true" />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">
+                Plan Your Route
+              </h2>
+              <p className="text-sm text-gray-600">
+                Hit multiple sales in one trip. Map out the most efficient route
+                and never miss a deal on your way.
+              </p>
+            </div>
+            <Link
+              href="/route-planner"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-ys-700 hover:bg-ys-800 text-white rounded-full font-semibold text-sm transition-all hover:shadow-lg shrink-0"
+            >
+              <i className="fa-solid fa-map-location-dot" aria-hidden="true" />
+              Open Route Planner
+            </Link>
+          </div>
+        </section>
+
+        <section className="mt-10 bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 rounded-3xl p-8 sm:p-10 text-center">
           <div className="w-14 h-14 bg-amber-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <i className="fa-solid fa-rocket text-xl text-amber-600" aria-hidden="true" />
           </div>
@@ -233,7 +257,7 @@ export default function HomePage() {
           </Link>
         </section>
 
-        <section className="mt-16 mb-8">
+        <section className="mt-16 mb-8" id="how-it-works">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">How YardShoppers Works</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
             {[

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-300">
+    <footer className="bg-gray-900 text-gray-300 pb-16 md:pb-0">
       {/* Top CTA Band */}
       <div className="bg-gradient-to-r from-ys-900 via-ys-800 to-ys-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
@@ -44,28 +44,28 @@ export default function Footer() {
                 aria-label="Facebook"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
               >
-                <i className="fa-brands fa-facebook-f text-sm" />
+                <i className="fa-brands fa-facebook-f text-sm" aria-hidden="true" />
               </a>
               <a
                 href="#"
                 aria-label="Instagram"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
               >
-                <i className="fa-brands fa-instagram text-sm" />
+                <i className="fa-brands fa-instagram text-sm" aria-hidden="true" />
               </a>
               <a
                 href="#"
                 aria-label="Twitter"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
               >
-                <i className="fa-brands fa-x-twitter text-sm" />
+                <i className="fa-brands fa-x-twitter text-sm" aria-hidden="true" />
               </a>
               <a
                 href="#"
                 aria-label="TikTok"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
               >
-                <i className="fa-brands fa-tiktok text-sm" />
+                <i className="fa-brands fa-tiktok text-sm" aria-hidden="true" />
               </a>
             </div>
           </div>
@@ -79,6 +79,12 @@ export default function Footer() {
               <li>
                 <Link href="/browse" className="text-sm hover:text-white transition">
                   Browse Sales
+                </Link>
+              </li>
+              <li>
+                <Link href="/route-planner" className="text-sm hover:text-white transition">
+                  <i className="fa-solid fa-route mr-1.5 text-ys-500" aria-hidden="true" />
+                  Route Planner
                 </Link>
               </li>
               <li>
