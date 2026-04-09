@@ -11,7 +11,6 @@ import { useDebounce } from "@/lib/useDebounce";
 const supabase = createClient();
 
 const CATEGORIES = [
-  "All",
   "Furniture",
   "Electronics",
   "Clothing",
@@ -38,7 +37,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [sort, setSort] = useState("newest");
   const [distance, setDistance] = useState(999);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -60,6 +59,16 @@ export default function HomePage() {
     }
   }
 
+  function toggleCategory(cat: string) {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  }
+
+  function clearCategories() {
+    setSelectedCategories([]);
+  }
+
   useEffect(() => {
     async function fetchListings() {
       setLoading(true);
@@ -73,10 +82,11 @@ export default function HomePage() {
         );
       }
 
-      if (selectedCategory !== "All") {
-        query = query.or(
-          `category.eq.${selectedCategory},category.cs.{${selectedCategory}}`
-        );
+      if (selectedCategories.length > 0) {
+        const orClauses = selectedCategories
+          .map((cat) => `category.eq.${cat},category.cs.{${cat}}`)
+          .join(",");
+        query = query.or(orClauses);
       }
 
       if (distance < 999 && lat && lng) {
@@ -100,7 +110,7 @@ export default function HomePage() {
     }
 
     fetchListings();
-  }, [debouncedSearch, selectedCategory, sort, distance, lat, lng]);
+  }, [debouncedSearch, selectedCategories, sort, distance, lat, lng]);
 
   return (
     <div>
@@ -156,13 +166,23 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col gap-3 mb-6">
           <DistanceSelector value={distance} onChange={handleDistanceChange} />
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex gap-2 overflow-x-auto pb-1 items-center">
+            <button
+              onClick={clearCategories}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                selectedCategories.length === 0
+                  ? "bg-ys-800 text-white shadow-sm"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              All
+            </button>
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                onClick={() => setSelectedCategory(cat)}
+                onClick={() => toggleCategory(cat)}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                  selectedCategory === cat
+                  selectedCategories.includes(cat)
                     ? "bg-ys-800 text-white shadow-sm"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
@@ -171,6 +191,11 @@ export default function HomePage() {
               </button>
             ))}
           </div>
+          {selectedCategories.length > 1 && (
+            <p className="text-xs text-gray-500">
+              Filtering by {selectedCategories.length} categories
+            </p>
+          )}
         </div>
 
         {loading ? (

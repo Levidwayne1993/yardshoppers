@@ -6,9 +6,12 @@ import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import DistanceSelector from "@/components/DistanceSelector";
 import { useLocation } from "@/lib/useLocation";
+import { useDebounce } from "@/lib/useDebounce";
+
+const supabase = createClient();
 
 const CATEGORIES = [
-  "All", "Furniture", "Electronics", "Clothing", "Toys & Games", "Tools",
+  "Furniture", "Electronics", "Clothing", "Toys & Games", "Tools",
   "Kitchen", "Sports", "Books", "Antiques", "Garden", "Baby & Kids",
   "Vehicles", "Free Stuff",
 ];
@@ -18,15 +21,16 @@ function milesToDeg(miles: number) {
 }
 
 function BrowseContent() {
-  const supabase = createClient();
   const searchParams = useSearchParams();
-  const { city, region, lat, lng } = useLocation();
+  const { city, region, lat, lng, requestPreciseLocation } = useLocation();
 
+  const initialCategory = searchParams.get("category");
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [selectedCategory, setSelectedCategory] = useState(
-    searchParams.get("category") || "All"
+  const debouncedSearch = useDebounce(search, 300);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initialCategory && initialCategory !== "All" ? [initialCategory] : []
   );
   const [sort, setSort] = useState("newest");
   const [distance, setDistance] = useState(999);
@@ -42,23 +46,41 @@ function BrowseContent() {
     getUser();
   }, []);
 
+  function handleDistanceChange(value: number) {
+    setDistance(value);
+    if (value < 999) {
+      requestPreciseLocation();
+    }
+  }
+
+  function toggleCategory(cat: string) {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  }
+
+  function clearCategories() {
+    setSelectedCategories([]);
+  }
+
   useEffect(() => {
     async function fetchListings() {
       setLoading(true);
 
       let query = supabase.from("listings").select("*, listing_photos(*)");
 
-      if (search.trim()) {
-        const term = `%${search.trim()}%`;
+      if (debouncedSearch.trim()) {
+        const term = `%${debouncedSearch.trim()}%`;
         query = query.or(
           `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
         );
       }
 
-      if (selectedCategory !== "All") {
-        query = query.or(
-          `category.eq.${selectedCategory},category.cs.{${selectedCategory}}`
-        );
+      if (selectedCategories.length > 0) {
+        const orClauses = selectedCategories
+          .map((cat) => `category.eq.${cat},category.cs.{${cat}}`)
+          .join(",");
+        query = query.or(orClauses);
       }
 
       if (distance < 999 && lat && lng) {
@@ -82,9 +104,9 @@ function BrowseContent() {
     }
 
     fetchListings();
-  }, [search, selectedCategory, sort, distance, lat, lng]);
+  }, [debouncedSearch, selectedCategories, sort, distance, lat, lng]);
 
-  const hasFilters = search || selectedCategory !== "All" || distance < 999;
+  const hasFilters = debouncedSearch || selectedCategories.length > 0 || distance < 999;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
@@ -92,7 +114,7 @@ function BrowseContent() {
         <div className="flex flex-col gap-3">
           <div className="flex gap-3">
             <div className="flex-1 relative">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true" />
               <input
                 type="text"
                 value={search}
@@ -104,6 +126,7 @@ function BrowseContent() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
+              aria-label="Sort listings"
               className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-ys-300"
             >
               <option value="newest">Newest first</option>
@@ -111,15 +134,25 @@ function BrowseContent() {
             </select>
           </div>
 
-          <DistanceSelector value={distance} onChange={setDistance} />
+          <DistanceSelector value={distance} onChange={handleDistanceChange} />
 
-          <div className="flex gap-2 overflow-x-auto pb-1 -mb-1">
+          <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 items-center">
+            <button
+              onClick={clearCategories}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                selectedCategories.length === 0
+                  ? "bg-ys-800 text-white shadow-sm"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              All
+            </button>
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                onClick={() => setSelectedCategory(cat)}
+                onClick={() => toggleCategory(cat)}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                  selectedCategory === cat
+                  selectedCategories.includes(cat)
                     ? "bg-ys-800 text-white shadow-sm"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
@@ -128,6 +161,11 @@ function BrowseContent() {
               </button>
             ))}
           </div>
+          {selectedCategories.length > 1 && (
+            <p className="text-xs text-gray-500">
+              Filtering by {selectedCategories.length} categories
+            </p>
+          )}
         </div>
       </div>
 
@@ -139,12 +177,12 @@ function BrowseContent() {
           <button
             onClick={() => {
               setSearch("");
-              setSelectedCategory("All");
+              clearCategories();
               setDistance(999);
             }}
             className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition"
           >
-            <i className="fa-solid fa-xmark mr-1 text-xs" />
+            <i className="fa-solid fa-xmark mr-1 text-xs" aria-hidden="true" />
             Clear filters
           </button>
         </div>
@@ -163,7 +201,7 @@ function BrowseContent() {
       ) : listings.length === 0 ? (
         <div className="text-center py-20">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
-            <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" />
+            <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" aria-hidden="true" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">No sales found</h2>
           <p className="text-gray-500 mb-6">Try adjusting your search or filters.</p>
@@ -171,7 +209,7 @@ function BrowseContent() {
             <button
               onClick={() => {
                 setSearch("");
-                setSelectedCategory("All");
+                clearCategories();
                 setDistance(999);
               }}
               className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
@@ -200,7 +238,7 @@ export default function BrowsePage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center text-gray-500">
-          <i className="fa-solid fa-spinner fa-spin mr-2" />
+          <i className="fa-solid fa-spinner fa-spin mr-2" aria-hidden="true" />
           Loading...
         </div>
       }
