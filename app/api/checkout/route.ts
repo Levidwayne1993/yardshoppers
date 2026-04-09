@@ -1,53 +1,47 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { NextResponse } from "next/server";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(req: Request) {
-  const body = await req.text();
-  const sig = req.headers.get("stripe-signature")!;
+    try {
+          const { listing_id, listing_title } = await req.json();
 
-  let event: Stripe.Event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch (err: any) {
-    console.error("Webhook signature verification failed:", err.message);
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-  }
-
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const listingId = session.metadata?.listing_id;
-
-    if (listingId) {
-      const { error } = await supabase
-        .from("listings")
-        .update({
-          is_boosted: true,
-          boosted_at: new Date().toISOString(),
-        })
-        .eq("id", listingId);
-
-      if (error) {
-        console.error("Failed to boost listing:", error);
-        return NextResponse.json(
-          { error: "Database update failed" },
-          { status: 500 }
-        );
+      if (!listing_id) {
+              return NextResponse.json(
+                { error: "Missing listing_id" },
+                { status: 400 }
+                      );
       }
-    }
-  }
 
-  return NextResponse.json({ received: true });
+      const siteUrl =
+              process.env.NEXT_PUBLIC_SITE_URL || "https://www.yardshoppers.com";
+
+      const session = await stripe.checkout.sessions.create({
+              payment_method_types: ["card"],
+              line_items: [
+                {
+                            price_data: {
+                                          currency: "usd",
+                                          product_data: {
+                                                          name: `Boost: ${listing_title || "Your Listing"}`,
+                                                          description:
+                                                                            "Boosted listings appear at the top of browse results for maximum visibility.",
+                                          },
+                                          unit_amount: 299, // $2.99
+                            },
+                            quantity: 1,
+                },
+                      ],
+              mode: "payment",
+              success_url: `${siteUrl}/boost-success?listing_id=${listing_id}`,
+              cancel_url: `${siteUrl}/dashboard`,
+              metadata: { listing_id },
+      });
+
+      return NextResponse.json({ url: session.url });
+    } catch (err: any) {
+          console.error("Checkout error:", err);
+          return NextResponse.json({ error: err.message }, { status: 500 });
+    }
 }
