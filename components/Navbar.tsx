@@ -1,195 +1,187 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase-browser";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase-browser';
 
 export default function Navbar() {
   const supabase = createClient();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    async function getUser() {
-      const {
-        data: { user: u },
-      } = await supabase.auth.getUser();
-      setUser(u);
-      setLoading(false);
-    }
-    getUser();
-
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    setUser(null);
-    router.push("/");
-    router.refresh();
-  }
-
   return (
-    <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="text-2xl">🏷️</span>
-          <span className="text-xl font-extrabold text-ys-900 tracking-tight hidden sm:inline">
-            Yard<span className="text-ys-700">Shoppers</span>
-          </span>
-        </Link>
-
-        {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-1">
-          <Link
-            href="/browse"
-            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-ys-800 rounded-lg hover:bg-ys-50 transition-all"
-          >
-            Browse Sales
+    <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-2xl">🏷️</span>
+            <span className="text-xl font-bold text-ys-800 tracking-tight">
+              YardShoppers
+            </span>
           </Link>
-          <a
-            href="#how-it-works"
-            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-ys-800 rounded-lg hover:bg-ys-50 transition-all"
-          >
-            How It Works
-          </a>
-          {!loading && user && (
-            <Link
-              href="/dashboard"
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-ys-800 rounded-lg hover:bg-ys-50 transition-all flex items-center gap-1.5"
-            >
-              <i className="fa-solid fa-user text-xs" />
-              My Account
-            </Link>
-          )}
-        </div>
 
-        {/* Desktop Buttons */}
-        <div className="hidden md:flex items-center gap-3">
-          {loading ? (
-            <div className="w-20 h-9 bg-gray-100 rounded-lg animate-pulse" />
-          ) : user ? (
-            <>
+          {/* Desktop links */}
+          <div className="hidden md:flex items-center gap-1">
+            <Link
+              href="/browse"
+              className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
+            >
+              <i className="fa-solid fa-magnifying-glass mr-1.5"></i>
+              Browse Sales
+            </Link>
+
+            {/* ★ NEW — Route Planner link */}
+            <Link
+              href="/route-planner"
+              className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
+            >
+              <i className="fa-solid fa-route mr-1.5"></i>
+              Route Planner
+            </Link>
+
+            <a
+              href="/#how-it-works"
+              className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
+            >
+              <i className="fa-solid fa-circle-info mr-1.5"></i>
+              How It Works
+            </a>
+
+            {user && (
+              <Link
+                href="/dashboard"
+                className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
+              >
+                <i className="fa-solid fa-user mr-1.5"></i>
+                My Account
+              </Link>
+            )}
+          </div>
+
+          {/* Desktop actions */}
+          <div className="hidden md:flex items-center gap-3">
+            {user ? (
               <Link
                 href="/post"
-                className="flex items-center gap-2 bg-ys-800 hover:bg-ys-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-all hover:shadow-lg"
+                className="px-4 py-2 rounded-xl bg-ys-600 text-white text-sm font-semibold hover:bg-ys-700 transition shadow-sm"
               >
-                <i className="fa-solid fa-plus text-xs" />
+                <i className="fa-solid fa-plus mr-1.5"></i>
                 Post a Sale
               </Link>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-red-600 rounded-lg hover:bg-red-50 transition-all"
-              >
-                <i className="fa-solid fa-right-from-bracket text-xs" />
-                Log out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-ys-800 transition"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/signup"
-                className="bg-ys-800 hover:bg-ys-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-all hover:shadow-lg"
-              >
-                Sign up free
-              </Link>
-            </>
-          )}
-        </div>
-
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setOpen(!open)}
-          className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition"
-          aria-label="Menu"
-        >
-          <i className={`fa-solid ${open ? "fa-xmark" : "fa-bars"} text-lg text-gray-700`} />
-        </button>
-      </div>
-
-      {/* Mobile Menu */}
-      {open && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 pb-4 pt-2 space-y-1">
-          <Link
-            href="/browse"
-            onClick={() => setOpen(false)}
-            className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-ys-50 hover:text-ys-800 rounded-lg transition"
-          >
-            Browse Sales
-          </Link>
-          <a
-            href="#how-it-works"
-            onClick={() => setOpen(false)}
-            className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-ys-50 hover:text-ys-800 rounded-lg transition"
-          >
-            How It Works
-          </a>
-
-          <div className="border-t border-gray-100 pt-2 mt-2 space-y-1">
-            {loading ? (
-              <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
-            ) : user ? (
-              <>
-                <Link
-                  href="/dashboard"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-ys-800 hover:bg-ys-50 rounded-lg transition"
-                >
-                  <i className="fa-solid fa-user text-xs" />
-                  My Account
-                </Link>
-                <Link
-                  href="/post"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-ys-800 hover:bg-ys-50 rounded-lg transition"
-                >
-                  <i className="fa-solid fa-plus text-xs" />
-                  Post a Sale
-                </Link>
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    handleLogout();
-                  }}
-                  className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition"
-                >
-                  <i className="fa-solid fa-right-from-bracket text-xs" />
-                  Log out
-                </button>
-              </>
             ) : (
               <>
                 <Link
                   href="/login"
-                  onClick={() => setOpen(false)}
-                  className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-ys-50 rounded-lg transition"
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-ys-700 transition"
                 >
-                  Log in
+                  Log In
                 </Link>
                 <Link
                   href="/signup"
-                  onClick={() => setOpen(false)}
-                  className="block px-4 py-2.5 text-sm font-semibold text-ys-800 bg-ys-50 rounded-lg text-center"
+                  className="px-4 py-2 rounded-xl bg-ys-600 text-white text-sm font-semibold hover:bg-ys-700 transition shadow-sm"
                 >
-                  Sign up free
+                  Sign Up
                 </Link>
               </>
+            )}
+          </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition"
+          >
+            <i
+              className={`fa-solid ${
+                menuOpen ? 'fa-xmark' : 'fa-bars'
+              } text-gray-600 text-lg`}
+            ></i>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div className="md:hidden border-t border-gray-200 bg-white px-4 pb-4 pt-2 space-y-1">
+          <Link
+            href="/browse"
+            onClick={() => setMenuOpen(false)}
+            className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
+          >
+            <i className="fa-solid fa-magnifying-glass mr-2 text-ys-600"></i>
+            Browse Sales
+          </Link>
+
+          {/* ★ NEW — Route Planner mobile link */}
+          <Link
+            href="/route-planner"
+            onClick={() => setMenuOpen(false)}
+            className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
+          >
+            <i className="fa-solid fa-route mr-2 text-ys-600"></i>
+            Route Planner
+          </Link>
+
+          <a
+            href="/#how-it-works"
+            onClick={() => setMenuOpen(false)}
+            className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
+          >
+            <i className="fa-solid fa-circle-info mr-2 text-ys-600"></i>
+            How It Works
+          </a>
+
+          {user && (
+            <Link
+              href="/dashboard"
+              onClick={() => setMenuOpen(false)}
+              className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
+            >
+              <i className="fa-solid fa-user mr-2 text-ys-600"></i>
+              My Account
+            </Link>
+          )}
+
+          <div className="pt-2 border-t border-gray-100">
+            {user ? (
+              <Link
+                href="/post"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full text-center px-4 py-2.5 rounded-xl bg-ys-600 text-white text-sm font-semibold hover:bg-ys-700 transition"
+              >
+                <i className="fa-solid fa-plus mr-1.5"></i>
+                Post a Sale
+              </Link>
+            ) : (
+              <div className="flex gap-2">
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex-1 text-center px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signup"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex-1 text-center px-4 py-2.5 rounded-xl bg-ys-600 text-white text-sm font-semibold hover:bg-ys-700 transition"
+                >
+                  Sign Up
+                </Link>
+              </div>
             )}
           </div>
         </div>
