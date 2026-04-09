@@ -9,7 +9,6 @@ export async function DELETE(req: NextRequest) {
       .split(",")
       .map((e) => e.trim().toLowerCase());
 
-    // Auth check
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,7 +35,6 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get listing ID
     const { listingId } = await req.json();
     if (!listingId || typeof listingId !== "string") {
       return NextResponse.json(
@@ -45,13 +43,11 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Admin client for elevated operations
     const adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Delete related records first, then the listing
     await adminClient
       .from("listing_photos")
       .delete()

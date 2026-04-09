@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   try {
-    // Try Vercel geo headers first (free, automatic on Vercel)
     const city = req.headers.get("x-vercel-ip-city");
     const region = req.headers.get("x-vercel-ip-country-region");
     const lat = req.headers.get("x-vercel-ip-latitude");
@@ -17,9 +16,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Fallback to HTTPS ip-api (secure endpoint)
+    // Fallback — free ip-api only works over HTTP, so use limited fields
     const res = await fetch(
-      "https://pro.ip-api.com/json/?fields=city,regionName,lat,lon",
+      "http://ip-api.com/json/?fields=city,regionName,lat,lon",
       { next: { revalidate: 300 } }
     );
 

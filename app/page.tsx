@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import DistanceSelector from "@/components/DistanceSelector";
 import { useLocation } from "@/lib/useLocation";
+import { useDebounce } from "@/lib/useDebounce";
+
+const supabase = createClient();
 
 const CATEGORIES = [
   "All",
@@ -29,12 +32,12 @@ function milesToDeg(miles: number) {
 }
 
 export default function HomePage() {
-  const supabase = createClient();
   const { city, region, lat, lng, loading: locationLoading } = useLocation();
 
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sort, setSort] = useState("newest");
   const [distance, setDistance] = useState(999);
@@ -56,8 +59,8 @@ export default function HomePage() {
 
       let query = supabase.from("listings").select("*, listing_photos(*)");
 
-      if (search.trim()) {
-        const term = `%${search.trim()}%`;
+      if (debouncedSearch.trim()) {
+        const term = `%${debouncedSearch.trim()}%`;
         query = query.or(
           `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
         );
@@ -90,7 +93,7 @@ export default function HomePage() {
     }
 
     fetchListings();
-  }, [search, selectedCategory, sort, distance, lat, lng]);
+  }, [debouncedSearch, selectedCategory, sort, distance, lat, lng]);
 
   return (
     <div>
@@ -108,20 +111,20 @@ export default function HomePage() {
             <br />
             <span className="text-ys-300">Near You</span>
           </h1>
-          <p className="text-ys-200 text-lg mb-2 max-w-xl mx-auto">
+          <p className="text-ys-100 text-lg mb-2 max-w-xl mx-auto">
             Find amazing deals in your neighborhood. Browse, save, and visit
             yard sales happening right now.
           </p>
           {(city || region) && (
             <p className="text-ys-300 text-sm mb-8">
-              <i className="fa-solid fa-location-dot mr-1" />
+              <i className="fa-solid fa-location-dot mr-1" aria-hidden="true" />
               {[city, region].filter(Boolean).join(", ")}
             </p>
           )}
 
           <div className="max-w-2xl mx-auto flex gap-3">
             <div className="flex-1 relative">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true" />
               <input
                 type="text"
                 value={search}
@@ -133,6 +136,7 @@ export default function HomePage() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
+              aria-label="Sort listings"
               className="bg-white text-gray-700 rounded-xl px-4 py-3.5 text-sm font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-ys-400"
             >
               <option value="newest">Newest</option>
@@ -175,7 +179,7 @@ export default function HomePage() {
         ) : listings.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
-              <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" />
+              <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" aria-hidden="true" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">No sales found nearby</h2>
             <p className="text-gray-500 mb-6">Try expanding your distance or changing your search.</p>
@@ -199,14 +203,14 @@ export default function HomePage() {
               className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition-all hover:shadow-lg"
             >
               View All Sales
-              <i className="fa-solid fa-arrow-right text-sm" />
+              <i className="fa-solid fa-arrow-right text-sm" aria-hidden="true" />
             </Link>
           </div>
         )}
 
         <section className="mt-16 bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 rounded-3xl p-8 sm:p-10 text-center">
           <div className="w-14 h-14 bg-amber-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <i className="fa-solid fa-rocket text-xl text-amber-600" />
+            <i className="fa-solid fa-rocket text-xl text-amber-600" aria-hidden="true" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Want More Eyes on Your Sale?</h2>
           <p className="text-gray-600 max-w-lg mx-auto mb-6">
@@ -231,7 +235,7 @@ export default function HomePage() {
             ].map((step) => (
               <div key={step.title} className="text-center">
                 <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <i className={`fa-solid ${step.icon} text-xl text-ys-700`} />
+                  <i className={`fa-solid ${step.icon} text-xl text-ys-700`} aria-hidden="true" />
                 </div>
                 <h3 className="font-bold text-gray-900 mb-1">{step.title}</h3>
                 <p className="text-sm text-gray-500">{step.desc}</p>
@@ -249,7 +253,7 @@ export default function HomePage() {
           ].map((trust) => (
             <div key={trust.label} className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl">
               <div className="w-9 h-9 bg-ys-100 rounded-lg flex items-center justify-center shrink-0">
-                <i className={`fa-solid ${trust.icon} text-sm text-ys-700`} />
+                <i className={`fa-solid ${trust.icon} text-sm text-ys-700`} aria-hidden="true" />
               </div>
               <span className="text-sm font-semibold text-gray-700">{trust.label}</span>
             </div>

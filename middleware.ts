@@ -6,7 +6,6 @@ const RATE_LIMIT = 60;
 const WINDOW_MS = 60_000;
 
 export function middleware(request: NextRequest) {
-  // Only rate-limit API routes
   if (request.nextUrl.pathname.startsWith("/api")) {
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
