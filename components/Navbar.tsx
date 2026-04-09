@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase-browser';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase-browser";
+
+const supabase = createClient();
 
 export default function Navbar() {
-  const supabase = createClient();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -39,16 +40,15 @@ export default function Navbar() {
               href="/browse"
               className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
             >
-              <i className="fa-solid fa-magnifying-glass mr-1.5"></i>
+              <i className="fa-solid fa-magnifying-glass mr-1.5" aria-hidden="true" />
               Browse Sales
             </Link>
 
-            {/* ★ NEW — Route Planner link */}
             <Link
               href="/route-planner"
               className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
             >
-              <i className="fa-solid fa-route mr-1.5"></i>
+              <i className="fa-solid fa-route mr-1.5" aria-hidden="true" />
               Route Planner
             </Link>
 
@@ -56,7 +56,7 @@ export default function Navbar() {
               href="/#how-it-works"
               className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
             >
-              <i className="fa-solid fa-circle-info mr-1.5"></i>
+              <i className="fa-solid fa-circle-info mr-1.5" aria-hidden="true" />
               How It Works
             </a>
 
@@ -65,7 +65,7 @@ export default function Navbar() {
                 href="/dashboard"
                 className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
               >
-                <i className="fa-solid fa-user mr-1.5"></i>
+                <i className="fa-solid fa-user mr-1.5" aria-hidden="true" />
                 My Account
               </Link>
             )}
@@ -78,7 +78,7 @@ export default function Navbar() {
                 href="/post"
                 className="px-4 py-2 rounded-xl bg-ys-600 text-white text-sm font-semibold hover:bg-ys-700 transition shadow-sm"
               >
-                <i className="fa-solid fa-plus mr-1.5"></i>
+                <i className="fa-solid fa-plus mr-1.5" aria-hidden="true" />
                 Post a Sale
               </Link>
             ) : (
@@ -102,13 +102,16 @@ export default function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
             className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition"
           >
             <i
               className={`fa-solid ${
-                menuOpen ? 'fa-xmark' : 'fa-bars'
+                menuOpen ? "fa-xmark" : "fa-bars"
               } text-gray-600 text-lg`}
-            ></i>
+              aria-hidden="true"
+            />
           </button>
         </div>
       </div>
@@ -121,17 +124,16 @@ export default function Navbar() {
             onClick={() => setMenuOpen(false)}
             className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
           >
-            <i className="fa-solid fa-magnifying-glass mr-2 text-ys-600"></i>
+            <i className="fa-solid fa-magnifying-glass mr-2 text-ys-600" aria-hidden="true" />
             Browse Sales
           </Link>
 
-          {/* ★ NEW — Route Planner mobile link */}
           <Link
             href="/route-planner"
             onClick={() => setMenuOpen(false)}
             className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
           >
-            <i className="fa-solid fa-route mr-2 text-ys-600"></i>
+            <i className="fa-solid fa-route mr-2 text-ys-600" aria-hidden="true" />
             Route Planner
           </Link>
 
@@ -140,7 +142,7 @@ export default function Navbar() {
             onClick={() => setMenuOpen(false)}
             className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
           >
-            <i className="fa-solid fa-circle-info mr-2 text-ys-600"></i>
+            <i className="fa-solid fa-circle-info mr-2 text-ys-600" aria-hidden="true" />
             How It Works
           </a>
 
@@ -150,7 +152,7 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
               className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
             >
-              <i className="fa-solid fa-user mr-2 text-ys-600"></i>
+              <i className="fa-solid fa-user mr-2 text-ys-600" aria-hidden="true" />
               My Account
             </Link>
           )}
@@ -162,7 +164,7 @@ export default function Navbar() {
                 onClick={() => setMenuOpen(false)}
                 className="block w-full text-center px-4 py-2.5 rounded-xl bg-ys-600 text-white text-sm font-semibold hover:bg-ys-700 transition"
               >
-                <i className="fa-solid fa-plus mr-1.5"></i>
+                <i className="fa-solid fa-plus mr-1.5" aria-hidden="true" />
                 Post a Sale
               </Link>
             ) : (

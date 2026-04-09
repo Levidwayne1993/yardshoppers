@@ -1,110 +1,124 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 
-interface UserLocation {
+interface LocationState {
   city: string | null;
   region: string | null;
   lat: number | null;
   lng: number | null;
+  loading: boolean;
   precise: boolean;
 }
 
-const CACHE_KEY = "ys_user_location";
-const CACHE_DURATION = 30 * 60 * 1000; // 30 min for precise
+const CACHE_KEY = "ys_location";
+const CACHE_TTL = 30 * 60 * 1000; // 30 min
+
+function getCached(): LocationState | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.ts > CACHE_TTL) return null;
+    return { ...parsed, loading: false };
+  } catch {
+    return null;
+  }
+}
+
+function setCache(state: LocationState) {
+  try {
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ ...state, ts: Date.now() })
+    );
+  } catch {}
+}
 
 export function useLocation() {
-  const [location, setLocation] = useState<UserLocation>({
+  const [location, setLocation] = useState<LocationState>({
     city: null,
     region: null,
     lat: null,
     lng: null,
+    loading: true,
     precise: false,
   });
-  const [loading, setLoading] = useState(true);
 
+  // Step 1: On mount, use cached or IP-based location (no prompt)
   useEffect(() => {
-    const cached = localStorage.getItem(CACHE_KEY);
+    const cached = getCached();
     if (cached) {
-      try {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          setLocation(data);
-          setLoading(false);
-          return;
-        }
-      } catch {}
+      setLocation(cached);
+      return;
     }
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          try {
-            const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-              { headers: { "User-Agent": "YardShoppers/1.0" } }
-            );
-            const data = await res.json();
-            const loc: UserLocation = {
-              city:
-                data.address?.city ||
-                data.address?.town ||
-                data.address?.village ||
-                null,
-              region: data.address?.state || null,
-              lat: latitude,
-              lng: longitude,
-              precise: true,
-            };
-            setLocation(loc);
-            localStorage.setItem(
-              CACHE_KEY,
-              JSON.stringify({ data: loc, timestamp: Date.now() })
-            );
-          } catch {
-            const loc: UserLocation = {
-              city: null,
-              region: null,
-              lat: latitude,
-              lng: longitude,
-              precise: true,
-            };
-            setLocation(loc);
-          }
-          setLoading(false);
-        },
-        async () => {
-          // Denied or error — fall back to IP
-          try {
-            const res = await fetch("/api/location");
-            const data = await res.json();
-            const loc: UserLocation = { ...data, precise: false };
-            setLocation(loc);
-            localStorage.setItem(
-              CACHE_KEY,
-              JSON.stringify({ data: loc, timestamp: Date.now() })
-            );
-          } catch {}
-          setLoading(false);
-        },
-        { timeout: 8000, enableHighAccuracy: false }
-      );
-    } else {
-      fetch("/api/location")
-        .then((res) => res.json())
-        .then((data) => {
-          const loc: UserLocation = { ...data, precise: false };
-          setLocation(loc);
-          localStorage.setItem(
-            CACHE_KEY,
-            JSON.stringify({ data: loc, timestamp: Date.now() })
-          );
-        })
-        .catch(() => {})
-        .finally(() => setLoading(false));
+    async function fetchIPLocation() {
+      try {
+        const res = await fetch("/api/location");
+        if (!res.ok) throw new Error("Location API failed");
+        const data = await res.json();
+        const state: LocationState = {
+          city: data.city || null,
+          region: data.region || null,
+          lat: data.lat ?? null,
+          lng: data.lng ?? null,
+          loading: false,
+          precise: false,
+        };
+        setLocation(state);
+        setCache(state);
+      } catch {
+        setLocation((prev) => ({ ...prev, loading: false }));
+      }
     }
+
+    fetchIPLocation();
   }, []);
 
-  return { ...location, loading };
+  // Step 2: Call this to upgrade to GPS (triggers browser prompt)
+  const requestPreciseLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        let city: string | null = null;
+        let region: string | null = null;
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+            {
+              headers: {
+                "User-Agent": "YardShoppers/1.0 (https://yardshoppers.com)",
+              },
+            }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            city = data.address?.city || data.address?.town || null;
+            region = data.address?.state || null;
+          }
+        } catch {}
+
+        const state: LocationState = {
+          city,
+          region,
+          lat: latitude,
+          lng: longitude,
+          loading: false,
+          precise: true,
+        };
+        setLocation(state);
+        setCache(state);
+      },
+      () => {
+        // User denied — keep IP-based location, no error
+      },
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
+  }, []);
+
+  return { ...location, requestPreciseLocation };
 }

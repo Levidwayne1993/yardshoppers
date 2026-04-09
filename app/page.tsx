@@ -32,7 +32,7 @@ function milesToDeg(miles: number) {
 }
 
 export default function HomePage() {
-  const { city, region, lat, lng, loading: locationLoading } = useLocation();
+  const { city, region, lat, lng, loading: locationLoading, requestPreciseLocation } = useLocation();
 
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +52,14 @@ export default function HomePage() {
     }
     getUser();
   }, []);
+
+  // When user picks a distance filter, request precise GPS
+  function handleDistanceChange(value: number) {
+    setDistance(value);
+    if (value < 999) {
+      requestPreciseLocation();
+    }
+  }
 
   useEffect(() => {
     async function fetchListings() {
@@ -148,7 +156,7 @@ export default function HomePage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col gap-3 mb-6">
-          <DistanceSelector value={distance} onChange={setDistance} />
+          <DistanceSelector value={distance} onChange={handleDistanceChange} />
           <div className="flex gap-2 overflow-x-auto pb-1">
             {CATEGORIES.map((cat) => (
               <button
