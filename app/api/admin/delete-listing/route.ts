@@ -1,23 +1,17 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 
-const ADMIN_EMAIL = "erwin-levi@outlook.com";
-
-export async function POST(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
-    const { listing_id } = await req.json();
+    const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase());
 
-    if (!listing_id) {
-      return NextResponse.json(
-        { error: "Missing listing_id" },
-        { status: 400 }
-      );
-    }
-
+    // Auth check
     const cookieStore = await cookies();
-    const supabaseAuth = createServerClient(
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -36,42 +30,60 @@ export async function POST(req: Request) {
 
     const {
       data: { user },
-    } = await supabaseAuth.auth.getUser();
+    } = await supabase.auth.getUser();
 
-    if (!user || user.email?.toLowerCase() !== ADMIN_EMAIL) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!user || !adminEmails.includes(user.email?.toLowerCase() ?? "")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const supabaseAdmin = createClient(
+    // Get listing ID
+    const { listingId } = await req.json();
+    if (!listingId || typeof listingId !== "string") {
+      return NextResponse.json(
+        { error: "Invalid listing ID" },
+        { status: 400 }
+      );
+    }
+
+    // Admin client for elevated operations
+    const adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await supabaseAdmin
+    // Delete related records first, then the listing
+    await adminClient
       .from("listing_photos")
       .delete()
-      .eq("listing_id", listing_id);
-
-    await supabaseAdmin
+      .eq("listing_id", listingId);
+    await adminClient
       .from("reported_listings")
       .delete()
-      .eq("listing_id", listing_id);
-
-    await supabaseAdmin
+      .eq("listing_id", listingId);
+    await adminClient
       .from("saved_listings")
       .delete()
-      .eq("listing_id", listing_id);
+      .eq("listing_id", listingId);
 
-    const { error: deleteError } = await supabaseAdmin
+    const { error } = await adminClient
       .from("listings")
       .delete()
-      .eq("id", listing_id);
+      .eq("id", listingId);
 
-    if (deleteError) throw deleteError;
+    if (error) {
+      console.error("Admin delete error:", error.message);
+      return NextResponse.json(
+        { error: "Failed to delete listing" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Admin delete error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

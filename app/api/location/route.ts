@@ -1,30 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
-  const city = req.headers.get("x-vercel-ip-city");
-  const region = req.headers.get("x-vercel-ip-country-region");
-  const lat = req.headers.get("x-vercel-ip-latitude");
-  const lng = req.headers.get("x-vercel-ip-longitude");
-
-  if (city && region) {
-    return NextResponse.json({
-      city: decodeURIComponent(city),
-      region,
-      lat: lat ? parseFloat(lat) : null,
-      lng: lng ? parseFloat(lng) : null,
-    });
-  }
-
   try {
-    const res = await fetch("http://ip-api.com/json/?fields=city,regionName,lat,lon");
+    // Try Vercel geo headers first (free, automatic on Vercel)
+    const city = req.headers.get("x-vercel-ip-city");
+    const region = req.headers.get("x-vercel-ip-country-region");
+    const lat = req.headers.get("x-vercel-ip-latitude");
+    const lng = req.headers.get("x-vercel-ip-longitude");
+
+    if (lat && lng) {
+      return NextResponse.json({
+        city: city ? decodeURIComponent(city) : "Unknown",
+        region: region || "Unknown",
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+      });
+    }
+
+    // Fallback to HTTPS ip-api (secure endpoint)
+    const res = await fetch(
+      "https://pro.ip-api.com/json/?fields=city,regionName,lat,lon",
+      { next: { revalidate: 300 } }
+    );
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: "Could not determine location" },
+        { status: 502 }
+      );
+    }
+
     const data = await res.json();
+
     return NextResponse.json({
-      city: data.city || null,
-      region: data.regionName || null,
-      lat: data.lat || null,
-      lng: data.lon || null,
+      city: data.city || "Unknown",
+      region: data.regionName || "Unknown",
+      lat: data.lat,
+      lng: data.lon,
     });
-  } catch {
-    return NextResponse.json({ city: null, region: null, lat: null, lng: null });
+  } catch (err) {
+    console.error("Location API error:", err);
+    return NextResponse.json(
+      { error: "Failed to detect location" },
+      { status: 500 }
+    );
   }
 }
