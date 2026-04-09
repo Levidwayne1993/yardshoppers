@@ -1,278 +1,196 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import DistanceSelector from "@/components/DistanceSelector";
 import { useLocation } from "@/lib/useLocation";
 
 const CATEGORIES = [
-  "All",
-  "Furniture",
-  "Electronics",
-  "Clothing",
-  "Toys & Games",
-  "Tools",
-  "Kitchen",
-  "Sports",
-  "Books",
-  "Antiques",
-  "Garden",
-  "Baby & Kids",
-  "Vehicles",
-  "Free Stuff",
+  "All", "Furniture", "Electronics", "Clothing", "Toys & Games", "Tools",
+  "Kitchen", "Sports", "Books", "Antiques", "Garden", "Baby & Kids",
+  "Vehicles", "Free Stuff",
 ];
 
-type SortOption = "newest" | "oldest";
+function milesToDeg(miles: number) {
+  return miles / 69;
+}
 
 function BrowseContent() {
   const supabase = createClient();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { lat, lng, city, loading: locationLoading } = useLocation();
+  const { city, region, lat, lng } = useLocation();
 
-  const initialSearch = searchParams.get("search") || "";
-  const initialCategory = searchParams.get("category") || "";
-
-  const [search, setSearch] = useState(initialSearch);
-  const [selectedCategories, setSelectedCategories] = useState<
-    string[]
-  >(initialCategory ? [initialCategory] : []);
-  const [sort, setSort] = useState<SortOption>("newest");
-  const [radius, setRadius] = useState(999);
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-
-  const fetchListings = useCallback(async () => {
-    setLoading(true);
-    let query = supabase
-      .from("listings")
-      .select("*, listing_photos(*)", { count: "exact" });
-
-    if (search.trim()) {
-      query = query.or(
-        `title.ilike.%${search.trim()}%,description.ilike.%${search.trim()}%,city.ilike.%${search.trim()}%`
-      );
-    }
-
-    if (selectedCategories.length === 1) {
-      query = query.or(
-        `category.eq.${selectedCategories[0]},categories.cs.{${selectedCategories[0]}}`
-      );
-    } else if (selectedCategories.length > 1) {
-      query = query.overlaps("categories", selectedCategories);
-    }
-
-    // Distance filter
-    if (lat && lng && radius < 999) {
-      const milesToDeg = radius / 69;
-      const lngDeg =
-        radius / (69 * Math.cos((lat * Math.PI) / 180));
-      query = query
-        .gte("latitude", lat - milesToDeg)
-        .lte("latitude", lat + milesToDeg)
-        .gte("longitude", lng - lngDeg)
-        .lte("longitude", lng + lngDeg);
-    }
-
-    query = query
-      .order("is_boosted", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: sort === "oldest" });
-
-    const { data, count } = await query.limit(24);
-    setListings(data || []);
-    setTotalCount(count || 0);
-    setLoading(false);
-  }, [search, selectedCategories, sort, radius, lat, lng]);
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get("category") || "All"
+  );
+  const [sort, setSort] = useState("newest");
+  const [distance, setDistance] = useState(999);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!locationLoading) fetchListings();
-  }, [fetchListings, locationLoading]);
-
-  function updateURL(newSearch: string, cats: string[]) {
-    const params = new URLSearchParams();
-    if (newSearch.trim()) params.set("search", newSearch.trim());
-    if (cats.length === 1) params.set("category", cats[0]);
-    router.replace(
-      `/browse${params.toString() ? `?${params}` : ""}`,
-      { scroll: false }
-    );
-  }
-
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    updateURL(search, selectedCategories);
-  }
-
-  function toggleCategory(cat: string) {
-    if (cat === "All") {
-      setSelectedCategories([]);
-      updateURL(search, []);
-      return;
+    async function getUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
     }
-    const updated = selectedCategories.includes(cat)
-      ? selectedCategories.filter((c) => c !== cat)
-      : [...selectedCategories, cat];
-    setSelectedCategories(updated);
-    updateURL(search, updated);
-  }
+    getUser();
+  }, []);
 
-  function clearFilters() {
-    setSearch("");
-    setSelectedCategories([]);
-    setSort("newest");
-    setRadius(999);
-    router.replace("/browse", { scroll: false });
-  }
+  useEffect(() => {
+    async function fetchListings() {
+      setLoading(true);
 
-  const hasFilters =
-    search.trim() ||
-    selectedCategories.length > 0 ||
-    radius < 999;
+      let query = supabase.from("listings").select("*, listing_photos(*)");
+
+      if (search.trim()) {
+        const term = `%${search.trim()}%`;
+        query = query.or(
+          `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
+        );
+      }
+
+      if (selectedCategory !== "All") {
+        query = query.or(
+          `category.eq.${selectedCategory},category.cs.{${selectedCategory}}`
+        );
+      }
+
+      if (distance < 999 && lat && lng) {
+        const deg = milesToDeg(distance);
+        query = query
+          .gte("lat", lat - deg)
+          .lte("lat", lat + deg)
+          .gte("lng", lng - deg)
+          .lte("lng", lng + deg);
+      }
+
+      query = query
+        .order("is_boosted", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: sort === "oldest" });
+
+      query = query.limit(24);
+
+      const { data } = await query;
+      setListings(data || []);
+      setLoading(false);
+    }
+
+    fetchListings();
+  }, [search, selectedCategory, sort, distance, lat, lng]);
+
+  const hasFilters = search || selectedCategory !== "All" || distance < 999;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 sticky top-16 z-40">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <form
-            onSubmit={handleSearch}
-            className="flex gap-2 mb-3"
-          >
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <div className="sticky top-[65px] z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-6">
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-3">
             <div className="flex-1 relative">
-              <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by keyword, city, or item..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-ys-500 focus:border-transparent text-sm"
+                placeholder="Search yard sales..."
+                className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-300 focus:border-ys-400 transition"
               />
             </div>
             <select
               value={sort}
-              onChange={(e) =>
-                setSort(e.target.value as SortOption)
-              }
-              className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ys-500"
+              onChange={(e) => setSort(e.target.value)}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-ys-300"
             >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
             </select>
-          </form>
+          </div>
 
-          {/* Distance Selector */}
-          {(lat || city) && (
-            <div className="mb-3 pb-3 border-b border-gray-100">
-              <DistanceSelector
-                value={radius}
-                onChange={setRadius}
-              />
-            </div>
-          )}
+          <DistanceSelector value={distance} onChange={setDistance} />
 
-          {/* Multi-Select Category Pills */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            <button
-              onClick={() => toggleCategory("All")}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                selectedCategories.length === 0
-                  ? "bg-ys-700 text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              All
-            </button>
-            {CATEGORIES.filter((c) => c !== "All").map(
-              (cat) => (
-                <button
-                  key={cat}
-                  onClick={() => toggleCategory(cat)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                    selectedCategories.includes(cat)
-                      ? "bg-ys-700 text-white shadow-sm"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  {cat}
-                  {selectedCategories.includes(cat) && (
-                    <span className="ml-1">✕</span>
-                  )}
-                </button>
-              )
-            )}
+          <div className="flex gap-2 overflow-x-auto pb-1 -mb-1">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                  selectedCategory === cat
+                    ? "bg-ys-800 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      {hasFilters && (
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-500">
-            {loading
-              ? "Searching..."
-              : `${totalCount} sale${
-                  totalCount !== 1 ? "s" : ""
-                } found`}
-            {selectedCategories.length > 0 && (
-              <span className="ml-1 text-ys-700 font-medium">
-                in {selectedCategories.join(", ")}
-              </span>
-            )}
-            {radius < 999 && (
-              <span className="ml-1 text-ys-700 font-medium">
-                within {radius} mi
-              </span>
-            )}
+            {listings.length} result{listings.length !== 1 ? "s" : ""} found
           </p>
+          <button
+            onClick={() => {
+              setSearch("");
+              setSelectedCategory("All");
+              setDistance(999);
+            }}
+            className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition"
+          >
+            <i className="fa-solid fa-xmark mr-1 text-xs" />
+            Clear filters
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-gray-200 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : listings.length === 0 ? (
+        <div className="text-center py-20">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">No sales found</h2>
+          <p className="text-gray-500 mb-6">Try adjusting your search or filters.</p>
           {hasFilters && (
             <button
-              onClick={clearFilters}
-              className="text-sm text-ys-700 hover:text-ys-800 font-medium"
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl h-72 animate-pulse border border-gray-100"
-              />
-            ))}
-          </div>
-        ) : listings.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {listings.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20">
-            <i className="fa-solid fa-magnifying-glass text-4xl text-gray-300 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-              No sales found
-            </h3>
-            <p className="text-gray-500 text-sm mb-4">
-              {radius < 999
-                ? `No sales within ${radius} miles. Try increasing the radius or clearing filters.`
-                : "Try adjusting your search or category filters"}
-            </p>
-            <button
-              onClick={clearFilters}
-              className="px-6 py-2.5 bg-ys-600 text-white rounded-lg font-semibold hover:bg-ys-700 transition"
+              onClick={() => {
+                setSearch("");
+                setSelectedCategory("All");
+                setDistance(999);
+              }}
+              className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
             >
               Clear All Filters
             </button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {listings.map((listing) => (
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              currentUserId={currentUserId}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -281,8 +199,9 @@ export default function BrowsePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ys-600" />
+        <div className="min-h-screen flex items-center justify-center text-gray-500">
+          <i className="fa-solid fa-spinner fa-spin mr-2" />
+          Loading...
         </div>
       }
     >

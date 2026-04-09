@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
+import BoostModal from "@/components/BoostModal";
+import ReportModal from "@/components/ReportModal";
 
 interface Listing {
   id: string;
@@ -20,6 +22,7 @@ interface Listing {
   sale_time_end: string;
   created_at: string;
   user_id: string;
+  is_boosted?: boolean;
   profiles?: { display_name?: string };
   listing_photos?: { id: string; photo_url: string }[];
 }
@@ -36,16 +39,16 @@ export default function ListingDetailClient({
   const [saved, setSaved] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const [showBoostModal, setShowBoostModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   useEffect(() => {
     async function load() {
-      /* Current user */
       const {
         data: { user: u },
       } = await supabase.auth.getUser();
       setUser(u);
 
-      /* Listing + photos + seller */
       const { data } = await supabase
         .from("listings")
         .select("*, listing_photos(*), profiles(display_name)")
@@ -54,7 +57,6 @@ export default function ListingDetailClient({
 
       if (data) setListing(data);
 
-      /* Check if saved */
       if (u) {
         const { data: s } = await supabase
           .from("saved_listings")
@@ -70,7 +72,6 @@ export default function ListingDetailClient({
     load();
   }, [listingId]);
 
-  /* ── Save / Unsave toggle ────────────────── */
   async function toggleSave() {
     if (!user) return;
     if (saved) {
@@ -88,7 +89,6 @@ export default function ListingDetailClient({
     }
   }
 
-  /* ── Share ───────────────────────────────── */
   async function handleShare() {
     const url = window.location.href;
     if (navigator.share) {
@@ -104,7 +104,6 @@ export default function ListingDetailClient({
     }
   }
 
-  /* ── Loading ─────────────────────────────── */
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
@@ -124,19 +123,14 @@ export default function ListingDetailClient({
     );
   }
 
-  /* ── Not Found ───────────────────────────── */
   if (!listing) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-5">
           <i className="fa-solid fa-ghost text-3xl text-gray-300" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Listing Not Found
-        </h1>
-        <p className="text-gray-500 mb-6">
-          This listing may have been removed or doesn&apos;t exist.
-        </p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Listing Not Found</h1>
+        <p className="text-gray-500 mb-6">This listing may have been removed or doesn&apos;t exist.</p>
         <Link
           href="/browse"
           className="px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
@@ -162,17 +156,14 @@ export default function ListingDetailClient({
       })
     : null;
 
+  const isOwner = user && listing.user_id === user.id;
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      {/* ── Breadcrumb ─────────────────────── */}
       <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-        <Link href="/" className="hover:text-ys-800 transition">
-          Home
-        </Link>
+        <Link href="/" className="hover:text-ys-800 transition">Home</Link>
         <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
-        <Link href="/browse" className="hover:text-ys-800 transition">
-          Browse
-        </Link>
+        <Link href="/browse" className="hover:text-ys-800 transition">Browse</Link>
         {listing.category && (
           <>
             <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
@@ -190,11 +181,8 @@ export default function ListingDetailClient({
         </span>
       </nav>
 
-      {/* ── Main Layout ────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* ── Photos (left, 3 cols) ────────── */}
         <div className="lg:col-span-3">
-          {/* Main Photo */}
           <div className="relative aspect-[4/3] bg-gray-100 rounded-2xl overflow-hidden">
             {photos.length > 0 ? (
               <Image
@@ -212,21 +200,17 @@ export default function ListingDetailClient({
               </div>
             )}
 
-            {/* Photo counter */}
             {photos.length > 1 && (
               <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm">
                 {activePhoto + 1} / {photos.length}
               </div>
             )}
 
-            {/* Prev / Next arrows */}
             {photos.length > 1 && (
               <>
                 <button
                   onClick={() =>
-                    setActivePhoto((p) =>
-                      p === 0 ? photos.length - 1 : p - 1
-                    )
+                    setActivePhoto((p) => (p === 0 ? photos.length - 1 : p - 1))
                   }
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
@@ -234,9 +218,7 @@ export default function ListingDetailClient({
                 </button>
                 <button
                   onClick={() =>
-                    setActivePhoto((p) =>
-                      p === photos.length - 1 ? 0 : p + 1
-                    )
+                    setActivePhoto((p) => (p === photos.length - 1 ? 0 : p + 1))
                   }
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
@@ -246,7 +228,6 @@ export default function ListingDetailClient({
             )}
           </div>
 
-          {/* Thumbnails */}
           {photos.length > 1 && (
             <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
               {photos.map((photo, i) => (
@@ -259,24 +240,15 @@ export default function ListingDetailClient({
                       : "border-transparent opacity-70 hover:opacity-100"
                   }`}
                 >
-                  <Image
-                    src={photo.photo_url}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="80px"
-                  />
+                  <Image src={photo.photo_url} alt="" fill className="object-cover" sizes="80px" />
                 </button>
               ))}
             </div>
           )}
 
-          {/* ── Description (under photos) ── */}
           {listing.description && (
             <div className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-3">
-                About This Sale
-              </h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-3">About This Sale</h2>
               <p className="text-gray-600 leading-relaxed whitespace-pre-line">
                 {listing.description}
               </p>
@@ -284,12 +256,9 @@ export default function ListingDetailClient({
           )}
         </div>
 
-        {/* ── Info Panel (right, 2 cols) ──── */}
         <div className="lg:col-span-2">
           <div className="lg:sticky lg:top-24 space-y-5">
-            {/* Main Info Card */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-              {/* Category */}
               {listing.category && (
                 <Link
                   href={`/browse?category=${encodeURIComponent(listing.category)}`}
@@ -299,7 +268,6 @@ export default function ListingDetailClient({
                 </Link>
               )}
 
-              {/* Title + Save */}
               <div className="flex items-start justify-between gap-3">
                 <h1 className="text-xl font-bold text-gray-900 leading-tight">
                   {listing.title}
@@ -313,20 +281,14 @@ export default function ListingDetailClient({
                   }`}
                   title={saved ? "Unsave" : "Save"}
                 >
-                  <i
-                    className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`}
-                  />
+                  <i className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`} />
                 </button>
               </div>
 
-              {/* Price */}
               {listing.price && (
-                <p className="text-2xl font-extrabold text-ys-800 mt-2">
-                  {listing.price}
-                </p>
+                <p className="text-2xl font-extrabold text-ys-800 mt-2">{listing.price}</p>
               )}
 
-              {/* Details Grid */}
               <div className="mt-5 space-y-3">
                 {location && (
                   <div className="flex items-start gap-3">
@@ -334,9 +296,7 @@ export default function ListingDetailClient({
                       <i className="fa-solid fa-location-dot text-sm text-ys-700" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Location
-                      </p>
+                      <p className="text-sm font-medium text-gray-900">Location</p>
                       <p className="text-sm text-gray-500">{location}</p>
                     </div>
                   </div>
@@ -363,16 +323,13 @@ export default function ListingDetailClient({
                       <p className="text-sm font-medium text-gray-900">Time</p>
                       <p className="text-sm text-gray-500">
                         {listing.sale_time_start}
-                        {listing.sale_time_end
-                          ? ` – ${listing.sale_time_end}`
-                          : ""}
+                        {listing.sale_time_end ? ` – ${listing.sale_time_end}` : ""}
                       </p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Action Buttons */}
               <div className="mt-6 flex gap-3">
                 <a
                   href={mapsUrl}
@@ -387,20 +344,32 @@ export default function ListingDetailClient({
                   onClick={handleShare}
                   className="flex items-center justify-center gap-2 px-5 py-3 border border-gray-200 rounded-xl text-gray-700 hover:border-ys-600 hover:text-ys-800 transition-all"
                 >
-                  <i
-                    className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`}
-                  />
+                  <i className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`} />
                   {copied ? "Copied!" : "Share"}
                 </button>
               </div>
+
+              {isOwner && !listing.is_boosted && (
+                <button
+                  onClick={() => setShowBoostModal(true)}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-3 rounded-xl font-bold transition-all hover:shadow-md"
+                >
+                  <i className="fa-solid fa-rocket text-sm" />
+                  Boost This Listing — $2.99
+                </button>
+              )}
+
+              {isOwner && listing.is_boosted && (
+                <div className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-3 rounded-xl font-semibold">
+                  <i className="fa-solid fa-check-circle text-sm" />
+                  This listing is boosted
+                </div>
+              )}
             </div>
 
-            {/* Seller Card */}
             {listing.profiles && (
               <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                  Posted by
-                </h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Posted by</h3>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
                     <i className="fa-solid fa-user text-ys-700" />
@@ -411,10 +380,10 @@ export default function ListingDetailClient({
                     </p>
                     <p className="text-xs text-gray-500">
                       Joined{" "}
-                      {new Date(listing.created_at).toLocaleDateString(
-                        "en-US",
-                        { month: "long", year: "numeric" }
-                      )}
+                      {new Date(listing.created_at).toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })}
                     </p>
                   </div>
                 </div>
@@ -435,9 +404,17 @@ export default function ListingDetailClient({
               </div>
             )}
 
-            {/* Report */}
             <p className="text-center">
-              <button className="text-xs text-gray-400 hover:text-red-500 transition">
+              <button
+                onClick={() => {
+                  if (!user) {
+                    window.location.href = "/login";
+                    return;
+                  }
+                  setShowReportModal(true);
+                }}
+                className="text-xs text-gray-400 hover:text-red-500 transition"
+              >
                 <i className="fa-regular fa-flag mr-1" />
                 Report this listing
               </button>
@@ -445,6 +422,22 @@ export default function ListingDetailClient({
           </div>
         </div>
       </div>
+
+      {showBoostModal && listing && (
+        <BoostModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowBoostModal(false)}
+        />
+      )}
+
+      {showReportModal && listing && (
+        <ReportModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowReportModal(false)}
+        />
+      )}
     </div>
   );
 }

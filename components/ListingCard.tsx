@@ -4,188 +4,200 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import CountdownTimer from "./CountdownTimer";
+import BoostModal from "./BoostModal";
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Furniture: "bg-amber-100 text-amber-800",
+  Electronics: "bg-blue-100 text-blue-800",
+  Clothing: "bg-pink-100 text-pink-800",
+  "Toys & Games": "bg-purple-100 text-purple-800",
+  Tools: "bg-slate-100 text-slate-800",
+  Kitchen: "bg-orange-100 text-orange-800",
+  Sports: "bg-lime-100 text-lime-800",
+  Books: "bg-teal-100 text-teal-800",
+  Antiques: "bg-yellow-100 text-yellow-800",
+  Garden: "bg-emerald-100 text-emerald-800",
+  "Baby & Kids": "bg-rose-100 text-rose-800",
+  Vehicles: "bg-cyan-100 text-cyan-800",
+  "Free Stuff": "bg-green-100 text-green-800",
+};
 
 interface ListingCardProps {
-  listing: {
-    id: string;
-    title: string;
-    description?: string;
-    price?: string;
-    city?: string;
-    state?: string;
-    category?: string;
-    categories?: string[];
-    sale_date?: string;
-    sale_time_start?: string;
-    sale_time_end?: string;
-    created_at?: string;
-    is_boosted?: boolean;
-    listing_photos?: { photo_url: string }[];
-  };
+  listing: any;
+  currentUserId?: string | null;
 }
 
-export default function ListingCard({ listing }: ListingCardProps) {
+export default function ListingCard({
+  listing,
+  currentUserId,
+}: ListingCardProps) {
   const [saved, setSaved] = useState(false);
+  const [showBoostModal, setShowBoostModal] = useState(false);
 
-  const photo =
-    listing.listing_photos && listing.listing_photos.length > 0
-      ? listing.listing_photos[0].photo_url
-      : null;
+  const photos = listing.listing_photos || [];
+  const coverPhoto = photos[0]?.photo_url;
 
-  const location = [listing.city, listing.state]
-    .filter(Boolean)
-    .join(", ");
-
-  const saleDay = listing.sale_date
-    ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString(
-        "en-US",
-        { weekday: "short", month: "short", day: "numeric" }
-      )
-    : null;
-
-  const displayCategories: string[] =
-    listing.categories && listing.categories.length > 0
-      ? listing.categories
-      : listing.category
-      ? [listing.category]
-      : [];
-
-  function badgeColor(cat: string) {
-    const colors: Record<string, string> = {
-      Furniture: "bg-amber-100 text-amber-800",
-      Electronics: "bg-blue-100 text-blue-800",
-      Clothing: "bg-pink-100 text-pink-800",
-      "Toys & Games": "bg-purple-100 text-purple-800",
-      Tools: "bg-orange-100 text-orange-800",
-      Kitchen: "bg-rose-100 text-rose-800",
-      Sports: "bg-cyan-100 text-cyan-800",
-      Books: "bg-indigo-100 text-indigo-800",
-      Antiques: "bg-yellow-100 text-yellow-800",
-      Garden: "bg-emerald-100 text-emerald-800",
-      "Baby & Kids": "bg-teal-100 text-teal-800",
-      Vehicles: "bg-slate-100 text-slate-800",
-      "Free Stuff": "bg-green-100 text-green-800",
-    };
-    return colors[cat] || "bg-gray-100 text-gray-800";
+  let categories: string[] = [];
+  if (Array.isArray(listing.category)) {
+    categories = listing.category;
+  } else if (typeof listing.category === "string") {
+    categories = listing.category.includes(",")
+      ? listing.category.split(",").map((c: string) => c.trim())
+      : [listing.category];
   }
 
+  const isOwner = currentUserId && listing.user_id === currentUserId;
+  const isBoosted = listing.is_boosted;
+
   return (
-    <Link href={`/listing/${listing.id}`} className="group block">
+    <>
       <div
-        className={`bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
-          listing.is_boosted
-            ? "border-2 border-amber-300 shadow-md"
-            : "border border-gray-100"
+        className={`group bg-white rounded-2xl overflow-hidden border transition-all duration-200 hover:shadow-xl hover:-translate-y-1 ${
+          isBoosted
+            ? "border-amber-200 shadow-md shadow-amber-100/50"
+            : "border-gray-100 shadow-sm"
         }`}
       >
-        <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
-          {photo ? (
-            <Image
-              src={photo}
-              alt={listing.title}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full bg-ys-50">
-              <div className="text-center">
-                <i className="fa-solid fa-tag text-4xl text-ys-300" />
-                <p className="text-xs text-ys-400 mt-2">No photo yet</p>
-              </div>
-            </div>
-          )}
-
-          {displayCategories.length > 0 && (
-            <div className="absolute top-3 left-3 flex flex-wrap gap-1 max-w-[70%]">
-              {displayCategories.slice(0, 3).map((cat) => (
-                <span
-                  key={cat}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${badgeColor(
-                    cat
-                  )}`}
-                >
-                  {cat}
-                </span>
-              ))}
-              {displayCategories.length > 3 && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600">
-                  +{displayCategories.length - 3}
-                </span>
-              )}
-            </div>
-          )}
-
-          {listing.is_boosted && (
-            <span className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
-              🚀 Boosted
-            </span>
-          )}
-
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setSaved(!saved);
-            }}
-            className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${
-              saved
-                ? "bg-red-500 text-white shadow-md"
-                : "bg-white/90 text-gray-500 hover:text-red-500 hover:bg-white shadow-sm"
-            }`}
-            aria-label={saved ? "Unsave" : "Save"}
-          >
-            <i
-              className={`${
-                saved ? "fa-solid" : "fa-regular"
-              } fa-heart text-sm`}
-            />
-          </button>
-
-          {listing.listing_photos &&
-            listing.listing_photos.length > 1 && (
-              <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1">
-                <i className="fa-solid fa-images text-[10px]" />
-                {listing.listing_photos.length}
+        <Link href={`/listing/${listing.id}`} className="block relative">
+          <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+            {coverPhoto ? (
+              <Image
+                src={coverPhoto}
+                alt={listing.title}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full bg-ys-50">
+                <i className="fa-solid fa-tag text-3xl text-ys-300 mb-1" />
+                <p className="text-xs text-ys-400">No photo</p>
               </div>
             )}
-        </div>
+
+            {isBoosted && (
+              <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-amber-400 text-amber-900 text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+                <i className="fa-solid fa-rocket text-[10px]" />
+                Boosted
+              </div>
+            )}
+
+            {categories.length > 0 && (
+              <div className="absolute top-3 right-3 flex flex-wrap gap-1 justify-end max-w-[60%]">
+                {categories.slice(0, 3).map((cat) => (
+                  <span
+                    key={cat}
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      CATEGORY_COLORS[cat] || "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {cat}
+                  </span>
+                ))}
+                {categories.length > 3 && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">
+                    +{categories.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {photos.length > 1 && (
+              <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] font-medium px-2 py-1 rounded-lg backdrop-blur-sm flex items-center gap-1">
+                <i className="fa-solid fa-images" />
+                {photos.length}
+              </div>
+            )}
+
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSaved(!saved);
+              }}
+              className={`absolute bottom-3 left-3 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm ${
+                saved
+                  ? "bg-red-500 text-white"
+                  : "bg-white/90 text-gray-400 hover:text-red-500"
+              }`}
+            >
+              <i
+                className={`${saved ? "fa-solid" : "fa-regular"} fa-heart text-xs`}
+              />
+            </button>
+          </div>
+        </Link>
 
         <div className="p-4">
-          <h3 className="font-semibold text-gray-900 text-[15px] leading-snug line-clamp-2 group-hover:text-ys-800 transition-colors">
-            {listing.title}
-          </h3>
+          <Link href={`/listing/${listing.id}`}>
+            <h3 className="font-bold text-gray-900 leading-tight line-clamp-2 group-hover:text-ys-800 transition-colors">
+              {listing.title}
+            </h3>
+          </Link>
 
           {listing.price && (
-            <p className="text-ys-800 font-bold text-lg mt-1.5">
+            <p className="text-lg font-extrabold text-ys-800 mt-1">
               {listing.price}
             </p>
           )}
 
-          <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2.5 text-xs text-gray-500">
-            {location && (
-              <span className="flex items-center gap-1">
-                <i className="fa-solid fa-location-dot text-ys-600" />
-                {location}
-              </span>
-            )}
-            {saleDay && (
-              <span className="flex items-center gap-1">
-                <i className="fa-regular fa-calendar text-ys-600" />
-                {saleDay}
-              </span>
-            )}
-          </div>
+          {(listing.city || listing.state) && (
+            <p className="text-sm text-gray-500 mt-1.5 flex items-center gap-1.5">
+              <i className="fa-solid fa-location-dot text-[10px] text-ys-500" />
+              {[listing.city, listing.state].filter(Boolean).join(", ")}
+            </p>
+          )}
 
-          <div className="mt-2">
-            <CountdownTimer
-              saleDate={listing.sale_date}
-              saleTimeStart={listing.sale_time_start}
-              saleTimeEnd={listing.sale_time_end}
-            />
-          </div>
+          {listing.sale_date && (
+            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
+              <i className="fa-regular fa-calendar text-[10px] text-ys-500" />
+              {new Date(listing.sale_date + "T00:00:00").toLocaleDateString(
+                "en-US",
+                { month: "short", day: "numeric" }
+              )}
+            </p>
+          )}
+
+          {listing.sale_date && (
+            <div className="mt-2">
+              <CountdownTimer
+                saleDate={listing.sale_date}
+                saleTimeStart={listing.sale_time_start}
+                saleTimeEnd={listing.sale_time_end}
+              />
+            </div>
+          )}
+
+          {isOwner && !isBoosted && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowBoostModal(true);
+              }}
+              className="mt-3 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-2 rounded-xl text-sm font-bold transition-all hover:shadow-md"
+            >
+              <i className="fa-solid fa-rocket text-xs" />
+              Boost — $2.99
+            </button>
+          )}
+
+          {isOwner && isBoosted && (
+            <div className="mt-3 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-xl text-sm font-semibold">
+              <i className="fa-solid fa-check-circle text-xs" />
+              Boosted
+            </div>
+          )}
         </div>
       </div>
-    </Link>
+
+      {showBoostModal && (
+        <BoostModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowBoostModal(false)}
+        />
+      )}
+    </>
   );
 }

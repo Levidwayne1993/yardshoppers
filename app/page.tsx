@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
@@ -25,384 +24,238 @@ const CATEGORIES = [
   "Free Stuff",
 ];
 
-type SortOption = "newest" | "oldest";
-
-const STEPS = [
-  {
-    icon: "fa-magnifying-glass",
-    title: "Search",
-    desc: "Browse yard sales by location, category, or keyword. Find exactly what you're looking for.",
-  },
-  {
-    icon: "fa-heart",
-    title: "Save",
-    desc: "Save your favorite sales and get reminders so you never miss a deal.",
-  },
-  {
-    icon: "fa-map-location-dot",
-    title: "Visit",
-    desc: "Get directions, see sale times, and show up ready to score incredible deals.",
-  },
-];
+function milesToDeg(miles: number) {
+  return miles / 69;
+}
 
 export default function HomePage() {
   const supabase = createClient();
-  const router = useRouter();
-  const {
-    city,
-    region,
-    lat,
-    lng,
-    loading: locationLoading,
-  } = useLocation();
+  const { city, region, lat, lng, loading: locationLoading } = useLocation();
 
-  const [search, setSearch] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [sort, setSort] = useState<SortOption>("newest");
-  const [radius, setRadius] = useState(999);
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-
-  const fetchListings = useCallback(async () => {
-    setLoading(true);
-    let query = supabase
-      .from("listings")
-      .select("*, listing_photos(*)", { count: "exact" });
-
-    if (search.trim()) {
-      query = query.or(
-        `title.ilike.%${search.trim()}%,description.ilike.%${search.trim()}%,city.ilike.%${search.trim()}%`
-      );
-    }
-
-    if (selectedCategories.length === 1) {
-      query = query.or(
-        `category.eq.${selectedCategories[0]},categories.cs.{${selectedCategories[0]}}`
-      );
-    } else if (selectedCategories.length > 1) {
-      query = query.overlaps("categories", selectedCategories);
-    }
-
-    if (lat && lng && radius < 999) {
-      const milesToDeg = radius / 69;
-      const lngDeg = radius / (69 * Math.cos((lat * Math.PI) / 180));
-      query = query
-        .gte("latitude", lat - milesToDeg)
-        .lte("latitude", lat + milesToDeg)
-        .gte("longitude", lng - lngDeg)
-        .lte("longitude", lng + lngDeg);
-    }
-
-    query = query
-      .order("is_boosted", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: sort === "oldest" });
-
-    const { data, count } = await query.limit(24);
-    setListings(data || []);
-    setTotalCount(count || 0);
-    setLoading(false);
-  }, [search, selectedCategories, sort, radius, lat, lng]);
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sort, setSort] = useState("newest");
+  const [distance, setDistance] = useState(999);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!locationLoading) fetchListings();
-  }, [fetchListings, locationLoading]);
-
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    fetchListings();
-  }
-
-  function toggleCategory(cat: string) {
-    if (cat === "All") {
-      setSelectedCategories([]);
-      return;
+    async function getUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
     }
-    const updated = selectedCategories.includes(cat)
-      ? selectedCategories.filter((c) => c !== cat)
-      : [...selectedCategories, cat];
-    setSelectedCategories(updated);
-  }
+    getUser();
+  }, []);
 
-  function clearFilters() {
-    setSearch("");
-    setSelectedCategories([]);
-    setSort("newest");
-    setRadius(999);
-  }
+  useEffect(() => {
+    async function fetchListings() {
+      setLoading(true);
 
-  const hasFilters =
-    search.trim() || selectedCategories.length > 0 || radius < 999;
+      let query = supabase.from("listings").select("*, listing_photos(*)");
+
+      if (search.trim()) {
+        const term = `%${search.trim()}%`;
+        query = query.or(
+          `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
+        );
+      }
+
+      if (selectedCategory !== "All") {
+        query = query.or(
+          `category.eq.${selectedCategory},category.cs.{${selectedCategory}}`
+        );
+      }
+
+      if (distance < 999 && lat && lng) {
+        const deg = milesToDeg(distance);
+        query = query
+          .gte("lat", lat - deg)
+          .lte("lat", lat + deg)
+          .gte("lng", lng - deg)
+          .lte("lng", lng + deg);
+      }
+
+      query = query
+        .order("is_boosted", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: sort === "oldest" });
+
+      query = query.limit(12);
+
+      const { data } = await query;
+      setListings(data || []);
+      setLoading(false);
+    }
+
+    fetchListings();
+  }, [search, selectedCategory, sort, distance, lat, lng]);
 
   return (
-    <div className="min-h-screen">
-      {/* Hero — compact branded header */}
-      <section className="relative bg-gradient-to-br from-ys-800 via-ys-700 to-ys-600 text-white overflow-hidden">
+    <div>
+      <section className="relative bg-gradient-to-br from-ys-900 via-ys-800 to-ys-700 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 text-6xl">🏷️</div>
-          <div className="absolute top-32 right-20 text-5xl">🛋️</div>
-          <div className="absolute bottom-20 left-1/4 text-4xl">📦</div>
-          <div className="absolute bottom-10 right-1/3 text-5xl">🎸</div>
+          <div className="absolute top-10 left-10 text-6xl animate-bounce">🏷️</div>
+          <div className="absolute top-20 right-20 text-5xl animate-bounce delay-300">🛋️</div>
+          <div className="absolute bottom-10 left-1/4 text-4xl animate-bounce delay-700">📦</div>
+          <div className="absolute bottom-20 right-1/3 text-5xl animate-bounce delay-500">🎸</div>
         </div>
-        <div className="max-w-6xl mx-auto px-4 py-12 md:py-16 text-center relative z-10">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 mb-4 text-sm font-medium">
-            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            {city
-              ? `📍 Located in ${city}, ${region}`
-              : "Live yard sales near you"}
-          </div>
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight">
-            Discover Yard Sales
-            <span className="block text-ys-200">In Your Neighborhood</span>
-          </h1>
-          <p className="mt-3 text-base md:text-lg text-ys-100 max-w-2xl mx-auto">
-            Find incredible deals at yard sales near you. Post your own sale and
-            reach hundreds of local shoppers.
-          </p>
-        </div>
-      </section>
 
-      {/* Search / Filters — matches Browse page */}
-      <div className="bg-white border-b border-gray-200 sticky top-16 z-40">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <form onSubmit={handleSearch} className="flex gap-2 mb-3">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center relative z-10">
+          <h1 className="text-3xl sm:text-5xl font-extrabold mb-3 leading-tight">
+            Discover Yard Sales
+            <br />
+            <span className="text-ys-300">Near You</span>
+          </h1>
+          <p className="text-ys-200 text-lg mb-2 max-w-xl mx-auto">
+            Find amazing deals in your neighborhood. Browse, save, and visit
+            yard sales happening right now.
+          </p>
+          {(city || region) && (
+            <p className="text-ys-300 text-sm mb-8">
+              <i className="fa-solid fa-location-dot mr-1" />
+              {[city, region].filter(Boolean).join(", ")}
+            </p>
+          )}
+
+          <div className="max-w-2xl mx-auto flex gap-3">
             <div className="flex-1 relative">
-              <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={
-                  city
-                    ? `Search sales near ${city}...`
-                    : "Search by keyword, city, or item..."
-                }
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-ys-500 focus:border-transparent text-sm"
+                placeholder="Search for furniture, electronics, toys..."
+                className="w-full pl-11 pr-4 py-3.5 bg-white text-gray-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-400 shadow-lg"
               />
             </div>
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value as SortOption)}
-              className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-ys-500"
+              onChange={(e) => setSort(e.target.value)}
+              className="bg-white text-gray-700 rounded-xl px-4 py-3.5 text-sm font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-ys-400"
             >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
             </select>
-          </form>
+          </div>
+        </div>
+      </section>
 
-          {/* Distance Selector */}
-          {(lat || city) && (
-            <div className="mb-3 pb-3 border-b border-gray-100">
-              <DistanceSelector value={radius} onChange={setRadius} />
-            </div>
-          )}
-
-          {/* Category Pills */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            <button
-              onClick={() => toggleCategory("All")}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                selectedCategories.length === 0
-                  ? "bg-ys-700 text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              All
-            </button>
-            {CATEGORIES.filter((c) => c !== "All").map((cat) => (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <div className="flex flex-col gap-3 mb-6">
+          <DistanceSelector value={distance} onChange={setDistance} />
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                onClick={() => toggleCategory(cat)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedCategories.includes(cat)
-                    ? "bg-ys-700 text-white shadow-sm"
+                onClick={() => setSelectedCategory(cat)}
+                className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                  selectedCategory === cat
+                    ? "bg-ys-800 text-white shadow-sm"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 {cat}
-                {selectedCategories.includes(cat) && (
-                  <span className="ml-1">✕</span>
-                )}
               </button>
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Listings Grid */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-gray-500">
-            {loading
-              ? "Searching..."
-              : `${totalCount} sale${totalCount !== 1 ? "s" : ""} found`}
-            {selectedCategories.length > 0 && (
-              <span className="ml-1 text-ys-700 font-medium">
-                in {selectedCategories.join(", ")}
-              </span>
-            )}
-            {radius < 999 && (
-              <span className="ml-1 text-ys-700 font-medium">
-                within {radius} mi
-              </span>
-            )}
-          </p>
-          {hasFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-sm text-ys-700 hover:text-ys-800 font-medium"
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl h-72 animate-pulse border border-gray-100"
+              <div key={i} className="animate-pulse">
+                <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : listings.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
+              <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">No sales found nearby</h2>
+            <p className="text-gray-500 mb-6">Try expanding your distance or changing your search.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {listings.map((listing) => (
+              <ListingCard
+                key={listing.id}
+                listing={listing}
+                currentUserId={currentUserId}
               />
             ))}
           </div>
-        ) : listings.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20">
-            <i className="fa-solid fa-magnifying-glass text-4xl text-gray-300 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-              No sales found
-            </h3>
-            <p className="text-gray-500 text-sm mb-4">
-              {radius < 999
-                ? `No sales within ${radius} miles. Try increasing the radius or clearing filters.`
-                : "Try adjusting your search or category filters"}
-            </p>
-            <button
-              onClick={clearFilters}
-              className="px-6 py-2.5 bg-ys-600 text-white rounded-lg font-semibold hover:bg-ys-700 transition"
+        )}
+
+        {listings.length > 0 && (
+          <div className="text-center mt-10">
+            <Link
+              href="/browse"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition-all hover:shadow-lg"
             >
-              Clear All Filters
-            </button>
+              View All Sales
+              <i className="fa-solid fa-arrow-right text-sm" />
+            </Link>
           </div>
         )}
-      </div>
 
-      {/* Boost CTA */}
-      <section className="bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border-y border-amber-100">
-        <div className="max-w-6xl mx-auto px-4 py-14 text-center">
-          <span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full mb-4">
-            New Feature
-          </span>
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
-            Boost Your Sale to the Top 🚀
-          </h2>
-          <p className="text-gray-600 mb-2">
-            Get 10x more views and appear first in search results.
-          </p>
-          <p className="text-2xl font-bold text-ys-800 mb-6">Just $2.99</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
-            <Link
-              href="/post"
-              className="px-8 py-3 bg-ys-600 text-white rounded-xl font-semibold hover:bg-ys-700 transition shadow-md"
-            >
-              Post & Boost a Sale
-            </Link>
-            <Link
-              href="/dashboard"
-              className="px-8 py-3 bg-white text-ys-700 border-2 border-ys-200 rounded-xl font-semibold hover:border-ys-400 transition"
-            >
-              Boost an existing listing
-            </Link>
+        <section className="mt-16 bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 rounded-3xl p-8 sm:p-10 text-center">
+          <div className="w-14 h-14 bg-amber-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <i className="fa-solid fa-rocket text-xl text-amber-600" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Want More Eyes on Your Sale?</h2>
+          <p className="text-gray-600 max-w-lg mx-auto mb-6">
+            Boost your listing for just $2.99 and appear at the top of browse
+            results. Get 10x more views and sell faster!
+          </p>
+          <Link
+            href="/post"
+            className="inline-flex items-center gap-2 px-8 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-full font-bold transition-all hover:shadow-lg"
+          >
+            Post a Sale — It&apos;s Free
+          </Link>
+        </section>
+
+        <section className="mt-16 mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">How YardShoppers Works</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
             {[
-              {
-                icon: "fa-arrow-up",
-                label: "Top Placement",
-                sub: "Appear first in results",
-              },
-              {
-                icon: "fa-eye",
-                label: "10x More Views",
-                sub: "Maximum visibility",
-              },
-              {
-                icon: "fa-bolt",
-                label: "Instant Activation",
-                sub: "Goes live immediately",
-              },
-            ].map((b) => (
-              <div
-                key={b.label}
-                className="bg-white rounded-xl p-4 shadow-sm border border-amber-100"
-              >
-                <i
-                  className={`fa-solid ${b.icon} text-amber-500 text-xl mb-2`}
-                />
-                <p className="font-semibold text-gray-900 text-sm">
-                  {b.label}
-                </p>
-                <p className="text-gray-500 text-xs">{b.sub}</p>
+              { icon: "fa-magnifying-glass", title: "Search", desc: "Find yard sales near you by location, category, or keyword." },
+              { icon: "fa-heart", title: "Save", desc: "Save your favorite listings and plan your yard sale route." },
+              { icon: "fa-map-location-dot", title: "Visit", desc: "Get directions and head out to find amazing deals!" },
+            ].map((step) => (
+              <div key={step.title} className="text-center">
+                <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <i className={`fa-solid ${step.icon} text-xl text-ys-700`} />
+                </div>
+                <h3 className="font-bold text-gray-900 mb-1">{step.title}</h3>
+                <p className="text-sm text-gray-500">{step.desc}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* How YardShoppers Works */}
-      <section id="how-it-works" className="max-w-6xl mx-auto px-4 py-14">
-        <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
-          How YardShoppers Works
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {STEPS.map((step, i) => (
-            <div
-              key={step.title}
-              className="bg-white border border-gray-100 rounded-2xl p-8 text-center hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group"
-            >
-              <div className="w-16 h-16 bg-ys-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-ys-100 transition-colors">
-                <i
-                  className={`fa-solid ${step.icon} text-2xl text-ys-700`}
-                />
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          {[
+            { icon: "fa-dollar-sign", label: "Free to Browse" },
+            { icon: "fa-location-crosshairs", label: "Location Based" },
+            { icon: "fa-bolt", label: "Instant Posting" },
+            { icon: "fa-shield-halved", label: "Secure & Private" },
+          ].map((trust) => (
+            <div key={trust.label} className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl">
+              <div className="w-9 h-9 bg-ys-100 rounded-lg flex items-center justify-center shrink-0">
+                <i className={`fa-solid ${trust.icon} text-sm text-ys-700`} />
               </div>
-              <div className="text-xs font-bold text-ys-600 mb-1">
-                Step {i + 1}
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                {step.title}
-              </h3>
-              <p className="text-gray-500 text-sm">{step.desc}</p>
+              <span className="text-sm font-semibold text-gray-700">{trust.label}</span>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* Trust Signals */}
-      <section className="bg-gray-50 border-t border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 py-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            {[
-              { val: "100%", label: "Free to Browse" },
-              { val: "📍", label: "Location Based" },
-              { val: "⚡", label: "Instant Posting" },
-              { val: "🔒", label: "Secure & Private" },
-            ].map((t) => (
-              <div key={t.label}>
-                <div className="text-2xl font-extrabold text-ys-700">
-                  {t.val}
-                </div>
-                <p className="text-sm text-gray-500 mt-1">{t.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
