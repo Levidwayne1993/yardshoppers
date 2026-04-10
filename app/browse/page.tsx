@@ -107,10 +107,10 @@ function BrowseContent() {
       if (distance < 999 && lat && lng) {
         const deg = milesToDeg(distance);
         query = query
-          .gte("lat", lat - deg)
-          .lte("lat", lat + deg)
-          .gte("lng", lng - deg)
-          .lte("lng", lng + deg);
+          .gte("latitude", lat - deg)
+          .lte("latitude", lat + deg)
+          .gte("longitude", lng - deg)
+          .lte("longitude", lng + deg);
       }
 
       // Always order boosted first, then by created_at from DB
@@ -133,12 +133,12 @@ function BrowseContent() {
         // Sort each group by distance
         const sortByDistance = (a: any, b: any) => {
           const distA =
-            a.lat && a.lng
-              ? getDistanceMiles(lat, lng, a.lat, a.lng)
+            a.latitude && a.longitude
+              ? getDistanceMiles(lat, lng, a.latitude, a.longitude)
               : Infinity;
           const distB =
-            b.lat && b.lng
-              ? getDistanceMiles(lat, lng, b.lat, b.lng)
+            b.latitude && b.longitude
+              ? getDistanceMiles(lat, lng, b.latitude, b.longitude)
               : Infinity;
           return distA - distB;
         };
