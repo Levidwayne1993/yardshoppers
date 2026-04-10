@@ -30,16 +30,40 @@ function milesToDeg(miles: number) {
   return miles / 69;
 }
 
+/** Haversine distance in miles between two lat/lng points */
+function getDistanceMiles(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 3958.8; // Earth radius in miles
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function HomePage() {
-  const { city, region, lat, lng, loading: locationLoading, requestPreciseLocation } = useLocation();
+  const {
+    city,
+    region,
+    lat,
+    lng,
+    loading: locationLoading,
+    requestPreciseLocation,
+  } = useLocation();
 
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [sort, setSort] = useState("newest");
-  const [distance, setDistance] = useState(999);
+  const [sort, setSort] = useState("nearest");
+  const [distance, setDistance] = useState(50);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -70,6 +94,9 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    // Wait for location before fetching (unless user chose "Any" distance)
+    if (distance < 999 && (!lat || !lng)) return;
+
     async function fetchListings() {
       setLoading(true);
 
@@ -89,6 +116,7 @@ export default function HomePage() {
         query = query.or(orClauses);
       }
 
+      // Apply geographic bounding box filter
       if (distance < 999 && lat && lng) {
         const deg = milesToDeg(distance);
         query = query
@@ -98,14 +126,45 @@ export default function HomePage() {
           .lte("lng", lng + deg);
       }
 
+      // Always order boosted first, then by created_at from DB
       query = query
         .order("is_boosted", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: sort === "oldest" });
 
-      query = query.limit(12);
+      // Fetch more than needed so client-side sort has enough to work with
+      query = query.limit(50);
 
       const { data } = await query;
-      setListings(data || []);
+      let results = data || [];
+
+      // Client-side proximity sort when "nearest" is selected and location is available
+      if (sort === "nearest" && lat && lng && results.length > 0) {
+        // Separate boosted and non-boosted listings
+        const boosted = results.filter((l: any) => l.is_boosted);
+        const nonBoosted = results.filter((l: any) => !l.is_boosted);
+
+        // Sort each group by distance
+        const sortByDistance = (a: any, b: any) => {
+          const distA =
+            a.lat && a.lng
+              ? getDistanceMiles(lat, lng, a.lat, a.lng)
+              : Infinity;
+          const distB =
+            b.lat && b.lng
+              ? getDistanceMiles(lat, lng, b.lat, b.lng)
+              : Infinity;
+          return distA - distB;
+        };
+
+        boosted.sort(sortByDistance);
+        nonBoosted.sort(sortByDistance);
+
+        // Boosted listings still appear first, but sorted by distance within their group
+        results = [...boosted, ...nonBoosted];
+      }
+
+      // Trim to display limit
+      setListings(results.slice(0, 12));
       setLoading(false);
     }
 
@@ -156,6 +215,7 @@ export default function HomePage() {
               aria-label="Sort listings"
               className="bg-white text-gray-700 rounded-xl px-4 py-3.5 text-sm font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-ys-400"
             >
+              <option value="nearest">Nearest</option>
               <option value="newest">Newest</option>
               <option value="oldest">Oldest</option>
             </select>
@@ -198,7 +258,7 @@ export default function HomePage() {
           )}
         </div>
 
-        {loading ? (
+        {loading || (distance < 999 && locationLoading) ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="animate-pulse">
@@ -215,6 +275,12 @@ export default function HomePage() {
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">No sales found nearby</h2>
             <p className="text-gray-500 mb-6">Try expanding your distance or changing your search.</p>
+            <button
+              onClick={() => setDistance(999)}
+              className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
+            >
+              Show All Sales
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

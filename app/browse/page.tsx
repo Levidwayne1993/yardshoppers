@@ -20,9 +20,26 @@ function milesToDeg(miles: number) {
   return miles / 69;
 }
 
+/** Haversine distance in miles between two lat/lng points */
+function getDistanceMiles(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 3958.8; // Earth radius in miles
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function BrowseContent() {
   const searchParams = useSearchParams();
-  const { city, region, lat, lng, requestPreciseLocation } = useLocation();
+  const { city, region, lat, lng, loading: locationLoading, requestPreciseLocation } = useLocation();
 
   const initialCategory = searchParams.get("category");
   const [listings, setListings] = useState<any[]>([]);
@@ -32,8 +49,8 @@ function BrowseContent() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialCategory && initialCategory !== "All" ? [initialCategory] : []
   );
-  const [sort, setSort] = useState("newest");
-  const [distance, setDistance] = useState(999);
+  const [sort, setSort] = useState("nearest");
+  const [distance, setDistance] = useState(50);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,6 +81,9 @@ function BrowseContent() {
   }
 
   useEffect(() => {
+    // Wait for location before fetching (unless user chose "Any" distance)
+    if (distance < 999 && (!lat || !lng)) return;
+
     async function fetchListings() {
       setLoading(true);
 
@@ -83,6 +103,7 @@ function BrowseContent() {
         query = query.or(orClauses);
       }
 
+      // Apply geographic bounding box filter
       if (distance < 999 && lat && lng) {
         const deg = milesToDeg(distance);
         query = query
@@ -92,14 +113,45 @@ function BrowseContent() {
           .lte("lng", lng + deg);
       }
 
+      // Always order boosted first, then by created_at from DB
       query = query
         .order("is_boosted", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: sort === "oldest" });
 
-      query = query.limit(24);
+      // Fetch more than needed so client-side sort has enough to work with
+      query = query.limit(100);
 
       const { data } = await query;
-      setListings(data || []);
+      let results = data || [];
+
+      // Client-side proximity sort when "nearest" is selected and location is available
+      if (sort === "nearest" && lat && lng && results.length > 0) {
+        // Separate boosted and non-boosted listings
+        const boosted = results.filter((l: any) => l.is_boosted);
+        const nonBoosted = results.filter((l: any) => !l.is_boosted);
+
+        // Sort each group by distance
+        const sortByDistance = (a: any, b: any) => {
+          const distA =
+            a.lat && a.lng
+              ? getDistanceMiles(lat, lng, a.lat, a.lng)
+              : Infinity;
+          const distB =
+            b.lat && b.lng
+              ? getDistanceMiles(lat, lng, b.lat, b.lng)
+              : Infinity;
+          return distA - distB;
+        };
+
+        boosted.sort(sortByDistance);
+        nonBoosted.sort(sortByDistance);
+
+        // Boosted listings still appear first, but sorted by distance within their group
+        results = [...boosted, ...nonBoosted];
+      }
+
+      // Trim to display limit
+      setListings(results.slice(0, 24));
       setLoading(false);
     }
 
@@ -129,6 +181,7 @@ function BrowseContent() {
               aria-label="Sort listings"
               className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-ys-300"
             >
+              <option value="nearest">Nearest first</option>
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
             </select>
@@ -173,12 +226,16 @@ function BrowseContent() {
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-500">
             {listings.length} result{listings.length !== 1 ? "s" : ""} found
+            {city && distance < 999 && (
+              <span> within {distance} mi of {city}{region ? `, ${region}` : ""}</span>
+            )}
           </p>
           <button
             onClick={() => {
               setSearch("");
               clearCategories();
-              setDistance(999);
+              setDistance(50);
+              setSort("nearest");
             }}
             className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition"
           >
@@ -188,7 +245,7 @@ function BrowseContent() {
         </div>
       )}
 
-      {loading ? (
+      {loading || (distance < 999 && locationLoading) ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="animate-pulse">
@@ -204,19 +261,16 @@ function BrowseContent() {
             <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" aria-hidden="true" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">No sales found</h2>
-          <p className="text-gray-500 mb-6">Try adjusting your search or filters.</p>
-          {hasFilters && (
-            <button
-              onClick={() => {
-                setSearch("");
-                clearCategories();
-                setDistance(999);
-              }}
-              className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
-            >
-              Clear All Filters
-            </button>
-          )}
+          <p className="text-gray-500 mb-6">Try expanding your distance or adjusting your search.</p>
+          <button
+            onClick={() => {
+              setDistance(999);
+              setSort("newest");
+            }}
+            className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
+          >
+            Show All Sales Nationwide
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
