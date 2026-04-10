@@ -11,21 +11,49 @@ export default function Navbar() {
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      if (data.user) fetchUnread(data.user.id);
+    });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) fetchUnread(session.user.id);
+      else setUnreadCount(0);
     });
     return () => subscription.unsubscribe();
   }, []);
 
+  // Re-fetch unread count when navigating away from messages page
+  useEffect(() => {
+    if (user && pathname !== "/messages") {
+      fetchUnread(user.id);
+    }
+    if (user && pathname === "/messages") {
+      // Small delay to let the page mark messages as read
+      const timer = setTimeout(() => fetchUnread(user.id), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [pathname, user]);
+
+  const fetchUnread = async (userId: string) => {
+    const { count } = await supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .eq("receiver_id", userId)
+      .eq("is_read", false);
+
+    setUnreadCount(count || 0);
+  };
+
   const mobileNav = [
     { href: "/", icon: "fa-house", label: "Home" },
     { href: "/browse", icon: "fa-magnifying-glass", label: "Browse" },
-    { href: "/route-planner", icon: "fa-route", label: "Routes" },
+    { href: "/messages", icon: "fa-envelope", label: "Messages", badge: true },
     { href: "/post", icon: "fa-plus", label: "Post" },
     { href: user ? "/dashboard" : "/login", icon: "fa-user", label: user ? "Account" : "Log In" },
   ];
@@ -48,7 +76,11 @@ export default function Navbar() {
             <div className="hidden md:flex items-center gap-1">
               <Link
                 href="/browse"
-                className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                  pathname === "/browse"
+                    ? "text-ys-700 bg-ys-50"
+                    : "text-gray-600 hover:text-ys-700 hover:bg-ys-50"
+                }`}
               >
                 <i className="fa-solid fa-magnifying-glass mr-1.5" aria-hidden="true" />
                 Browse Sales
@@ -56,7 +88,11 @@ export default function Navbar() {
 
               <Link
                 href="/route-planner"
-                className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                  pathname === "/route-planner"
+                    ? "text-ys-700 bg-ys-50"
+                    : "text-gray-600 hover:text-ys-700 hover:bg-ys-50"
+                }`}
               >
                 <i className="fa-solid fa-route mr-1.5" aria-hidden="true" />
                 Route Planner
@@ -72,8 +108,31 @@ export default function Navbar() {
 
               {user && (
                 <Link
+                  href="/messages"
+                  className={`relative px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    pathname === "/messages"
+                      ? "text-ys-700 bg-ys-50"
+                      : "text-gray-600 hover:text-ys-700 hover:bg-ys-50"
+                  }`}
+                >
+                  <i className="fa-solid fa-envelope mr-1.5" aria-hidden="true" />
+                  Messages
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 left-[72px] bg-[#FF6B35] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+
+              {user && (
+                <Link
                   href="/dashboard"
-                  className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    pathname === "/dashboard"
+                      ? "text-ys-700 bg-ys-50"
+                      : "text-gray-600 hover:text-ys-700 hover:bg-ys-50"
+                  }`}
                 >
                   <i className="fa-solid fa-user mr-1.5" aria-hidden="true" />
                   My Account
@@ -109,7 +168,7 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Mobile hamburger — hidden now that bottom nav exists, but kept for extra links */}
+            {/* Mobile hamburger */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -158,6 +217,22 @@ export default function Navbar() {
 
             {user && (
               <Link
+                href="/messages"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
+              >
+                <i className="fa-solid fa-envelope mr-2 text-ys-600" aria-hidden="true" />
+                Messages
+                {unreadCount > 0 && (
+                  <span className="ml-auto bg-[#FF6B35] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            {user && (
+              <Link
                 href="/dashboard"
                 onClick={() => setMenuOpen(false)}
                 className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
@@ -200,7 +275,7 @@ export default function Navbar() {
         )}
       </nav>
 
-      {/* Mobile bottom nav bar — always visible on phones */}
+      {/* Mobile bottom nav bar */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]"
         aria-label="Mobile navigation"
@@ -210,20 +285,27 @@ export default function Navbar() {
             const isActive = pathname === item.href;
             return (
               <Link
-                key={item.href}
+                key={item.label}
                 href={item.href}
-                className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 rounded-lg transition ${
+                className={`relative flex flex-col items-center justify-center gap-0.5 flex-1 py-1 rounded-lg transition ${
                   isActive
                     ? "text-ys-700"
                     : "text-gray-400 hover:text-gray-600"
                 }`}
               >
-                <i
-                  className={`fa-solid ${item.icon} text-base ${
-                    isActive ? "text-ys-700" : ""
-                  }`}
-                  aria-hidden="true"
-                />
+                <div className="relative">
+                  <i
+                    className={`fa-solid ${item.icon} text-base ${
+                      isActive ? "text-ys-700" : ""
+                    }`}
+                    aria-hidden="true"
+                  />
+                  {item.badge && unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2.5 bg-[#FF6B35] text-white text-[8px] font-bold min-w-[14px] h-[14px] rounded-full flex items-center justify-center px-0.5">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-medium leading-tight">
                   {item.label}
                 </span>

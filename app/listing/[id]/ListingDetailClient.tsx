@@ -6,6 +6,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import BoostModal from "@/components/BoostModal";
 import ReportModal from "@/components/ReportModal";
+import CommentsSection from "@/components/CommentsSection";
+import RatingSection from "@/components/RatingSection";
+import MessageModal from "@/components/MessageModal";
 
 interface Listing {
   id: string;
@@ -41,6 +44,9 @@ export default function ListingDetailClient({
   const [copied, setCopied] = useState(false);
   const [showBoostModal, setShowBoostModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [hostAvgRating, setHostAvgRating] = useState<number | null>(null);
+  const [hostTotalRatings, setHostTotalRatings] = useState<number>(0);
 
   useEffect(() => {
     async function load() {
@@ -55,7 +61,21 @@ export default function ListingDetailClient({
         .eq("id", listingId)
         .single();
 
-      if (data) setListing(data);
+      if (data) {
+        setListing(data);
+
+        // Fetch host rating summary
+        const { data: ratingData } = await supabase
+          .from("host_ratings")
+          .select("avg_rating, total_ratings")
+          .eq("host_id", data.user_id)
+          .maybeSingle();
+
+        if (ratingData) {
+          setHostAvgRating(ratingData.avg_rating);
+          setHostTotalRatings(ratingData.total_ratings);
+        }
+      }
 
       if (u) {
         const { data: s } = await supabase
@@ -266,6 +286,12 @@ export default function ListingDetailClient({
               </p>
             </section>
           )}
+
+          {/* ===== RATINGS SECTION ===== */}
+          <RatingSection listingId={listing.id} hostId={listing.user_id} />
+
+          {/* ===== COMMENTS SECTION ===== */}
+          <CommentsSection listingId={listing.id} />
         </div>
 
         <div className="lg:col-span-2">
@@ -367,6 +393,23 @@ export default function ListingDetailClient({
                 </button>
               </div>
 
+              {/* ===== MESSAGE SELLER BUTTON ===== */}
+              {!isOwner && (
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      window.location.href = "/login";
+                      return;
+                    }
+                    setShowMessageModal(true);
+                  }}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-green-800 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
+                >
+                  <i className="fa-solid fa-envelope text-sm" aria-hidden="true" />
+                  Message Seller
+                </button>
+              )}
+
               {isOwner && !listing.is_boosted && (
                 <button
                   onClick={() => setShowBoostModal(true)}
@@ -396,13 +439,21 @@ export default function ListingDetailClient({
                     <p className="font-semibold text-gray-900">
                       {listing.profiles.display_name || "YardShoppers Seller"}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      Joined{" "}
-                      {new Date(listing.created_at).toLocaleDateString("en-US", {
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-500">
+                        Joined{" "}
+                        {new Date(listing.created_at).toLocaleDateString("en-US", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </p>
+                      {hostAvgRating !== null && (
+                        <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full">
+                          <i className="fa-solid fa-star text-yellow-400 text-[10px]" />
+                          {hostAvgRating} ({hostTotalRatings})
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -454,6 +505,16 @@ export default function ListingDetailClient({
           listingId={listing.id}
           listingTitle={listing.title}
           onClose={() => setShowReportModal(false)}
+        />
+      )}
+
+      {showMessageModal && listing && (
+        <MessageModal
+          receiverId={listing.user_id}
+          receiverName={listing.profiles?.display_name || "Seller"}
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowMessageModal(false)}
         />
       )}
     </article>
