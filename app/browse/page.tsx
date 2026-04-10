@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import DistanceSelector from "@/components/DistanceSelector";
@@ -20,7 +21,6 @@ function milesToDeg(miles: number) {
   return miles / 69;
 }
 
-/** Haversine distance in miles between two lat/lng points */
 function getDistanceMiles(
   lat1: number,
   lng1: number,
@@ -28,7 +28,7 @@ function getDistanceMiles(
   lng2: number
 ): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 3958.8; // Earth radius in miles
+  const R = 3958.8;
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
   const a =
@@ -81,7 +81,6 @@ function BrowseContent() {
   }
 
   useEffect(() => {
-    // Wait for location before fetching (unless user chose "Any" distance)
     if (distance < 999 && (!lat || !lng)) return;
 
     async function fetchListings() {
@@ -103,7 +102,6 @@ function BrowseContent() {
         query = query.or(orClauses);
       }
 
-      // Apply geographic bounding box filter
       if (distance < 999 && lat && lng) {
         const deg = milesToDeg(distance);
         query = query
@@ -113,24 +111,19 @@ function BrowseContent() {
           .lte("longitude", lng + deg);
       }
 
-      // Always order boosted first, then by created_at from DB
       query = query
         .order("is_boosted", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: sort === "oldest" });
 
-      // Fetch more than needed so client-side sort has enough to work with
       query = query.limit(100);
 
       const { data } = await query;
       let results = data || [];
 
-      // Client-side proximity sort when "nearest" is selected and location is available
       if (sort === "nearest" && lat && lng && results.length > 0) {
-        // Separate boosted and non-boosted listings
         const boosted = results.filter((l: any) => l.is_boosted);
         const nonBoosted = results.filter((l: any) => !l.is_boosted);
 
-        // Sort each group by distance
         const sortByDistance = (a: any, b: any) => {
           const distA =
             a.latitude && a.longitude
@@ -146,11 +139,9 @@ function BrowseContent() {
         boosted.sort(sortByDistance);
         nonBoosted.sort(sortByDistance);
 
-        // Boosted listings still appear first, but sorted by distance within their group
         results = [...boosted, ...nonBoosted];
       }
 
-      // Trim to display limit
       setListings(results.slice(0, 24));
       setLoading(false);
     }
@@ -162,7 +153,7 @@ function BrowseContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      <div className="sticky top-[65px] z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-6">
+      <div className="sticky top-[65px] z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-4">
         <div className="flex flex-col gap-3">
           <div className="flex gap-3">
             <div className="flex-1 relative">
@@ -221,6 +212,30 @@ function BrowseContent() {
           )}
         </div>
       </div>
+
+      {/* ===== ROUTE PLANNER CTA BANNER ===== */}
+      <Link href="/route-planner" className="block mb-5">
+        <div className="bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#388E3C] rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all group cursor-pointer">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-white/30 transition">
+              <i className="fa-solid fa-globe text-white text-xl" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-bold text-sm sm:text-base">Plan Your Yard Sale Route</p>
+              <p className="text-white/75 text-xs sm:text-sm truncate">
+                Map multiple stops, optimize your drive, and never miss a deal
+              </p>
+            </div>
+          </div>
+          <div className="flex-shrink-0 bg-white text-[#2E7D32] px-4 py-2 rounded-lg text-sm font-bold group-hover:bg-green-50 transition hidden sm:flex items-center gap-2">
+            <i className="fa-solid fa-map-location-dot" aria-hidden="true" />
+            Open Map
+          </div>
+          <div className="flex-shrink-0 sm:hidden w-9 h-9 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition">
+            <i className="fa-solid fa-chevron-right text-white text-sm" aria-hidden="true" />
+          </div>
+        </div>
+      </Link>
 
       {hasFilters && (
         <div className="flex items-center justify-between mb-4">
