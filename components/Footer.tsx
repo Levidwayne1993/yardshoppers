@@ -2,82 +2,9 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-300 pb-16 md:pb-0">
-      {/* Top CTA Band */}
-      <div className="bg-gradient-to-r from-ys-900 via-ys-800 to-ys-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-          <div>
-            <h3 className="text-xl font-bold text-white">
-              Ready to turn your clutter into cash?
-            </h3>
-            <p className="text-ys-300 text-sm mt-1">
-              Post your yard sale in under 2 minutes — completely free.
-            </p>
-          </div>
-          <Link
-            href="/post"
-            className="px-8 py-3 bg-white text-ys-800 font-semibold rounded-full hover:bg-ys-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-          >
-            Post a Sale — It&apos;s Free
-          </Link>
-        </div>
-      </div>
-
-      {/* Main Footer Grid */}
+    <footer className="bg-gray-900 text-gray-400 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-14">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
-          {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <span className="text-2xl" aria-hidden="true">🏷️</span>
-              <span className="text-lg font-extrabold text-white tracking-tight">
-                Yard<span className="text-ys-500">Shoppers</span>
-              </span>
-            </Link>
-            <p className="text-sm leading-relaxed text-gray-400">
-              Your neighborhood marketplace for yard sales, garage sales, and
-              estate sales. Buy local, save big, reduce waste.
-            </p>
-            <nav aria-label="Social media links" className="flex gap-3 mt-5">
-              <a
-                href="https://facebook.com/yardshoppers"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Follow YardShoppers on Facebook"
-                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
-              >
-                <i className="fa-brands fa-facebook-f text-sm" aria-hidden="true" />
-              </a>
-              <a
-                href="https://instagram.com/yardshoppers"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Follow YardShoppers on Instagram"
-                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
-              >
-                <i className="fa-brands fa-instagram text-sm" aria-hidden="true" />
-              </a>
-              <a
-                href="https://x.com/yardshoppers"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Follow YardShoppers on X"
-                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
-              >
-                <i className="fa-brands fa-x-twitter text-sm" aria-hidden="true" />
-              </a>
-              <a
-                href="https://tiktok.com/@yardshoppers"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Follow YardShoppers on TikTok"
-                className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
-              >
-                <i className="fa-brands fa-tiktok text-sm" aria-hidden="true" />
-              </a>
-            </nav>
-          </div>
-
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-10">
           {/* Explore */}
           <nav aria-label="Explore yard sales">
             <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
@@ -87,6 +14,11 @@ export default function Footer() {
               <li>
                 <Link href="/browse" className="text-sm hover:text-white transition">
                   Browse Sales
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog" className="text-sm hover:text-white transition">
+                  Blog &amp; Tips
                 </Link>
               </li>
               <li>
@@ -130,8 +62,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="text-sm hover:text-white transition">
-                  Seller Dashboard
+                <Link href="/tips" className="text-sm hover:text-white transition">
+                  Selling Tips
                 </Link>
               </li>
               <li>
@@ -140,8 +72,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/tips" className="text-sm hover:text-white transition">
-                  Selling Tips
+                <Link href="/dashboard" className="text-sm hover:text-white transition">
+                  Seller Dashboard
                 </Link>
               </li>
             </ul>
@@ -175,15 +107,76 @@ export default function Footer() {
               </li>
             </ul>
           </nav>
-        </div>
-      </div>
 
-      {/* Bottom Bar */}
-      <div className="border-t border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
-          <p>&copy; {new Date().getFullYear()} YardShoppers. All rights reserved.</p>
-          <p>
-            Made with <span className="text-red-400" aria-label="love">♥</span> for treasure hunters everywhere
+          {/* Social */}
+          <nav aria-label="Social media links">
+            <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
+              Follow Us
+            </h4>
+            <ul className="space-y-2.5">
+              <li>
+                <a
+                  href="https://instagram.com/yardshoppers"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm hover:text-white transition inline-flex items-center gap-2"
+                  aria-label="Follow YardShoppers on Instagram"
+                >
+                  <i className="fa-brands fa-instagram" aria-hidden="true" />
+                  Instagram
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://facebook.com/yardshoppers"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm hover:text-white transition inline-flex items-center gap-2"
+                  aria-label="Follow YardShoppers on Facebook"
+                >
+                  <i className="fa-brands fa-facebook" aria-hidden="true" />
+                  Facebook
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://tiktok.com/@yardshoppers"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm hover:text-white transition inline-flex items-center gap-2"
+                  aria-label="Follow YardShoppers on TikTok"
+                >
+                  <i className="fa-brands fa-tiktok" aria-hidden="true" />
+                  TikTok
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://x.com/yardshoppers"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm hover:text-white transition inline-flex items-center gap-2"
+                  aria-label="Follow YardShoppers on X"
+                >
+                  <i className="fa-brands fa-x-twitter" aria-hidden="true" />
+                  X (Twitter)
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="mt-12 pt-8 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-ys-600 rounded-lg flex items-center justify-center">
+              <i className="fa-solid fa-store text-xs text-white" aria-hidden="true" />
+            </div>
+            <span className="text-white font-bold text-sm">YardShoppers</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            &copy; {new Date().getFullYear()} YardShoppers. All rights reserved.
+            Find yard sales and garage sales near you.
           </p>
         </div>
       </div>
