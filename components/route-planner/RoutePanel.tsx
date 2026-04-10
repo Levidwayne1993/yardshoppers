@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   RouteStop,
   TimeWarning,
@@ -18,6 +19,9 @@ interface RoutePanelProps {
   onReorder: (fromIndex: number, toIndex: number) => void;
   onOptimize: () => void;
   onClear: () => void;
+  selectedListing?: RouteStop | null;
+  onAddToRoute?: (stop: RouteStop) => void;
+  onDismissSelection?: () => void;
 }
 
 export default function RoutePanel({
@@ -28,6 +32,9 @@ export default function RoutePanel({
   onReorder,
   onOptimize,
   onClear,
+  selectedListing,
+  onAddToRoute,
+  onDismissSelection,
 }: RoutePanelProps) {
   const [warnings, setWarnings] = useState<TimeWarning[]>([]);
 
@@ -59,7 +66,144 @@ export default function RoutePanel({
     (w) => w.type === 'ending-soon' || w.type === 'starting-soon'
   );
 
-  /* ── Empty state ── */
+  const isOnRoute = selectedListing
+    ? routeStops.some((s) => s.id === selectedListing.id)
+    : false;
+
+  /* ── Selected Listing Preview (replaces empty state) ── */
+  if (selectedListing && routeStops.length === 0) {
+    return (
+      <div className="flex flex-col h-full">
+        {/* Preview Card */}
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+            {/* Photo */}
+            {selectedListing.photo_url ? (
+              <img
+                src={selectedListing.photo_url}
+                alt={selectedListing.title}
+                className="w-full h-44 object-cover"
+              />
+            ) : (
+              <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+                <i className="fa-solid fa-camera text-3xl text-gray-300"></i>
+              </div>
+            )}
+
+            {/* Info */}
+            <div className="p-4">
+              {selectedListing.category && (
+                <span className="inline-block text-xs font-semibold text-ys-800 bg-ys-100 px-3 py-1 rounded-full mb-2">
+                  {selectedListing.category}
+                </span>
+              )}
+
+              <h3 className="text-lg font-bold text-gray-900 mb-1">
+                {selectedListing.title}
+              </h3>
+
+              {selectedListing.price && (
+                <p className="text-lg font-extrabold text-[#2E7D32] mb-3">
+                  {selectedListing.price}
+                </p>
+              )}
+
+              <div className="space-y-2 text-sm text-gray-600">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-7 h-7 bg-ys-50 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i className="fa-solid fa-location-dot text-xs text-ys-700" aria-hidden="true" />
+                  </div>
+                  <span>
+                    {selectedListing.address}
+                    {selectedListing.city && `, ${selectedListing.city}`}
+                    {selectedListing.state && `, ${selectedListing.state}`}
+                  </span>
+                </div>
+
+                {selectedListing.sale_time_start && (
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-7 h-7 bg-ys-50 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <i className="fa-regular fa-clock text-xs text-ys-700" aria-hidden="true" />
+                    </div>
+                    <span>
+                      {selectedListing.sale_time_start}
+                      {selectedListing.sale_time_end && ` – ${selectedListing.sale_time_end}`}
+                    </span>
+                  </div>
+                )}
+
+                {selectedListing.sale_date && (
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-7 h-7 bg-ys-50 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <i className="fa-regular fa-calendar text-xs text-ys-700" aria-hidden="true" />
+                    </div>
+                    <span>
+                      {new Date(selectedListing.sale_date + 'T00:00:00').toLocaleDateString(
+                        'en-US',
+                        { weekday: 'long', month: 'long', day: 'numeric' }
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {selectedListing.is_boosted && (
+                <span className="inline-flex items-center gap-1 mt-3 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold rounded-full">
+                  <i className="fa-solid fa-bolt text-amber-500"></i>
+                  Boosted Listing
+                </span>
+              )}
+
+              {/* View Full Listing Link */}
+              <Link
+                href={`/listing/${selectedListing.id}`}
+                className="block mt-3 text-sm text-[#2E7D32] font-semibold hover:underline"
+              >
+                <i className="fa-solid fa-arrow-up-right-from-square mr-1 text-xs" aria-hidden="true" />
+                View Full Listing
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="p-4 border-t border-gray-200 bg-white space-y-2">
+          {isOnRoute ? (
+            <button
+              onClick={() => {
+                onRemove(selectedListing.id);
+                if (onDismissSelection) onDismissSelection();
+              }}
+              className="w-full py-3 rounded-xl bg-red-50 text-red-600 font-bold text-sm hover:bg-red-100 transition"
+            >
+              <i className="fa-solid fa-xmark mr-2"></i>
+              Remove from Route
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                if (onAddToRoute) onAddToRoute(selectedListing);
+              }}
+              className="w-full py-3 rounded-xl bg-[#2E7D32] text-white font-bold text-base hover:bg-green-800 transition shadow-lg"
+            >
+              <i className="fa-solid fa-plus mr-2"></i>
+              Add to Route
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (onDismissSelection) onDismissSelection();
+            }}
+            className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-500 font-semibold text-sm hover:bg-gray-200 transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Empty state (no selection, no route) ── */
   if (routeStops.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-6">
@@ -79,6 +223,74 @@ export default function RoutePanel({
   /* ── Active route ── */
   return (
     <div className="flex flex-col h-full">
+      {/* Selected listing banner (when route has stops AND a pin is clicked) */}
+      {selectedListing && (
+        <div className="p-3 bg-blue-50 border-b border-blue-200">
+          <div className="flex items-start gap-3">
+            {selectedListing.photo_url ? (
+              <img
+                src={selectedListing.photo_url}
+                alt={selectedListing.title}
+                className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <i className="fa-solid fa-camera text-gray-300"></i>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-900 truncate">
+                {selectedListing.title}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {selectedListing.address}, {selectedListing.city}
+              </p>
+              {selectedListing.price && (
+                <p className="text-xs font-semibold text-[#2E7D32]">
+                  {selectedListing.price}
+                </p>
+              )}
+              <div className="flex items-center gap-2 mt-1.5">
+                {isOnRoute ? (
+                  <button
+                    onClick={() => {
+                      onRemove(selectedListing.id);
+                      if (onDismissSelection) onDismissSelection();
+                    }}
+                    className="text-xs bg-red-50 text-red-600 px-3 py-1 rounded-full font-semibold hover:bg-red-100 transition"
+                  >
+                    <i className="fa-solid fa-xmark mr-1"></i>Remove
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (onAddToRoute) onAddToRoute(selectedListing);
+                    }}
+                    className="text-xs bg-[#2E7D32] text-white px-3 py-1 rounded-full font-semibold hover:bg-green-800 transition"
+                  >
+                    <i className="fa-solid fa-plus mr-1"></i>Add to Route
+                  </button>
+                )}
+                <Link
+                  href={`/listing/${selectedListing.id}`}
+                  className="text-xs text-blue-600 font-semibold hover:underline"
+                >
+                  View
+                </Link>
+                <button
+                  onClick={() => {
+                    if (onDismissSelection) onDismissSelection();
+                  }}
+                  className="text-xs text-gray-400 hover:text-gray-600 ml-auto"
+                >
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between mb-1">

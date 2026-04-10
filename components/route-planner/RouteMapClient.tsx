@@ -29,23 +29,31 @@ L.Icon.Default.mergeOptions({
 function createSaleIcon(
   isOnRoute: boolean,
   routeNumber?: number,
-  isBoosted?: boolean
+  isBoosted?: boolean,
+  isSelected?: boolean
 ) {
-  const bg = isOnRoute ? '#2D6A4F' : isBoosted ? '#F59E0B' : '#16A34A';
+  const bg = isSelected
+    ? '#1565C0'
+    : isOnRoute
+    ? '#2D6A4F'
+    : isBoosted
+    ? '#F59E0B'
+    : '#16A34A';
   const label =
     isOnRoute && routeNumber
       ? routeNumber.toString()
       : isBoosted
       ? '★'
       : '';
-  const size = isOnRoute ? 34 : 28;
+  const size = isSelected ? 38 : isOnRoute ? 34 : 28;
+  const border = isSelected ? '4px solid #90CAF9' : '3px solid #fff';
 
   return L.divIcon({
     className: 'custom-sale-marker',
     html: `<div style="
       background:${bg};
       color:#fff;
-      border:3px solid #fff;
+      border:${border};
       border-radius:50%;
       width:${size}px;
       height:${size}px;
@@ -56,6 +64,7 @@ function createSaleIcon(
       font-size:${isOnRoute ? '14px' : '11px'};
       box-shadow:0 2px 8px rgba(0,0,0,.35);
       font-family:Poppins,sans-serif;
+      transition: all 0.2s ease;
     ">${label}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -68,14 +77,22 @@ function FitBounds({
   listings,
   userLat,
   userLng,
+  searchCenter,
 }: {
   listings: RouteStop[];
   userLat?: number;
   userLng?: number;
+  searchCenter?: { lat: number; lng: number };
 }) {
   const map = useMap();
 
   useEffect(() => {
+    // If user searched a city/state, fly there
+    if (searchCenter) {
+      map.flyTo([searchCenter.lat, searchCenter.lng], 12, { duration: 1.5 });
+      return;
+    }
+
     if (listings.length === 0 && userLat && userLng) {
       map.setView([userLat, userLng], 12);
       return;
@@ -87,7 +104,7 @@ function FitBounds({
       if (userLat && userLng) bounds.extend([userLat, userLng]);
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
     }
-  }, [listings, userLat, userLng, map]);
+  }, [listings, userLat, userLng, searchCenter, map]);
 
   return null;
 }
@@ -98,8 +115,10 @@ interface RouteMapClientProps {
   routeStops: RouteStop[];
   userLat?: number;
   userLng?: number;
+  searchCenter?: { lat: number; lng: number };
   onAddToRoute: (stop: RouteStop) => void;
   onRemoveFromRoute: (stopId: string) => void;
+  onSelectListing?: (listing: RouteStop) => void;
 }
 
 /* ── Map Component ── */
@@ -108,8 +127,10 @@ export default function RouteMapClient({
   routeStops,
   userLat,
   userLng,
+  searchCenter,
   onAddToRoute,
   onRemoveFromRoute,
+  onSelectListing,
 }: RouteMapClientProps) {
   const routeStopIds = new Set(routeStops.map((s) => s.id));
 
@@ -135,7 +156,12 @@ export default function RouteMapClient({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      <FitBounds listings={listings} userLat={userLat} userLng={userLng} />
+      <FitBounds
+        listings={listings}
+        userLat={userLat}
+        userLng={userLng}
+        searchCenter={searchCenter}
+      />
 
       {/* User location blue dot */}
       {userLat && userLng && (
@@ -163,8 +189,16 @@ export default function RouteMapClient({
             icon={createSaleIcon(
               isOnRoute,
               routeIdx >= 0 ? routeIdx + 1 : undefined,
-              listing.is_boosted
+              listing.is_boosted,
+              false
             )}
+            eventHandlers={{
+              click: () => {
+                if (onSelectListing) {
+                  onSelectListing(listing);
+                }
+              },
+            }}
           >
             <Popup maxWidth={280} minWidth={220}>
               <div style={{ fontFamily: 'Poppins, sans-serif' }}>

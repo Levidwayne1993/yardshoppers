@@ -36,6 +36,18 @@ export default function RoutePlannerPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState<number>(0);
 
+  /* ── City/State Search ── */
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchCenter, setSearchCenter] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [searchLabel, setSearchLabel] = useState<string | null>(null);
+
+  /* ── Selected Listing (pin click → right panel preview) ── */
+  const [selectedListing, setSelectedListing] = useState<RouteStop | null>(null);
+
   /* ── Get user on mount ── */
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -66,14 +78,12 @@ export default function RoutePlannerPage() {
 
         if (allData && !error) data = allData;
       } else {
-        // Saved mode — fetch saved_listings joined with listings
         const { data: savedData, error } = await supabase
           .from("saved_listings")
           .select("listing_id, listings(*, listing_photos(photo_url))")
           .eq("user_id", userId!);
 
         if (savedData && !error) {
-          // Flatten and filter by date
           data = savedData
             .map((s: any) => s.listings)
             .filter(
@@ -128,12 +138,60 @@ export default function RoutePlannerPage() {
     fetchSavedCount();
   }, [userId]);
 
+  /* ── City/State Search Handler ── */
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+          searchQuery.trim()
+        )}&format=json&countrycodes=us&limit=1`,
+        {
+          headers: { "User-Agent": "YardShoppers/1.0" },
+        }
+      );
+      const results = await res.json();
+
+      if (results && results.length > 0) {
+        const { lat: rLat, lon: rLng, display_name } = results[0];
+        setSearchCenter({ lat: parseFloat(rLat), lng: parseFloat(rLng) });
+        // Extract clean label (city, state)
+        const parts = display_name.split(",").map((s: string) => s.trim());
+        setSearchLabel(parts.length >= 2 ? `${parts[0]}, ${parts[1]}` : parts[0]);
+      } else {
+        setSearchLabel("Location not found");
+        setTimeout(() => setSearchLabel(null), 3000);
+      }
+    } catch {
+      setSearchLabel("Search failed");
+      setTimeout(() => setSearchLabel(null), 3000);
+    }
+
+    setSearching(false);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSearch();
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchCenter(null);
+    setSearchLabel(null);
+  };
+
   /* ── Route actions ── */
   const addToRoute = useCallback((stop: RouteStop) => {
     setRouteStops((prev) => {
       if (prev.find((s) => s.id === stop.id)) return prev;
       return [...prev, stop];
     });
+    setSelectedListing(null);
     setPanelOpen(true);
   }, []);
 
@@ -156,6 +214,16 @@ export default function RoutePlannerPage() {
   }, [lat, lng]);
 
   const clearRoute = useCallback(() => setRouteStops([]), []);
+
+  /* ── Pin click → show in panel ── */
+  const handleSelectListing = useCallback((listing: RouteStop) => {
+    setSelectedListing(listing);
+    setPanelOpen(true);
+  }, []);
+
+  const handleDismissSelection = useCallback(() => {
+    setSelectedListing(null);
+  }, []);
 
   /* ── Date helpers ── */
   const fmt = (d: Date) => d.toISOString().split("T")[0];
@@ -185,16 +253,18 @@ export default function RoutePlannerPage() {
   const handleDateChange = (newDate: string) => {
     setSelectedDate(newDate);
     setRouteStops([]);
+    setSelectedListing(null);
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
     setRouteStops([]);
+    setSelectedListing(null);
   };
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
-      {/* ── Date Bar + View Toggle ── */}
+      {/* ── Top Bar: Date, View Toggle, Search ── */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-col gap-3 z-10">
         {/* Row 1: Date picker + quick picks */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -248,8 +318,8 @@ export default function RoutePlannerPage() {
           </div>
         </div>
 
-        {/* Row 2: All / Saved Toggle */}
-        <div className="flex items-center gap-2">
+        {/* Row 2: All / Saved Toggle + City/State Search */}
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="inline-flex bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => handleViewModeChange("all")}
@@ -279,6 +349,60 @@ export default function RoutePlannerPage() {
               )}
             </button>
           </div>
+
+          {/* City / State Search */}
+          <div className="flex-1 flex items-center gap-2 min-w-[200px]">
+            <div className="relative flex-1 max-w-sm">
+              <i className="fa-solid fa-magnifying-glass-location absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search city or state..."
+                className="w-full pl-9 pr-9 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ys-300 focus:border-ys-400 transition"
+              />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                >
+                  <i className="fa-solid fa-xmark text-sm"></i>
+                </button>
+              )}
+            </div>
+            <button
+              onClick={handleSearch}
+              disabled={searching || !searchQuery.trim()}
+              className="px-4 py-1.5 bg-[#2E7D32] text-white rounded-lg text-sm font-semibold hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              {searching ? (
+                <i className="fa-solid fa-spinner fa-spin" aria-hidden="true" />
+              ) : (
+                <>
+                  <i className="fa-solid fa-search mr-1.5 hidden sm:inline" aria-hidden="true" />
+                  Go
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Search result label */}
+          {searchLabel && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="bg-ys-50 text-ys-700 px-3 py-1 rounded-full font-medium">
+                <i className="fa-solid fa-location-dot mr-1.5" aria-hidden="true" />
+                {searchLabel}
+              </span>
+              <button
+                onClick={clearSearch}
+                className="text-gray-400 hover:text-gray-600"
+                title="Clear search"
+              >
+                <i className="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+          )}
 
           {viewMode === "saved" && !userId && (
             <a
@@ -314,8 +438,10 @@ export default function RoutePlannerPage() {
               routeStops={routeStops}
               userLat={lat || undefined}
               userLng={lng || undefined}
+              searchCenter={searchCenter || undefined}
               onAddToRoute={addToRoute}
               onRemoveFromRoute={removeFromRoute}
+              onSelectListing={handleSelectListing}
             />
           )}
 
@@ -379,6 +505,9 @@ export default function RoutePlannerPage() {
             onReorder={reorderStops}
             onOptimize={optimizeStops}
             onClear={clearRoute}
+            selectedListing={selectedListing}
+            onAddToRoute={addToRoute}
+            onDismissSelection={handleDismissSelection}
           />
         </div>
       </div>
