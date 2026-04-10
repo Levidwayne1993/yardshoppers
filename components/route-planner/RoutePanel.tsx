@@ -156,8 +156,7 @@ export default function RoutePanel({
 
               {/* View Full Listing Link */}
               <Link
-                href={`/listing/${selectedListing.id}`}
-                className="block mt-3 text-sm text-[#2E7D32] font-semibold hover:underline"
+                href={`/listing/${selectedListing.id}?from=route-planner`}                className="block mt-3 text-sm text-[#2E7D32] font-semibold hover:underline"
               >
                 <i className="fa-solid fa-arrow-up-right-from-square mr-1 text-xs" aria-hidden="true" />
                 View Full Listing
@@ -272,8 +271,7 @@ export default function RoutePanel({
                   </button>
                 )}
                 <Link
-                  href={`/listing/${selectedListing.id}`}
-                  className="text-xs text-blue-600 font-semibold hover:underline"
+                  href={`/listing/${selectedListing.id}?from=route-planner`}                  className="text-xs text-blue-600 font-semibold hover:underline"
                 >
                   View
                 </Link>

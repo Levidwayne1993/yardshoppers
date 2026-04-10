@@ -9,6 +9,7 @@ import ReportModal from "@/components/ReportModal";
 import CommentsSection from "@/components/CommentsSection";
 import RatingSection from "@/components/RatingSection";
 import MessageModal from "@/components/MessageModal";
+import RouteFloatingBar from "@/components/RouteFloatingBar";
 
 interface Listing {
   id: string;
@@ -517,6 +518,9 @@ export default function ListingDetailClient({
           onClose={() => setShowMessageModal(false)}
         />
       )}
+
+      {/* ===== FLOATING ROUTE BAR ===== */}
+      <RouteFloatingBar listingId={listing.id} listingTitle={listing.title} />
     </article>
   );
 }

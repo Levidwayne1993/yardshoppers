@@ -138,53 +138,6 @@ export default function RoutePlannerPage() {
     fetchSavedCount();
   }, [userId]);
 
-  /* ── City/State Search Handler ── */
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setSearching(true);
-
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-          searchQuery.trim()
-        )}&format=json&countrycodes=us&limit=1`,
-        {
-          headers: { "User-Agent": "YardShoppers/1.0" },
-        }
-      );
-      const results = await res.json();
-
-      if (results && results.length > 0) {
-        const { lat: rLat, lon: rLng, display_name } = results[0];
-        setSearchCenter({ lat: parseFloat(rLat), lng: parseFloat(rLng) });
-        // Extract clean label (city, state)
-        const parts = display_name.split(",").map((s: string) => s.trim());
-        setSearchLabel(parts.length >= 2 ? `${parts[0]}, ${parts[1]}` : parts[0]);
-      } else {
-        setSearchLabel("Location not found");
-        setTimeout(() => setSearchLabel(null), 3000);
-      }
-    } catch {
-      setSearchLabel("Search failed");
-      setTimeout(() => setSearchLabel(null), 3000);
-    }
-
-    setSearching(false);
-  };
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSearch();
-    }
-  };
-
-  const clearSearch = () => {
-    setSearchQuery("");
-    setSearchCenter(null);
-    setSearchLabel(null);
-  };
-
   /* ── Route actions ── */
   const addToRoute = useCallback((stop: RouteStop) => {
     setRouteStops((prev) => {
@@ -224,6 +177,97 @@ export default function RoutePlannerPage() {
   const handleDismissSelection = useCallback(() => {
     setSelectedListing(null);
   }, []);
+
+  /* ── Auto-add listing when returning from detail page ── */
+  useEffect(() => {
+    const checkPendingRoute = async () => {
+      const pendingId = sessionStorage.getItem("ys-pending-route-add");
+      if (!pendingId) return;
+      sessionStorage.removeItem("ys-pending-route-add");
+
+      const { data } = await supabase
+        .from("listings")
+        .select("*, listing_photos(photo_url)")
+        .eq("id", pendingId)
+        .single();
+
+      if (data && data.latitude && data.longitude) {
+        addToRoute({
+          id: data.id,
+          title: data.title,
+          address: data.address || "",
+          city: data.city || "",
+          state: data.state || "",
+          latitude: parseFloat(data.latitude),
+          longitude: parseFloat(data.longitude),
+          sale_date: data.sale_date,
+          sale_time_start: data.sale_time_start || "",
+          sale_time_end: data.sale_time_end || "",
+          price: data.price || "",
+          category: data.category || "",
+          categories: data.categories || [],
+          is_boosted: data.is_boosted || false,
+          photo_url: data.listing_photos?.[0]?.photo_url || null,
+        });
+        setPanelOpen(true);
+      }
+    };
+
+    checkPendingRoute();
+    window.addEventListener("pageshow", checkPendingRoute);
+    window.addEventListener("focus", checkPendingRoute);
+
+    return () => {
+      window.removeEventListener("pageshow", checkPendingRoute);
+      window.removeEventListener("focus", checkPendingRoute);
+    };
+  }, [addToRoute]);
+
+  /* ── City/State Search Handler ── */
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+          searchQuery.trim()
+        )}&format=json&countrycodes=us&limit=1`,
+        {
+          headers: { "User-Agent": "YardShoppers/1.0" },
+        }
+      );
+      const results = await res.json();
+
+      if (results && results.length > 0) {
+        const { lat: rLat, lon: rLng, display_name } = results[0];
+        setSearchCenter({ lat: parseFloat(rLat), lng: parseFloat(rLng) });
+        const parts = display_name.split(",").map((s: string) => s.trim());
+        setSearchLabel(parts.length >= 2 ? `${parts[0]}, ${parts[1]}` : parts[0]);
+      } else {
+        setSearchLabel("Location not found");
+        setTimeout(() => setSearchLabel(null), 3000);
+      }
+    } catch {
+      setSearchLabel("Search failed");
+      setTimeout(() => setSearchLabel(null), 3000);
+    }
+
+    setSearching(false);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSearch();
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchCenter(null);
+    setSearchLabel(null);
+  };
 
   /* ── Date helpers ── */
   const fmt = (d: Date) => d.toISOString().split("T")[0];
