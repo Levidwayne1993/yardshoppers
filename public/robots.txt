@@ -1,0 +1,10 @@
+# YardShoppers.com Robots.txt
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /saved
+Disallow: /post
+Disallow: /api/
+Disallow: /auth/
+
+Sitemap: https://www.yardshoppers.com/sitemap.xml

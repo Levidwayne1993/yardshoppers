@@ -29,7 +29,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <span className="text-2xl">🏷️</span>
+              <span className="text-2xl" aria-hidden="true">🏷️</span>
               <span className="text-lg font-extrabold text-white tracking-tight">
                 Yard<span className="text-ys-500">Shoppers</span>
               </span>
@@ -38,40 +38,48 @@ export default function Footer() {
               Your neighborhood marketplace for yard sales, garage sales, and
               estate sales. Buy local, save big, reduce waste.
             </p>
-            <div className="flex gap-3 mt-5">
+            <nav aria-label="Social media links" className="flex gap-3 mt-5">
               <a
-                href="#"
-                aria-label="Facebook"
+                href="https://facebook.com/yardshoppers"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Follow YardShoppers on Facebook"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
               >
                 <i className="fa-brands fa-facebook-f text-sm" aria-hidden="true" />
               </a>
               <a
-                href="#"
-                aria-label="Instagram"
+                href="https://instagram.com/yardshoppers"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Follow YardShoppers on Instagram"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
               >
                 <i className="fa-brands fa-instagram text-sm" aria-hidden="true" />
               </a>
               <a
-                href="#"
-                aria-label="Twitter"
+                href="https://x.com/yardshoppers"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Follow YardShoppers on X"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
               >
                 <i className="fa-brands fa-x-twitter text-sm" aria-hidden="true" />
               </a>
               <a
-                href="#"
-                aria-label="TikTok"
+                href="https://tiktok.com/@yardshoppers"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Follow YardShoppers on TikTok"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-ys-800 flex items-center justify-center transition"
               >
                 <i className="fa-brands fa-tiktok text-sm" aria-hidden="true" />
               </a>
-            </div>
+            </nav>
           </div>
 
           {/* Explore */}
-          <div>
+          <nav aria-label="Explore yard sales">
             <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
               Explore
             </h4>
@@ -108,10 +116,10 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
+          </nav>
 
           {/* Sellers */}
-          <div>
+          <nav aria-label="Seller resources">
             <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
               Sellers
             </h4>
@@ -137,10 +145,10 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
+          </nav>
 
           {/* Company */}
-          <div>
+          <nav aria-label="Company information">
             <h4 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">
               Company
             </h4>
@@ -166,7 +174,7 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
+          </nav>
         </div>
       </div>
 
@@ -175,7 +183,7 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
           <p>&copy; {new Date().getFullYear()} YardShoppers. All rights reserved.</p>
           <p>
-            Made with <span className="text-red-400">♥</span> for treasure hunters everywhere
+            Made with <span className="text-red-400" aria-label="love">♥</span> for treasure hunters everywhere
           </p>
         </div>
       </div>

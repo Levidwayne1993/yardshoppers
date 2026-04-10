@@ -127,7 +127,7 @@ export default function ListingDetailClient({
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-5">
-          <i className="fa-solid fa-ghost text-3xl text-gray-300" />
+          <i className="fa-solid fa-ghost text-3xl text-gray-300" aria-hidden="true" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Listing Not Found</h1>
         <p className="text-gray-500 mb-6">This listing may have been removed or doesn&apos;t exist.</p>
@@ -159,14 +159,14 @@ export default function ListingDetailClient({
   const isOwner = user && listing.user_id === user.id;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+    <article className="max-w-6xl mx-auto px-4 sm:px-6 py-8" itemScope itemType="https://schema.org/Product">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-gray-500 mb-6">
         <Link href="/" className="hover:text-ys-800 transition">Home</Link>
-        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
+        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" aria-hidden="true" />
         <Link href="/browse" className="hover:text-ys-800 transition">Browse</Link>
         {listing.category && (
           <>
-            <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
+            <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" aria-hidden="true" />
             <Link
               href={`/browse?category=${encodeURIComponent(listing.category)}`}
               className="hover:text-ys-800 transition"
@@ -175,7 +175,7 @@ export default function ListingDetailClient({
             </Link>
           </>
         )}
-        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
+        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" aria-hidden="true" />
         <span className="text-gray-900 font-medium truncate max-w-[200px]">
           {listing.title}
         </span>
@@ -187,21 +187,22 @@ export default function ListingDetailClient({
             {photos.length > 0 ? (
               <Image
                 src={photos[activePhoto].photo_url}
-                alt={listing.title}
+                alt={`${listing.title} — photo ${activePhoto + 1} of ${photos.length}${listing.city ? `, ${listing.city}` : ""}`}
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 60vw"
                 priority
+                itemProp="image"
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full bg-ys-50">
-                <i className="fa-solid fa-camera text-5xl text-ys-300 mb-3" />
+                <i className="fa-solid fa-camera text-5xl text-ys-300 mb-3" aria-hidden="true" />
                 <p className="text-sm text-ys-400">No photos available</p>
               </div>
             )}
 
             {photos.length > 1 && (
-              <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm">
+              <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm" aria-live="polite">
                 {activePhoto + 1} / {photos.length}
               </div>
             )}
@@ -212,47 +213,58 @@ export default function ListingDetailClient({
                   onClick={() =>
                     setActivePhoto((p) => (p === 0 ? photos.length - 1 : p - 1))
                   }
+                  aria-label="Previous photo"
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
-                  <i className="fa-solid fa-chevron-left text-sm text-gray-700" />
+                  <i className="fa-solid fa-chevron-left text-sm text-gray-700" aria-hidden="true" />
                 </button>
                 <button
                   onClick={() =>
                     setActivePhoto((p) => (p === photos.length - 1 ? 0 : p + 1))
                   }
+                  aria-label="Next photo"
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
-                  <i className="fa-solid fa-chevron-right text-sm text-gray-700" />
+                  <i className="fa-solid fa-chevron-right text-sm text-gray-700" aria-hidden="true" />
                 </button>
               </>
             )}
           </div>
 
           {photos.length > 1 && (
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1" role="tablist" aria-label="Listing photos">
               {photos.map((photo, i) => (
                 <button
                   key={photo.id}
                   onClick={() => setActivePhoto(i)}
+                  role="tab"
+                  aria-selected={i === activePhoto}
+                  aria-label={`View photo ${i + 1} of ${photos.length}`}
                   className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
                     i === activePhoto
                       ? "border-ys-600 shadow-md"
                       : "border-transparent opacity-70 hover:opacity-100"
                   }`}
                 >
-                  <Image src={photo.photo_url} alt="" fill className="object-cover" sizes="80px" />
+                  <Image
+                    src={photo.photo_url}
+                    alt={`${listing.title} — thumbnail ${i + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
                 </button>
               ))}
             </div>
           )}
 
           {listing.description && (
-            <div className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
+            <section className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-3">About This Sale</h2>
-              <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line" itemProp="description">
                 {listing.description}
               </p>
-            </div>
+            </section>
           )}
         </div>
 
@@ -269,7 +281,7 @@ export default function ListingDetailClient({
               )}
 
               <div className="flex items-start justify-between gap-3">
-                <h1 className="text-xl font-bold text-gray-900 leading-tight">
+                <h1 className="text-xl font-bold text-gray-900 leading-tight" itemProp="name">
                   {listing.title}
                 </h1>
                 <button
@@ -279,21 +291,25 @@ export default function ListingDetailClient({
                       ? "bg-red-50 border-red-200 text-red-500"
                       : "bg-gray-50 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"
                   }`}
-                  title={saved ? "Unsave" : "Save"}
+                  aria-label={saved ? "Unsave this listing" : "Save this listing"}
                 >
-                  <i className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`} />
+                  <i className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`} aria-hidden="true" />
                 </button>
               </div>
 
               {listing.price && (
-                <p className="text-2xl font-extrabold text-ys-800 mt-2">{listing.price}</p>
+                <p className="text-2xl font-extrabold text-ys-800 mt-2" itemProp="offers" itemScope itemType="https://schema.org/Offer">
+                  <span itemProp="price">{listing.price}</span>
+                  <meta itemProp="priceCurrency" content="USD" />
+                  <meta itemProp="availability" content="https://schema.org/InStock" />
+                </p>
               )}
 
               <div className="mt-5 space-y-3">
                 {location && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      <i className="fa-solid fa-location-dot text-sm text-ys-700" />
+                      <i className="fa-solid fa-location-dot text-sm text-ys-700" aria-hidden="true" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">Location</p>
@@ -305,11 +321,13 @@ export default function ListingDetailClient({
                 {saleDay && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      <i className="fa-regular fa-calendar text-sm text-ys-700" />
+                      <i className="fa-regular fa-calendar text-sm text-ys-700" aria-hidden="true" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">Date</p>
-                      <p className="text-sm text-gray-500">{saleDay}</p>
+                      <time className="text-sm text-gray-500" dateTime={listing.sale_date}>
+                        {saleDay}
+                      </time>
                     </div>
                   </div>
                 )}
@@ -317,7 +335,7 @@ export default function ListingDetailClient({
                 {(listing.sale_time_start || listing.sale_time_end) && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      <i className="fa-regular fa-clock text-sm text-ys-700" />
+                      <i className="fa-regular fa-clock text-sm text-ys-700" aria-hidden="true" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">Time</p>
@@ -337,14 +355,14 @@ export default function ListingDetailClient({
                   rel="noopener noreferrer"
                   className="flex-1 flex items-center justify-center gap-2 bg-ys-800 hover:bg-ys-900 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
                 >
-                  <i className="fa-solid fa-diamond-turn-right text-sm" />
+                  <i className="fa-solid fa-diamond-turn-right text-sm" aria-hidden="true" />
                   Directions
                 </a>
                 <button
                   onClick={handleShare}
                   className="flex items-center justify-center gap-2 px-5 py-3 border border-gray-200 rounded-xl text-gray-700 hover:border-ys-600 hover:text-ys-800 transition-all"
                 >
-                  <i className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`} />
+                  <i className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`} aria-hidden="true" />
                   {copied ? "Copied!" : "Share"}
                 </button>
               </div>
@@ -354,14 +372,14 @@ export default function ListingDetailClient({
                   onClick={() => setShowBoostModal(true)}
                   className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-3 rounded-xl font-bold transition-all hover:shadow-md"
                 >
-                  <i className="fa-solid fa-rocket text-sm" />
+                  <i className="fa-solid fa-rocket text-sm" aria-hidden="true" />
                   Boost This Listing — $2.99
                 </button>
               )}
 
               {isOwner && listing.is_boosted && (
                 <div className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-3 rounded-xl font-semibold">
-                  <i className="fa-solid fa-check-circle text-sm" />
+                  <i className="fa-solid fa-check-circle text-sm" aria-hidden="true" />
                   This listing is boosted
                 </div>
               )}
@@ -372,7 +390,7 @@ export default function ListingDetailClient({
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Posted by</h3>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
-                    <i className="fa-solid fa-user text-ys-700" />
+                    <i className="fa-solid fa-user text-ys-700" aria-hidden="true" />
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">
@@ -415,7 +433,7 @@ export default function ListingDetailClient({
                 }}
                 className="text-xs text-gray-400 hover:text-red-500 transition"
               >
-                <i className="fa-regular fa-flag mr-1" />
+                <i className="fa-regular fa-flag mr-1" aria-hidden="true" />
                 Report this listing
               </button>
             </p>
@@ -438,6 +456,6 @@ export default function ListingDetailClient({
           onClose={() => setShowReportModal(false)}
         />
       )}
-    </div>
+    </article>
   );
 }
