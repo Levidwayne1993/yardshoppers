@@ -111,7 +111,7 @@ export default function HomePage() {
 
       if (selectedCategories.length > 0) {
         const orClauses = selectedCategories
-          .map((cat) => `category.eq.${cat},category.cs.{${cat}}`)
+          .map((cat) => `category.eq.${cat},categories.cs.{${cat}}`)
           .join(",");
         query = query.or(orClauses);
       }
