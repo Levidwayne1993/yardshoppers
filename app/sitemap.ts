@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { MetadataRoute } from "next";
 import { getAllPosts } from "@/lib/blog";
+import { getAllCities } from "@/lib/cities";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://www.yardshoppers.com";
@@ -27,6 +28,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/yard-sales`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
@@ -78,6 +85,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  // City landing pages
+  const allCities = getAllCities();
+  const cityPages: MetadataRoute.Sitemap = allCities.map((city) => ({
+    url: `${baseUrl}/yard-sales/${city.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "daily" as const,
+    priority: 0.8,
+  }));
+
   // Dynamic listing pages
   let listingPages: MetadataRoute.Sitemap = [];
 
@@ -105,5 +121,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error("Sitemap: Failed to fetch listings", error);
   }
 
-  return [...staticPages, ...blogPages, ...listingPages];
+  return [...staticPages, ...blogPages, ...cityPages, ...listingPages];
 }
