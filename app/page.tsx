@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import DistanceSelector from "@/components/DistanceSelector";
 import JsonLd from "@/components/JsonLd";
+import TrendingSection from "@/components/TrendingSection";
+import CategoryGrid from "@/components/CategoryGrid";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
 
@@ -48,7 +50,7 @@ function getDistanceMiles(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ✅ NEW: HowTo schema — matches the "How YardShoppers Works" section
+// ✅ HowTo schema — matches the "How YardShoppers Works" section
 const howToSchema = {
   "@context": "https://schema.org",
   "@type": "HowTo",
@@ -80,7 +82,7 @@ const howToSchema = {
   ],
 };
 
-// ✅ NEW: Breadcrumb schema for homepage
+// ✅ Breadcrumb schema for homepage
 const breadcrumbSchema = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
@@ -356,6 +358,12 @@ export default function HomePage() {
             </Link>
           </div>
         )}
+
+        {/* ✅ Phase 20: Real-Time SEO Signals — Trending, Hot Near You, Price Drops, Popular Searches */}
+        <TrendingSection />
+
+        {/* ✅ Phase 22: Shop by Category — links to AI-enhanced category pages */}
+        <CategoryGrid />
 
         {/* Route Planner CTA */}
         <section className="mt-12 bg-gradient-to-r from-ys-50 to-emerald-50 border border-ys-200 rounded-3xl p-6 sm:p-8">
