@@ -1,81 +1,60 @@
-import { createServerClient } from "@supabase/ssr";
+import { NextResponse } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
-import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { BOOST_TIERS, type BoostTierKey } from "@/lib/boost-config";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2023-10-16",
+});
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
-
+    const supabase = createRouteHandlerClient({ cookies });
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "You must be logged in to boost a listing" },
-        { status: 401 }
-      );
+    if (!session) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { listing_id, listing_title } = await req.json();
+    const { listing_id, listing_title, boost_tier } = await req.json();
 
-    if (!listing_id || typeof listing_id !== "string") {
-      return NextResponse.json(
-        { error: "Invalid listing ID" },
-        { status: 400 }
-      );
+    const tier = BOOST_TIERS[boost_tier as BoostTierKey];
+    if (!tier) {
+      return NextResponse.json({ error: "Invalid boost tier" }, { status: 400 });
     }
 
-    const origin = req.headers.get("origin") || "https://www.yardshoppers.com";
-
-    const session = await stripe.checkout.sessions.create({
+    const checkout = await stripe.checkout.sessions.create({
+      mode: "payment",
       payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
             currency: "usd",
+            unit_amount: Math.round(tier.price * 100),
             product_data: {
-              name: `Boost: ${(listing_title || "Yard Sale").slice(0, 100)}`,
+              name: `${tier.name} Boost — ${listing_title}`,
+              description: `${tier.durationDays}-day boost: ${tier.tagline}`,
             },
-            unit_amount: 299,
           },
           quantity: 1,
         },
       ],
-      mode: "payment",
       metadata: {
         listing_id,
-        user_id: user.id,
+        boost_tier,
+        user_id: session.user.id,
+        duration_days: tier.durationDays.toString(),
       },
-      success_url: `${origin}/dashboard?boost=success`,
-      cancel_url: `${origin}/dashboard?boost=cancel`,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/listing/${listing_id}?boosted=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/listing/${listing_id}`,
     });
 
-    return NextResponse.json({ url: session.url });
-  } catch (err) {
+    return NextResponse.json({ url: checkout.url });
+  } catch (err: any) {
     console.error("Checkout error:", err);
-    return NextResponse.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
