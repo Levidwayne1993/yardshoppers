@@ -95,26 +95,24 @@ export default function DashboardPage() {
   }, []);
 
   async function handleDelete(listingId: string) {
+    // Only allow deleting your own listings
+    const listing = listings.find((l) => l.id === listingId);
+    if (!listing || listing.user_id !== user?.id) {
+      alert("You can only delete your own listings.");
+      return;
+    }
+
     const confirmed = confirm(
       "Are you sure you want to delete this listing? This cannot be undone."
     );
     if (!confirmed) return;
 
     try {
-      if (isAdmin) {
-        const res = await fetch("/api/admin/delete-listing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ listing_id: listingId }),
-        });
-        if (!res.ok) throw new Error("Delete failed");
-      } else {
-        await supabase
-          .from("listing_photos")
-          .delete()
-          .eq("listing_id", listingId);
-        await supabase.from("listings").delete().eq("id", listingId);
-      }
+      await supabase
+        .from("listing_photos")
+        .delete()
+        .eq("listing_id", listingId);
+      await supabase.from("listings").delete().eq("id", listingId);
 
       setListings((prev) => prev.filter((l) => l.id !== listingId));
       setReports((prev) => prev.filter((r) => r.listing_id !== listingId));
@@ -274,6 +272,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {listings.map((listing) => {
                 const photo = listing.listing_photos?.[0]?.photo_url;
+                const isOwner = listing.user_id === user?.id;
                 return (
                   <div
                     key={listing.id}
@@ -319,30 +318,44 @@ export default function DashboardPage() {
                         {listing.city}, {listing.state}
                       </p>
 
-                      <div className="mt-3 flex gap-2">
-                        {!listing.is_boosted ? (
-                          <button
-                            onClick={() => setBoostTarget(listing)}
-                            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-2 rounded-xl text-sm font-bold transition-all"
-                          >
-                            <i className="fa-solid fa-rocket text-xs" />
-                            Boost — $2.99
-                          </button>
-                        ) : (
-                          <div className="flex-1 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-xl text-sm font-semibold">
-                            <i className="fa-solid fa-check-circle text-xs" />
-                            Boosted
-                          </div>
-                        )}
+                      {isOwner && (
+                        <div className="mt-3 flex gap-2">
+                          {!listing.is_boosted ? (
+                            <button
+                              onClick={() => setBoostTarget(listing)}
+                              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-2 rounded-xl text-sm font-bold transition-all"
+                            >
+                              <i className="fa-solid fa-rocket text-xs" />
+                              Boost
+                            </button>
+                          ) : (
+                            <div className="flex-1 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-xl text-sm font-semibold">
+                              <i className="fa-solid fa-check-circle text-xs" />
+                              Boosted
+                            </div>
+                          )}
 
-                        <button
-                          onClick={() => handleDelete(listing.id)}
-                          className="flex items-center justify-center gap-1.5 px-4 py-2 border border-red-200 text-red-500 hover:bg-red-50 rounded-xl text-sm font-semibold transition"
-                        >
-                          <i className="fa-solid fa-trash text-xs" />
-                          Delete
-                        </button>
-                      </div>
+                          <button
+                            onClick={() => handleDelete(listing.id)}
+                            className="flex items-center justify-center gap-1.5 px-4 py-2 border border-red-200 text-red-500 hover:bg-red-50 rounded-xl text-sm font-semibold transition"
+                          >
+                            <i className="fa-solid fa-trash text-xs" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+
+                      {!isOwner && isAdmin && (
+                        <div className="mt-3">
+                          <Link
+                            href={`/listing/${listing.id}`}
+                            className="w-full flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-gray-600 py-2 rounded-xl text-sm font-semibold transition"
+                          >
+                            <i className="fa-solid fa-eye text-xs" />
+                            View Listing
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -449,17 +462,6 @@ export default function DashboardPage() {
                         </p>
 
                         <div className="mt-3 flex gap-2">
-                          {reportedListing && (
-                            <button
-                              onClick={() =>
-                                handleDelete(reportedListing.id)
-                              }
-                              className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition"
-                            >
-                              <i className="fa-solid fa-trash text-xs" />
-                              Delete Listing
-                            </button>
-                          )}
                           <button
                             onClick={() => handleDismissReport(report.id)}
                             className="flex items-center gap-2 px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition"
