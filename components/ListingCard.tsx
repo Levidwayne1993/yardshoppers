@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 import CountdownTimer from "./CountdownTimer";
 import BoostModal from "./BoostModal";
+import BoostBadge from "./BoostBadge";
+import BoostProgressBar from "./BoostProgressBar";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Furniture: "bg-amber-100 text-amber-800",
@@ -75,10 +77,13 @@ export default function ListingCard({
               </div>
             )}
 
+            {/* ✅ NEW: Tier-aware BoostBadge replaces hardcoded badge */}
             {isBoosted && (
-              <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-amber-400 text-amber-900 text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
-                <i className="fa-solid fa-rocket text-[10px]" />
-                Boosted
+              <div className="absolute top-3 left-3">
+                <BoostBadge
+                  tierKey={listing.boost_tier}
+                  expiresAt={listing.boost_expires_at}
+                />
               </div>
             )}
 
@@ -168,6 +173,17 @@ export default function ListingCard({
             </div>
           )}
 
+          {/* ✅ NEW: Show live countdown bar for owners with active boosts */}
+          {isOwner && isBoosted && (
+            <div className="mt-3">
+              <BoostProgressBar
+                tierKey={listing.boost_tier}
+                startsAt={listing.boost_started_at}
+                expiresAt={listing.boost_expires_at}
+              />
+            </div>
+          )}
+
           {isOwner && !isBoosted && (
             <button
               onClick={(e) => {
@@ -178,7 +194,7 @@ export default function ListingCard({
               className="mt-3 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-2 rounded-xl text-sm font-bold transition-all hover:shadow-md"
             >
               <i className="fa-solid fa-rocket text-xs" />
-              Boost — $2.99
+              Boost This Listing
             </button>
           )}
 

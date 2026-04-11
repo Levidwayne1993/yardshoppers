@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import BoostPricingCards from "./BoostPricingCards";
+import { BOOST_TIERS, type BoostTierKey } from "@/lib/boost-config";
 
 interface BoostModalProps {
   listingId: string;
@@ -15,10 +17,15 @@ export default function BoostModal({
   onClose,
   onBoosted,
 }: BoostModalProps) {
+  const [selectedTier, setSelectedTier] = useState<BoostTierKey | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const tier = selectedTier ? BOOST_TIERS[selectedTier] : null;
+
   async function handleBoost() {
+    if (!selectedTier || !tier) return;
+
     setLoading(true);
     setError("");
 
@@ -29,6 +36,8 @@ export default function BoostModal({
         body: JSON.stringify({
           listing_id: listingId,
           listing_title: listingTitle,
+          boost_tier: selectedTier,
+          price: tier.price,
         }),
       });
 
@@ -50,7 +59,7 @@ export default function BoostModal({
         onClick={onClose}
       />
 
-      <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95">
+      <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
         <div className="h-1.5 bg-gradient-to-r from-ys-700 via-ys-500 to-ys-300" />
 
         <div className="p-6 sm:p-8">
@@ -65,35 +74,12 @@ export default function BoostModal({
             &ldquo;{listingTitle}&rdquo;
           </p>
 
-          <div className="bg-ys-50 rounded-2xl p-5 mb-6 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-ys-200 rounded-lg flex items-center justify-center shrink-0">
-                <i className="fa-solid fa-arrow-up text-sm text-ys-800" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Top Placement</p>
-                <p className="text-xs text-gray-500">Appear first in browse results</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-ys-200 rounded-lg flex items-center justify-center shrink-0">
-                <i className="fa-solid fa-eye text-sm text-ys-800" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">10x More Views</p>
-                <p className="text-xs text-gray-500">Get seen by more local shoppers</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-ys-200 rounded-lg flex items-center justify-center shrink-0">
-                <i className="fa-solid fa-bolt text-sm text-ys-800" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Instant Activation</p>
-                <p className="text-xs text-gray-500">Boost goes live immediately after payment</p>
-              </div>
-            </div>
-          </div>
+          {/* ✅ NEW: Tier selection cards replace hardcoded pricing */}
+          <BoostPricingCards
+            selectedTier={selectedTier}
+            onSelect={setSelectedTier}
+            className="mb-6"
+          />
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl">
@@ -103,7 +89,7 @@ export default function BoostModal({
 
           <button
             onClick={handleBoost}
-            disabled={loading}
+            disabled={loading || !selectedTier}
             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-ys-800 to-ys-700 hover:from-ys-900 hover:to-ys-800 text-white py-3.5 rounded-xl font-bold text-base transition-all hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? (
@@ -111,10 +97,15 @@ export default function BoostModal({
                 <i className="fa-solid fa-spinner fa-spin text-sm" />
                 Redirecting to checkout...
               </>
+            ) : selectedTier && tier ? (
+              <>
+                <i className="fa-solid fa-rocket text-sm" />
+                Boost for ${tier.price.toFixed(2)}
+              </>
             ) : (
               <>
                 <i className="fa-solid fa-rocket text-sm" />
-                Boost for $2.99
+                Select a boost tier
               </>
             )}
           </button>
