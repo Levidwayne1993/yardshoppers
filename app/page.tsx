@@ -331,21 +331,40 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mt-10 bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 rounded-3xl p-8 sm:p-10 text-center">
-          <div className="w-14 h-14 bg-amber-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <i className="fa-solid fa-rocket text-xl text-amber-600" aria-hidden="true" />
+        <section className="mt-10 bg-gradient-to-br from-ys-50 via-white to-amber-50 border border-ys-200 rounded-3xl p-8 sm:p-10">
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">Why Sellers Love YardShoppers</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto mb-8">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <i className="fa-solid fa-check text-lg text-green-600" aria-hidden="true" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">Free to Post</h3>
+              <p className="text-sm text-gray-500">List your yard sale in under 2 minutes — no fees, no catch.</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <i className="fa-solid fa-rocket text-lg text-amber-600" aria-hidden="true" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">Boost for More Eyes</h3>
+              <p className="text-sm text-gray-500">Get up to 25x more views with optional boost tiers starting at just $1.99.</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <i className="fa-solid fa-map-location-dot text-lg text-blue-600" aria-hidden="true" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">Route Planner Ready</h3>
+              <p className="text-sm text-gray-500">Buyers plan trips around your sale — boosted listings get priority pins.</p>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Want More Eyes on Your Sale?</h2>
-          <p className="text-gray-600 max-w-lg mx-auto mb-6">
-            Boost your listing for just $2.99 and appear at the top of browse
-            results. Get 10x more views and sell faster!
-          </p>
-          <Link
-            href="/post"
-            className="inline-flex items-center gap-2 px-8 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-full font-bold transition-all hover:shadow-lg"
-          >
-            Post a Sale — It&apos;s Free
-          </Link>
+          <div className="text-center">
+            <Link
+              href="/post"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-bold transition-all hover:shadow-lg"
+            >
+              <i className="fa-solid fa-plus text-sm" aria-hidden="true" />
+              Post Your Yard Sale — Free
+            </Link>
+          </div>
         </section>
 
         <section className="mt-16 mb-8" id="how-it-works">
