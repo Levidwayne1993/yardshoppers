@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import DistanceSelector from "@/components/DistanceSelector";
+import JsonLd from "@/components/JsonLd";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
 
@@ -151,8 +152,72 @@ function BrowseContent() {
 
   const hasFilters = debouncedSearch || selectedCategories.length > 0 || distance < 999;
 
+  // ✅ NEW: Breadcrumb schema
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://www.yardshoppers.com",
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Browse Yard Sales",
+        "item": "https://www.yardshoppers.com/browse",
+      },
+    ],
+  };
+
+  // ✅ NEW: ItemList schema — built dynamically from fetched listings
+  const itemListSchema = useMemo(() => {
+    if (listings.length === 0) return null;
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Yard Sales Near You",
+      "description": "Browse yard sales, garage sales, and estate sales listed on YardShoppers.",
+      "numberOfItems": listings.length,
+      "itemListElement": listings.slice(0, 20).map((listing, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "url": `https://www.yardshoppers.com/listing/${listing.id}`,
+        "name": listing.title,
+        ...(listing.city && listing.state
+          ? {
+              "item": {
+                "@type": "Event",
+                "name": listing.title,
+                "url": `https://www.yardshoppers.com/listing/${listing.id}`,
+                "location": {
+                  "@type": "Place",
+                  "name": `${listing.city}, ${listing.state}`,
+                  "address": {
+                    "@type": "PostalAddress",
+                    "addressLocality": listing.city,
+                    "addressRegion": listing.state,
+                  },
+                },
+                ...(listing.sale_date
+                  ? { "startDate": listing.sale_date }
+                  : {}),
+              },
+            }
+          : {}),
+      })),
+    };
+  }, [listings]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      {/* ✅ Inject schemas */}
+      <JsonLd data={breadcrumbSchema} />
+      {itemListSchema && <JsonLd data={itemListSchema} />}
+
       <div className="sticky top-[65px] z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-4">
         <div className="flex flex-col gap-3">
           <div className="flex gap-3">
