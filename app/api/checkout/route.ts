@@ -35,7 +35,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { listing_id, listing_title, boost_tier } = await req.json();
+    const body = await req.json();
+    const { listing_id, listing_title, boost_tier } = body;
+
+    // ── Input validation ──────────────────────────────────
+    if (typeof listing_id !== "string" || listing_id.length < 10) {
+      return NextResponse.json({ error: "Invalid listing ID" }, { status: 400 });
+    }
+
+    if (
+      typeof listing_title !== "string" ||
+      listing_title.length === 0 ||
+      listing_title.length > 200
+    ) {
+      return NextResponse.json(
+        { error: "Invalid listing title" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof boost_tier !== "string") {
+      return NextResponse.json(
+        { error: "Invalid boost tier" },
+        { status: 400 }
+      );
+    }
+    // ── End validation ────────────────────────────────────
 
     const tier = BOOST_TIERS[boost_tier as BoostTierKey];
     if (!tier) {
