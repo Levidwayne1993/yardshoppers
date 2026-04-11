@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-const SEED_TOKEN = 'ys-seed-2026-temp'
+const SEED_TOKEN = process.env.SEED_SECRET_TOKEN;
+
 
 export async function POST(req: Request) {
         const body = await req.json()
