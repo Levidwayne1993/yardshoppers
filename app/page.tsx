@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import DistanceSelector from "@/components/DistanceSelector";
+import JsonLd from "@/components/JsonLd";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
 
@@ -46,6 +47,52 @@ function getDistanceMiles(
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+// ✅ NEW: HowTo schema — matches the "How YardShoppers Works" section
+const howToSchema = {
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to Find Yard Sales on YardShoppers",
+  "description":
+    "Find amazing deals at yard sales near you in 3 simple steps using YardShoppers.",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "Search",
+      "text": "Find yard sales near you by location, category, or keyword.",
+      "url": "https://www.yardshoppers.com/#how-it-works",
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "Save",
+      "text": "Save your favorite listings and plan your yard sale route.",
+      "url": "https://www.yardshoppers.com/#how-it-works",
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "Visit",
+      "text": "Get directions and head out to find amazing deals!",
+      "url": "https://www.yardshoppers.com/#how-it-works",
+    },
+  ],
+};
+
+// ✅ NEW: Breadcrumb schema for homepage
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://www.yardshoppers.com",
+    },
+  ],
+};
 
 export default function HomePage() {
   const {
@@ -173,6 +220,10 @@ export default function HomePage() {
 
   return (
     <div>
+      {/* ✅ Inject schemas */}
+      <JsonLd data={howToSchema} />
+      <JsonLd data={breadcrumbSchema} />
+
       <section className="relative bg-gradient-to-br from-ys-900 via-ys-800 to-ys-700 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 left-10 text-6xl animate-bounce">🏷️</div>
