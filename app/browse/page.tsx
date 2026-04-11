@@ -9,6 +9,7 @@ import DistanceSelector from "@/components/DistanceSelector";
 import JsonLd from "@/components/JsonLd";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
+import { generateCollectionPageSchema, generateSearchResultsPageSchema } from "@/lib/seo-signals"; // ✅ NEW
 
 const supabase = createClient();
 
@@ -152,7 +153,7 @@ function BrowseContent() {
 
   const hasFilters = debouncedSearch || selectedCategories.length > 0 || distance < 999;
 
-  // ✅ NEW: Breadcrumb schema
+  // ✅ Breadcrumb schema
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -172,7 +173,7 @@ function BrowseContent() {
     ],
   };
 
-  // ✅ NEW: ItemList schema — built dynamically from fetched listings
+  // ✅ ItemList schema — built dynamically from fetched listings
   const itemListSchema = useMemo(() => {
     if (listings.length === 0) return null;
 
@@ -217,6 +218,8 @@ function BrowseContent() {
       {/* ✅ Inject schemas */}
       <JsonLd data={breadcrumbSchema} />
       {itemListSchema && <JsonLd data={itemListSchema} />}
+      <JsonLd data={generateCollectionPageSchema("Browse Yard Sales", "Find yard sales, garage sales, and estate sales near you on YardShoppers.", "https://www.yardshoppers.com/browse")} /> {/* ✅ NEW */}
+      {debouncedSearch && <JsonLd data={generateSearchResultsPageSchema(debouncedSearch, listings.length)} />} {/* ✅ NEW */}
 
       <div className="sticky top-[65px] z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-4">
         <div className="flex flex-col gap-3">
