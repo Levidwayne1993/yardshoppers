@@ -10,6 +10,7 @@ import CommentsSection from "@/components/CommentsSection";
 import RatingSection from "@/components/RatingSection";
 import MessageModal from "@/components/MessageModal";
 import RouteFloatingBar from "@/components/RouteFloatingBar";
+import { trackView } from "@/lib/seo-signals";
 
 interface Listing {
   id: string;
@@ -91,6 +92,11 @@ export default function ListingDetailClient({
       setLoading(false);
     }
     load();
+  }, [listingId]);
+
+  // ✅ Track view for trending/SEO signals
+  useEffect(() => {
+    trackView(listingId);
   }, [listingId]);
 
   async function toggleSave() {
@@ -417,7 +423,7 @@ export default function ListingDetailClient({
                   className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-3 rounded-xl font-bold transition-all hover:shadow-md"
                 >
                   <i className="fa-solid fa-rocket text-sm" aria-hidden="true" />
-                  Boost This Listing — $2.99
+                  Boost This Listing
                 </button>
               )}
 
