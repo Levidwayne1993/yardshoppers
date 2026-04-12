@@ -14,6 +14,8 @@ import { generateCollectionPageSchema, generateSearchResultsPageSchema } from "@
 
 const supabase = createClient();
 
+const ITEMS_PER_PAGE = 24;
+
 const CATEGORIES = [
   "Furniture", "Electronics", "Clothing", "Toys & Games", "Tools",
   "Kitchen", "Sports", "Books", "Antiques", "Garden", "Baby & Kids",
@@ -40,13 +42,11 @@ function getDistanceMiles(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ===== HELPER: Resolve location override from URL params =====
 function resolveLocationOverride(
   locationParam: string | null,
   latParam: string | null,
   lngParam: string | null
 ): { label: string; lat: number; lng: number } | null {
-  // Best case: all three params provided
   if (locationParam && latParam && lngParam) {
     const parsedLat = parseFloat(latParam);
     const parsedLng = parseFloat(lngParam);
@@ -55,7 +55,6 @@ function resolveLocationOverride(
     }
   }
 
-  // Fallback: location param only — look up coordinates from cities database
   if (locationParam) {
     const parts = locationParam.split(",").map((s) => s.trim());
     const cityName = parts[0];
@@ -77,7 +76,6 @@ function BrowseContent() {
   const searchParams = useSearchParams();
   const { city, region, lat, lng, loading: locationLoading, requestPreciseLocation } = useLocation();
 
-  // ===== LOCATION OVERRIDE FROM URL =====
   const locationParam = searchParams.get("location");
   const latParam = searchParams.get("lat");
   const lngParam = searchParams.get("lng");
@@ -88,7 +86,6 @@ function BrowseContent() {
     lng: number;
   } | null>(() => resolveLocationOverride(locationParam, latParam, lngParam));
 
-  // Re-resolve if URL params change
   useEffect(() => {
     const resolved = resolveLocationOverride(locationParam, latParam, lngParam);
     if (resolved) {
@@ -96,7 +93,6 @@ function BrowseContent() {
     }
   }, [locationParam, latParam, lngParam]);
 
-  // ===== EFFECTIVE LOCATION: override wins over user geolocation =====
   const effectiveLat = locationOverride ? locationOverride.lat : lat;
   const effectiveLng = locationOverride ? locationOverride.lng : lng;
   const locationLabel = locationOverride
@@ -117,6 +113,7 @@ function BrowseContent() {
   const [sort, setSort] = useState("nearest");
   const [distance, setDistance] = useState(50);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
   useEffect(() => {
     async function getUser() {
@@ -130,6 +127,7 @@ function BrowseContent() {
 
   function handleDistanceChange(value: number) {
     setDistance(value);
+    setVisibleCount(ITEMS_PER_PAGE);
     if (value < 999 && !locationOverride) {
       requestPreciseLocation();
     }
@@ -139,10 +137,12 @@ function BrowseContent() {
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
     );
+    setVisibleCount(ITEMS_PER_PAGE);
   }
 
   function clearCategories() {
     setSelectedCategories([]);
+    setVisibleCount(ITEMS_PER_PAGE);
   }
 
   useEffect(() => {
@@ -180,7 +180,7 @@ function BrowseContent() {
         .order("is_boosted", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: sort === "oldest" });
 
-      query = query.limit(100);
+      query = query.limit(500);
 
       const { data } = await query;
       let results = data || [];
@@ -207,16 +207,19 @@ function BrowseContent() {
         results = [...boosted, ...nonBoosted];
       }
 
-      setListings(results.slice(0, 24));
+      setListings(results);
+      setVisibleCount(ITEMS_PER_PAGE);
       setLoading(false);
     }
 
     fetchListings();
   }, [debouncedSearch, selectedCategories, sort, distance, effectiveLat, effectiveLng]);
 
+  const displayedListings = listings.slice(0, visibleCount);
+  const hasMore = visibleCount < listings.length;
+
   const hasFilters = debouncedSearch || selectedCategories.length > 0 || distance < 999 || locationOverride;
 
-  // Breadcrumb schema
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -236,7 +239,6 @@ function BrowseContent() {
     ],
   };
 
-  // ItemList schema
   const itemListSchema = useMemo(() => {
     if (listings.length === 0) return null;
 
@@ -283,7 +285,6 @@ function BrowseContent() {
       <JsonLd data={generateCollectionPageSchema("Browse Yard Sales", "Find yard sales, garage sales, and estate sales near you on YardShoppers.", "https://www.yardshoppers.com/browse")} />
       {debouncedSearch && <JsonLd data={generateSearchResultsPageSchema(debouncedSearch, listings.length)} />}
 
-      {/* ===== LOCATION OVERRIDE BANNER ===== */}
       {locationOverride && (
         <div className="flex items-center justify-between bg-ys-50 border border-ys-200 rounded-xl px-4 py-3 mb-4">
           <div className="flex items-center gap-2 text-sm">
@@ -310,7 +311,7 @@ function BrowseContent() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setVisibleCount(ITEMS_PER_PAGE); }}
                 placeholder="Search yard sales..."
                 className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-300 focus:border-ys-400 transition"
               />
@@ -437,15 +438,35 @@ function BrowseContent() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-          {listings.map((listing) => (
-            <ListingCard
-              key={listing.id}
-              listing={listing}
-              currentUserId={currentUserId}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+            {displayedListings.map((listing) => (
+              <ListingCard
+                key={listing.id}
+                listing={listing}
+                currentUserId={currentUserId}
+              />
+            ))}
+          </div>
+
+          {hasMore && (
+            <div className="text-center mt-8">
+              <button
+                onClick={() => setVisibleCount((prev) => prev + ITEMS_PER_PAGE)}
+                className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition-all hover:shadow-lg"
+              >
+                <i className="fa-solid fa-chevron-down text-sm" aria-hidden="true" />
+                Load More ({listings.length - visibleCount} remaining)
+              </button>
+            </div>
+          )}
+
+          {!hasMore && listings.length > ITEMS_PER_PAGE && (
+            <p className="text-center text-sm text-gray-400 mt-6">
+              Showing all {listings.length} listings
+            </p>
+          )}
+        </>
       )}
     </div>
   );
