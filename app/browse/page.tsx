@@ -9,7 +9,7 @@ import DistanceSelector from "@/components/DistanceSelector";
 import JsonLd from "@/components/JsonLd";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
-import { generateCollectionPageSchema, generateSearchResultsPageSchema } from "@/lib/seo-signals"; // ✅ NEW
+import { generateCollectionPageSchema, generateSearchResultsPageSchema } from "@/lib/seo-signals";
 
 const supabase = createClient();
 
@@ -153,7 +153,7 @@ function BrowseContent() {
 
   const hasFilters = debouncedSearch || selectedCategories.length > 0 || distance < 999;
 
-  // ✅ Breadcrumb schema
+  // Breadcrumb schema
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -173,7 +173,7 @@ function BrowseContent() {
     ],
   };
 
-  // ✅ ItemList schema — built dynamically from fetched listings
+  // ItemList schema — built dynamically from fetched listings
   const itemListSchema = useMemo(() => {
     if (listings.length === 0) return null;
 
@@ -215,11 +215,11 @@ function BrowseContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      {/* ✅ Inject schemas */}
+      {/* Inject schemas */}
       <JsonLd data={breadcrumbSchema} />
       {itemListSchema && <JsonLd data={itemListSchema} />}
-      <JsonLd data={generateCollectionPageSchema("Browse Yard Sales", "Find yard sales, garage sales, and estate sales near you on YardShoppers.", "https://www.yardshoppers.com/browse")} /> {/* ✅ NEW */}
-      {debouncedSearch && <JsonLd data={generateSearchResultsPageSchema(debouncedSearch, listings.length)} />} {/* ✅ NEW */}
+      <JsonLd data={generateCollectionPageSchema("Browse Yard Sales", "Find yard sales, garage sales, and estate sales near you on YardShoppers.", "https://www.yardshoppers.com/browse")} />
+      {debouncedSearch && <JsonLd data={generateSearchResultsPageSchema(debouncedSearch, listings.length)} />}
 
       <div className="sticky top-[65px] z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-4">
         <div className="flex flex-col gap-3">
@@ -329,8 +329,8 @@ function BrowseContent() {
       )}
 
       {loading || (distance < 999 && locationLoading) ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[...Array(6)].map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+          {[...Array(8)].map((_, i) => (
             <div key={i} className="animate-pulse">
               <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
               <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
@@ -356,7 +356,7 @@ function BrowseContent() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
           {listings.map((listing) => (
             <ListingCard
               key={listing.id}
