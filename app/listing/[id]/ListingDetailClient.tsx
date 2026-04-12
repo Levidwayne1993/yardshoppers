@@ -17,18 +17,21 @@ interface Listing {
   title: string;
   description: string;
   price: string;
-  address: string;
+  street_address?: string;
+  address?: string;
   city: string;
   state: string;
   zip_code: string;
   category: string;
   sale_date: string;
-  sale_time_start: string;
-  sale_time_end: string;
+  start_time?: string;
+  end_time?: string;
+  sale_time_start?: string;
+  sale_time_end?: string;
   created_at: string;
   user_id: string;
   is_boosted?: boolean;
-  profiles?: { display_name?: string };
+  profiles?: { display_name?: string } | null;
   listing_photos?: { id: string; photo_url: string }[];
 }
 
@@ -57,6 +60,7 @@ export default function ListingDetailClient({
       } = await supabase.auth.getUser();
       setUser(u);
 
+      // Try with profiles join first
       let { data, error } = await supabase
         .from("listings")
         .select("*, listing_photos(*), profiles(display_name)")
@@ -106,7 +110,6 @@ export default function ListingDetailClient({
     load();
   }, [listingId]);
 
-  // ✅ Track view for trending/SEO signals
   useEffect(() => {
     trackView(listingId);
   }, [listingId]);
@@ -133,7 +136,7 @@ export default function ListingDetailClient({
     if (navigator.share) {
       await navigator.share({
         title: listing?.title,
-        text: `Check out this yard sale on YardShoppers!`,
+        text: "Check out this yard sale on YardShoppers!",
         url,
       });
     } else {
@@ -181,7 +184,8 @@ export default function ListingDetailClient({
   }
 
   const photos = listing.listing_photos || [];
-  const location = [listing.address, listing.city, listing.state, listing.zip_code]
+  const displayAddress = listing.street_address || listing.address || "";
+  const location = [displayAddress, listing.city, listing.state, listing.zip_code]
     .filter(Boolean)
     .join(", ");
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
@@ -194,6 +198,24 @@ export default function ListingDetailClient({
         year: "numeric",
       })
     : null;
+
+  function formatTime(timeStr: string | null | undefined): string | null {
+    if (!timeStr) return null;
+    try {
+      const [hours, minutes] = timeStr.split(":");
+      const h = parseInt(hours, 10);
+      const ampm = h >= 12 ? "PM" : "AM";
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${h12}:${minutes} ${ampm}`;
+    } catch {
+      return timeStr;
+    }
+  }
+
+  const rawStart = listing.start_time || listing.sale_time_start;
+  const rawEnd = listing.end_time || listing.sale_time_end;
+  const formattedStart = formatTime(rawStart);
+  const formattedEnd = formatTime(rawEnd);
 
   const isOwner = user && listing.user_id === user.id;
 
@@ -306,10 +328,7 @@ export default function ListingDetailClient({
             </section>
           )}
 
-          {/* ===== RATINGS SECTION ===== */}
           <RatingSection listingId={listing.id} hostId={listing.user_id} />
-
-          {/* ===== COMMENTS SECTION ===== */}
           <CommentsSection listingId={listing.id} />
         </div>
 
@@ -377,7 +396,7 @@ export default function ListingDetailClient({
                   </div>
                 )}
 
-                {(listing.sale_time_start || listing.sale_time_end) && (
+                {(formattedStart || formattedEnd) && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
                       <i className="fa-regular fa-clock text-sm text-ys-700" aria-hidden="true" />
@@ -385,8 +404,8 @@ export default function ListingDetailClient({
                     <div>
                       <p className="text-sm font-medium text-gray-900">Time</p>
                       <p className="text-sm text-gray-500">
-                        {listing.sale_time_start}
-                        {listing.sale_time_end ? ` – ${listing.sale_time_end}` : ""}
+                        {formattedStart}
+                        {formattedEnd ? ` – ${formattedEnd}` : ""}
                       </p>
                     </div>
                   </div>
@@ -412,7 +431,6 @@ export default function ListingDetailClient({
                 </button>
               </div>
 
-              {/* ===== MESSAGE SELLER BUTTON ===== */}
               {!isOwner && (
                 <button
                   onClick={() => {
@@ -537,7 +555,6 @@ export default function ListingDetailClient({
         />
       )}
 
-      {/* ===== FLOATING ROUTE BAR ===== */}
       <RouteFloatingBar listingId={listing.id} listingTitle={listing.title} />
     </article>
   );
