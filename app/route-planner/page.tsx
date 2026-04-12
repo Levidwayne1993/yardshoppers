@@ -32,7 +32,7 @@ export default function RoutePlannerPage() {
   const [listings, setListings] = useState<RouteStop[]>([]);
   const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
   const [loading, setLoading] = useState(true);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState<number>(0);
 
