@@ -205,12 +205,12 @@ export async function POST(request: NextRequest) {
           description: description.trim(),
           category: listing.categorySlug || 'other',
           street_address: listing.address?.trim() || '',
+          address: listing.address?.trim() || '',
           city: listing.city?.trim() || '',
           state: listing.state?.trim() || '',
           zip_code: listing.zip?.trim() || '',
           status: 'active',
         };
-
         if (listing.date) {
           insertData.sale_date = listing.date;
         }
@@ -218,11 +218,13 @@ export async function POST(request: NextRequest) {
         const startTime = validateTime(listing.startTime);
         if (startTime) {
           insertData.start_time = startTime;
+          insertData.sale_time_start = startTime;
         }
 
         const endTime = validateTime(listing.endTime);
         if (endTime) {
           insertData.end_time = endTime;
+          insertData.sale_time_end = endTime;
         }
 
         if (latitude !== null && longitude !== null) {

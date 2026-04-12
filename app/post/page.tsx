@@ -138,12 +138,15 @@ export default function PostPage() {
           category: categories[0] || "Other",
           categories,
           address: address.trim(),
+          street_address: address.trim(),
           city: city.trim(),
           state: state.trim().toUpperCase(),
           zip_code: zipCode.trim(),
           sale_date: saleDate || null,
           sale_time_start: timeStart || null,
           sale_time_end: timeEnd || null,
+          start_time: timeStart || null,
+          end_time: timeEnd || null,
         })
         .select()
         .single();
