@@ -9,6 +9,7 @@ import DistanceSelector from "@/components/DistanceSelector";
 import JsonLd from "@/components/JsonLd";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
+import { cities } from "@/lib/cities";
 import { generateCollectionPageSchema, generateSearchResultsPageSchema } from "@/lib/seo-signals";
 
 const supabase = createClient();
@@ -39,9 +40,71 @@ function getDistanceMiles(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// ===== HELPER: Resolve location override from URL params =====
+function resolveLocationOverride(
+  locationParam: string | null,
+  latParam: string | null,
+  lngParam: string | null
+): { label: string; lat: number; lng: number } | null {
+  // Best case: all three params provided
+  if (locationParam && latParam && lngParam) {
+    const parsedLat = parseFloat(latParam);
+    const parsedLng = parseFloat(lngParam);
+    if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+      return { label: locationParam, lat: parsedLat, lng: parsedLng };
+    }
+  }
+
+  // Fallback: location param only — look up coordinates from cities database
+  if (locationParam) {
+    const parts = locationParam.split(",").map((s) => s.trim());
+    const cityName = parts[0];
+    const stateCode = parts[1];
+    const matchedCity = cities.find(
+      (c) =>
+        c.name.toLowerCase() === cityName.toLowerCase() &&
+        (!stateCode || c.stateCode.toLowerCase() === stateCode.toLowerCase())
+    );
+    if (matchedCity) {
+      return { label: locationParam, lat: matchedCity.lat, lng: matchedCity.lng };
+    }
+  }
+
+  return null;
+}
+
 function BrowseContent() {
   const searchParams = useSearchParams();
   const { city, region, lat, lng, loading: locationLoading, requestPreciseLocation } = useLocation();
+
+  // ===== LOCATION OVERRIDE FROM URL =====
+  const locationParam = searchParams.get("location");
+  const latParam = searchParams.get("lat");
+  const lngParam = searchParams.get("lng");
+
+  const [locationOverride, setLocationOverride] = useState<{
+    label: string;
+    lat: number;
+    lng: number;
+  } | null>(() => resolveLocationOverride(locationParam, latParam, lngParam));
+
+  // Re-resolve if URL params change
+  useEffect(() => {
+    const resolved = resolveLocationOverride(locationParam, latParam, lngParam);
+    if (resolved) {
+      setLocationOverride(resolved);
+    }
+  }, [locationParam, latParam, lngParam]);
+
+  // ===== EFFECTIVE LOCATION: override wins over user geolocation =====
+  const effectiveLat = locationOverride ? locationOverride.lat : lat;
+  const effectiveLng = locationOverride ? locationOverride.lng : lng;
+  const locationLabel = locationOverride
+    ? locationOverride.label
+    : city
+    ? `${city}${region ? `, ${region}` : ""}`
+    : "";
+  const isLocationReady = locationOverride ? true : !locationLoading;
 
   const initialCategory = searchParams.get("category");
   const [listings, setListings] = useState<any[]>([]);
@@ -67,7 +130,7 @@ function BrowseContent() {
 
   function handleDistanceChange(value: number) {
     setDistance(value);
-    if (value < 999) {
+    if (value < 999 && !locationOverride) {
       requestPreciseLocation();
     }
   }
@@ -83,7 +146,7 @@ function BrowseContent() {
   }
 
   useEffect(() => {
-    if (distance < 999 && (!lat || !lng)) return;
+    if (distance < 999 && (!effectiveLat || !effectiveLng)) return;
 
     async function fetchListings() {
       setLoading(true);
@@ -104,13 +167,13 @@ function BrowseContent() {
         query = query.or(orClauses);
       }
 
-      if (distance < 999 && lat && lng) {
+      if (distance < 999 && effectiveLat && effectiveLng) {
         const deg = milesToDeg(distance);
         query = query
-          .gte("latitude", lat - deg)
-          .lte("latitude", lat + deg)
-          .gte("longitude", lng - deg)
-          .lte("longitude", lng + deg);
+          .gte("latitude", effectiveLat - deg)
+          .lte("latitude", effectiveLat + deg)
+          .gte("longitude", effectiveLng - deg)
+          .lte("longitude", effectiveLng + deg);
       }
 
       query = query
@@ -122,18 +185,18 @@ function BrowseContent() {
       const { data } = await query;
       let results = data || [];
 
-      if (sort === "nearest" && lat && lng && results.length > 0) {
+      if (sort === "nearest" && effectiveLat && effectiveLng && results.length > 0) {
         const boosted = results.filter((l: any) => l.is_boosted);
         const nonBoosted = results.filter((l: any) => !l.is_boosted);
 
         const sortByDistance = (a: any, b: any) => {
           const distA =
             a.latitude && a.longitude
-              ? getDistanceMiles(lat, lng, a.latitude, a.longitude)
+              ? getDistanceMiles(effectiveLat, effectiveLng, a.latitude, a.longitude)
               : Infinity;
           const distB =
             b.latitude && b.longitude
-              ? getDistanceMiles(lat, lng, b.latitude, b.longitude)
+              ? getDistanceMiles(effectiveLat, effectiveLng, b.latitude, b.longitude)
               : Infinity;
           return distA - distB;
         };
@@ -149,9 +212,9 @@ function BrowseContent() {
     }
 
     fetchListings();
-  }, [debouncedSearch, selectedCategories, sort, distance, lat, lng]);
+  }, [debouncedSearch, selectedCategories, sort, distance, effectiveLat, effectiveLng]);
 
-  const hasFilters = debouncedSearch || selectedCategories.length > 0 || distance < 999;
+  const hasFilters = debouncedSearch || selectedCategories.length > 0 || distance < 999 || locationOverride;
 
   // Breadcrumb schema
   const breadcrumbSchema = {
@@ -173,7 +236,7 @@ function BrowseContent() {
     ],
   };
 
-  // ItemList schema — built dynamically from fetched listings
+  // ItemList schema
   const itemListSchema = useMemo(() => {
     if (listings.length === 0) return null;
 
@@ -215,11 +278,29 @@ function BrowseContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      {/* Inject schemas */}
       <JsonLd data={breadcrumbSchema} />
       {itemListSchema && <JsonLd data={itemListSchema} />}
       <JsonLd data={generateCollectionPageSchema("Browse Yard Sales", "Find yard sales, garage sales, and estate sales near you on YardShoppers.", "https://www.yardshoppers.com/browse")} />
       {debouncedSearch && <JsonLd data={generateSearchResultsPageSchema(debouncedSearch, listings.length)} />}
+
+      {/* ===== LOCATION OVERRIDE BANNER ===== */}
+      {locationOverride && (
+        <div className="flex items-center justify-between bg-ys-50 border border-ys-200 rounded-xl px-4 py-3 mb-4">
+          <div className="flex items-center gap-2 text-sm">
+            <i className="fa-solid fa-location-dot text-ys-700" aria-hidden="true" />
+            <span className="font-semibold text-ys-900">
+              Browsing sales near {locationOverride.label}
+            </span>
+          </div>
+          <button
+            onClick={() => setLocationOverride(null)}
+            className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition flex items-center gap-1"
+          >
+            <i className="fa-solid fa-xmark text-xs" aria-hidden="true" />
+            Use my location
+          </button>
+        </div>
+      )}
 
       <div className="sticky top-[65px] z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-4">
         <div className="flex flex-col gap-3">
@@ -281,7 +362,6 @@ function BrowseContent() {
         </div>
       </div>
 
-      {/* ===== ROUTE PLANNER CTA BANNER ===== */}
       <Link href="/route-planner" className="block mb-5">
         <div className="bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#388E3C] rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all group cursor-pointer">
           <div className="flex items-center gap-3 min-w-0">
@@ -309,8 +389,8 @@ function BrowseContent() {
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-500">
             {listings.length} result{listings.length !== 1 ? "s" : ""} found
-            {city && distance < 999 && (
-              <span> within {distance} mi of {city}{region ? `, ${region}` : ""}</span>
+            {locationLabel && distance < 999 && (
+              <span> within {distance} mi of {locationLabel}</span>
             )}
           </p>
           <button
@@ -319,6 +399,7 @@ function BrowseContent() {
               clearCategories();
               setDistance(50);
               setSort("nearest");
+              setLocationOverride(null);
             }}
             className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition"
           >
@@ -328,7 +409,7 @@ function BrowseContent() {
         </div>
       )}
 
-      {loading || (distance < 999 && locationLoading) ? (
+      {loading || (distance < 999 && !isLocationReady) ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="animate-pulse">
