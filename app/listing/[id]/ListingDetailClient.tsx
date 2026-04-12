@@ -57,11 +57,23 @@ export default function ListingDetailClient({
       } = await supabase.auth.getUser();
       setUser(u);
 
-      const { data } = await supabase
+      let { data, error } = await supabase
         .from("listings")
         .select("*, listing_photos(*), profiles(display_name)")
         .eq("id", listingId)
         .single();
+
+      // If profiles join fails, retry without it
+      if (error || !data) {
+        const { data: fallback } = await supabase
+          .from("listings")
+          .select("*, listing_photos(*)")
+          .eq("id", listingId)
+          .single();
+        if (fallback) {
+          data = { ...fallback, profiles: null };
+        }
+      }
 
       if (data) {
         setListing(data);
