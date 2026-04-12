@@ -14,6 +14,7 @@ interface Listing {
   title: string;
   city: string;
   state: string;
+  sale_date: string;
   is_boosted: boolean;
   created_at: string;
   user_id: string;
@@ -46,13 +47,24 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [boostTarget, setBoostTarget] = useState<Listing | null>(null);
-  const [activeTab, setActiveTab] = useState<"listings" | "reports" | "coverage">("listings");
+  const [activeTab, setActiveTab] = useState<
+    "listings" | "reports" | "coverage"
+  >("listings");
 
-  // Admin filters
   const [selectedState, setSelectedState] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showCoveragePanel, setShowCoveragePanel] = useState(false);
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    mode: string;
+    label: string;
+    count: number;
+    state?: string;
+    city?: string;
+  } | null>(null);
+  const [deleteResult, setDeleteResult] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -98,7 +110,6 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  // ===== COMPUTED: State & City breakdown =====
   const stateMap = useMemo(() => {
     const map: Record<string, Record<string, number>> = {};
     listings.forEach((l) => {
@@ -124,22 +135,16 @@ export default function DashboardPage() {
     return Object.entries(cityMap).sort((a, b) => b[1] - a[1]);
   }, [selectedState, stateMap]);
 
-  // ===== FILTERED LISTINGS =====
   const filteredListings = useMemo(() => {
     let result = listings;
-
     if (selectedState !== "all") {
       result = result.filter(
         (l) => (l.state || "").toUpperCase().trim() === selectedState
       );
     }
-
     if (selectedCity !== "all") {
-      result = result.filter(
-        (l) => (l.city || "").trim() === selectedCity
-      );
+      result = result.filter((l) => (l.city || "").trim() === selectedCity);
     }
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -149,11 +154,27 @@ export default function DashboardPage() {
           (l.state || "").toLowerCase().includes(q)
       );
     }
-
     return result;
   }, [listings, selectedState, selectedCity, searchQuery]);
 
-  // ===== LOW COVERAGE: cities with < 3 listings =====
+  const adminOwnListings = useMemo(() => {
+    if (!user) return [];
+    return listings.filter((l) => l.user_id === user.id);
+  }, [listings, user]);
+
+  const adminFilteredOwn = useMemo(() => {
+    if (!user) return [];
+    return filteredListings.filter((l) => l.user_id === user.id);
+  }, [filteredListings, user]);
+
+  const expiredListings = useMemo(() => {
+    if (!user) return [];
+    const today = new Date().toISOString().split("T")[0];
+    return adminOwnListings.filter(
+      (l) => l.sale_date && l.sale_date < today
+    );
+  }, [adminOwnListings]);
+
   const lowCoverageCities = useMemo(() => {
     const result: { state: string; city: string; count: number }[] = [];
     Object.entries(stateMap).forEach(([state, cityMap]) => {
@@ -166,13 +187,89 @@ export default function DashboardPage() {
     return result.sort((a, b) => a.count - b.count);
   }, [stateMap]);
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllFiltered() {
+    setSelectedIds(new Set(adminFilteredOwn.map((l) => l.id)));
+  }
+
+  function deselectAll() {
+    setSelectedIds(new Set());
+  }
+
+  function promptDelete(
+    mode: string,
+    label: string,
+    count: number,
+    state?: string,
+    city?: string
+  ) {
+    setDeleteConfirm({ mode, label, count, state, city });
+  }
+
+  async function executeDelete() {
+    if (!deleteConfirm) return;
+    setIsDeleting(true);
+    setDeleteResult(null);
+
+    try {
+      const payload: any = { mode: deleteConfirm.mode };
+      if (deleteConfirm.mode === "selected") {
+        payload.ids = Array.from(selectedIds);
+      }
+      if (deleteConfirm.state) payload.state = deleteConfirm.state;
+      if (deleteConfirm.city) payload.city = deleteConfirm.city;
+
+      const res = await fetch("/api/admin/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setDeleteResult(
+          `✅ ${data.deleted} listing${data.deleted !== 1 ? "s" : ""} deleted`
+        );
+        if (deleteConfirm.mode === "selected") {
+          setListings((prev) =>
+            prev.filter((l) => !selectedIds.has(l.id))
+          );
+          setSelectedIds(new Set());
+        } else {
+          const { data: fresh } = await supabase
+            .from("listings")
+            .select("*, listing_photos(*)")
+            .order("created_at", { ascending: false });
+          setListings(fresh || []);
+          setSelectedIds(new Set());
+        }
+      } else {
+        setDeleteResult(`❌ Error: ${data.error}`);
+      }
+    } catch (err: any) {
+      setDeleteResult(`❌ Failed: ${err.message}`);
+    }
+
+    setIsDeleting(false);
+    setDeleteConfirm(null);
+    setTimeout(() => setDeleteResult(null), 4000);
+  }
+
   async function handleDelete(listingId: string) {
     const listing = listings.find((l) => l.id === listingId);
     if (!listing || listing.user_id !== user?.id) {
       alert("You can only delete your own listings.");
       return;
     }
-
     const confirmed = confirm(
       "Are you sure you want to delete this listing? This cannot be undone."
     );
@@ -184,9 +281,13 @@ export default function DashboardPage() {
         .delete()
         .eq("listing_id", listingId);
       await supabase.from("listings").delete().eq("id", listingId);
-
       setListings((prev) => prev.filter((l) => l.id !== listingId));
       setReports((prev) => prev.filter((r) => r.listing_id !== listingId));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(listingId);
+        return next;
+      });
     } catch (err) {
       alert("Failed to delete listing.");
     }
@@ -209,12 +310,14 @@ export default function DashboardPage() {
   function handleStateChange(state: string) {
     setSelectedState(state);
     setSelectedCity("all");
+    setSelectedIds(new Set());
   }
 
   function clearFilters() {
     setSelectedState("all");
     setSelectedCity("all");
     setSearchQuery("");
+    setSelectedIds(new Set());
   }
 
   if (loading) {
@@ -230,6 +333,7 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <div className="flex items-center gap-3">
@@ -244,6 +348,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* QUICK LINKS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         <Link
           href="/saved"
@@ -291,6 +396,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      {/* ADMIN TABS */}
       {isAdmin && (
         <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit flex-wrap">
           <button
@@ -339,14 +445,26 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* DELETE RESULT TOAST */}
+      {deleteResult && (
+        <div
+          className={`mb-6 px-5 py-3 rounded-xl text-sm font-semibold ${
+            deleteResult.startsWith("✅")
+              ? "bg-green-50 text-green-800 border border-green-200"
+              : "bg-red-50 text-red-800 border border-red-200"
+          }`}
+        >
+          {deleteResult}
+        </div>
+      )}
+
       {/* ===== LISTINGS TAB ===== */}
       {activeTab === "listings" && (
         <>
-          {/* Admin Filters */}
+          {/* ADMIN FILTER BAR */}
           {isAdmin && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-6">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-4">
               <div className="flex flex-col sm:flex-row gap-3">
-                {/* Search */}
                 <div className="flex-1 relative">
                   <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
                   <input
@@ -357,8 +475,6 @@ export default function DashboardPage() {
                     className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-300 focus:border-ys-400 transition"
                   />
                 </div>
-
-                {/* State Filter */}
                 <select
                   value={selectedState}
                   onChange={(e) => handleStateChange(e.target.value)}
@@ -366,7 +482,10 @@ export default function DashboardPage() {
                 >
                   <option value="all">All States ({listings.length})</option>
                   {sortedStates.map((st) => {
-                    const count = Object.values(stateMap[st]).reduce((s, v) => s + v, 0);
+                    const count = Object.values(stateMap[st]).reduce(
+                      (s, v) => s + v,
+                      0
+                    );
                     return (
                       <option key={st} value={st}>
                         {st} ({count})
@@ -374,20 +493,22 @@ export default function DashboardPage() {
                     );
                   })}
                 </select>
-
-                {/* City Filter */}
                 <select
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
                   disabled={selectedState === "all"}
                   className={`bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-ys-300 min-w-[180px] ${
-                    selectedState === "all" ? "opacity-50 cursor-not-allowed" : ""
+                    selectedState === "all"
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
                   }`}
                 >
                   <option value="all">
                     {selectedState === "all"
                       ? "Select a state first"
-                      : `All Cities in ${selectedState} (${Object.values(stateMap[selectedState] || {}).reduce((s, v) => s + v, 0)})`}
+                      : `All Cities in ${selectedState} (${Object.values(
+                          stateMap[selectedState] || {}
+                        ).reduce((s, v) => s + v, 0)})`}
                   </option>
                   {citiesForSelectedState.map(([city, count]) => (
                     <option key={city} value={city}>
@@ -397,11 +518,13 @@ export default function DashboardPage() {
                 </select>
               </div>
 
-              {/* Active Filters */}
-              {(selectedState !== "all" || selectedCity !== "all" || searchQuery) && (
+              {(selectedState !== "all" ||
+                selectedCity !== "all" ||
+                searchQuery) && (
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                   <p className="text-sm text-gray-500">
-                    Showing {filteredListings.length} of {listings.length} listings
+                    Showing {filteredListings.length} of {listings.length}{" "}
+                    listings
                     {selectedState !== "all" && (
                       <span className="ml-1 inline-flex items-center gap-1 bg-ys-50 text-ys-800 text-xs font-semibold px-2 py-0.5 rounded-full">
                         {selectedState}
@@ -421,6 +544,125 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* ADMIN BULK ACTION TOOLBAR */}
+          {isAdmin && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                  <i className="fa-solid fa-toolbox text-ys-600 text-xs" />
+                  Admin Tools
+                </h3>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span className="bg-ys-50 text-ys-800 font-bold px-2 py-0.5 rounded-full">
+                    {adminOwnListings.length} your listings
+                  </span>
+                  {expiredListings.length > 0 && (
+                    <span className="bg-red-50 text-red-700 font-bold px-2 py-0.5 rounded-full">
+                      {expiredListings.length} expired
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button
+                  onClick={selectAllFiltered}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-ys-50 hover:bg-ys-100 text-ys-800 rounded-xl text-xs font-semibold transition"
+                >
+                  <i className="fa-regular fa-square-check text-xs" />
+                  Select All Visible ({adminFilteredOwn.length})
+                </button>
+                {selectedIds.size > 0 && (
+                  <button
+                    onClick={deselectAll}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition"
+                  >
+                    <i className="fa-regular fa-square text-xs" />
+                    Deselect All
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  disabled={selectedIds.size === 0}
+                  onClick={() =>
+                    promptDelete(
+                      "selected",
+                      `${selectedIds.size} selected listing${selectedIds.size !== 1 ? "s" : ""}`,
+                      selectedIds.size
+                    )
+                  }
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                    selectedIds.size > 0
+                      ? "bg-red-500 hover:bg-red-600 text-white"
+                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  <i className="fa-solid fa-trash text-[10px]" />
+                  Delete Selected ({selectedIds.size})
+                </button>
+
+                {selectedState !== "all" && (
+                  <button
+                    onClick={() => {
+                      const count = adminFilteredOwn.length;
+                      if (count === 0) return;
+                      promptDelete(
+                        selectedCity !== "all" ? "city" : "state",
+                        selectedCity !== "all"
+                          ? `all your listings in ${selectedCity}, ${selectedState}`
+                          : `all your listings in ${selectedState}`,
+                        count,
+                        selectedState,
+                        selectedCity !== "all" ? selectedCity : undefined
+                      );
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition"
+                  >
+                    <i className="fa-solid fa-location-dot text-[10px]" />
+                    Delete All in{" "}
+                    {selectedCity !== "all"
+                      ? `${selectedCity}`
+                      : `${selectedState}`}{" "}
+                    ({adminFilteredOwn.length})
+                  </button>
+                )}
+
+                {expiredListings.length > 0 && (
+                  <button
+                    onClick={() =>
+                      promptDelete(
+                        "expired",
+                        `${expiredListings.length} expired listing${expiredListings.length !== 1 ? "s" : ""} (past sale date)`,
+                        expiredListings.length
+                      )
+                    }
+                    className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition"
+                  >
+                    <i className="fa-regular fa-calendar-xmark text-[10px]" />
+                    Delete Expired ({expiredListings.length})
+                  </button>
+                )}
+
+                <button
+                  onClick={() =>
+                    promptDelete(
+                      "all",
+                      `ALL ${adminOwnListings.length} of your listings across every state and city`,
+                      adminOwnListings.length
+                    )
+                  }
+                  className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-xs font-bold transition"
+                >
+                  <i className="fa-solid fa-skull-crossbones text-[10px]" />
+                  Delete ALL My Listings ({adminOwnListings.length})
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* LISTING HEADING */}
           <h2 className="text-lg font-bold text-gray-900 mb-4">
             {isAdmin ? "All Listings" : "My Listings"}{" "}
             <span className="text-gray-400 font-normal">
@@ -428,19 +670,24 @@ export default function DashboardPage() {
             </span>
           </h2>
 
+          {/* LISTING GRID */}
           {filteredListings.length === 0 ? (
             <div className="text-center py-16 bg-white border border-gray-100 rounded-2xl">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i className="fa-solid fa-tag text-2xl text-gray-300" />
               </div>
               <p className="text-gray-500 mb-4">
-                {selectedState !== "all" || selectedCity !== "all" || searchQuery
+                {selectedState !== "all" ||
+                selectedCity !== "all" ||
+                searchQuery
                   ? "No listings match your filters."
                   : isAdmin
                   ? "No listings yet."
                   : "You haven't posted any sales yet."}
               </p>
-              {(selectedState !== "all" || selectedCity !== "all" || searchQuery) ? (
+              {selectedState !== "all" ||
+              selectedCity !== "all" ||
+              searchQuery ? (
                 <button
                   onClick={clearFilters}
                   className="inline-flex items-center gap-2 bg-ys-800 hover:bg-ys-900 text-white px-6 py-2.5 rounded-full font-semibold transition"
@@ -463,15 +710,45 @@ export default function DashboardPage() {
               {filteredListings.map((listing) => {
                 const photo = listing.listing_photos?.[0]?.photo_url;
                 const isOwner = listing.user_id === user?.id;
+                const isSelected = selectedIds.has(listing.id);
+                const isExpired =
+                  listing.sale_date &&
+                  listing.sale_date < new Date().toISOString().split("T")[0];
+
                 return (
                   <div
                     key={listing.id}
-                    className={`bg-white rounded-2xl overflow-hidden border transition-all hover:shadow-md ${
-                      listing.is_boosted
+                    className={`bg-white rounded-2xl overflow-hidden border transition-all hover:shadow-md relative ${
+                      isSelected
+                        ? "border-red-400 ring-2 ring-red-200"
+                        : listing.is_boosted
                         ? "border-amber-200 shadow-sm"
                         : "border-gray-100"
                     }`}
                   >
+                    {isAdmin && isOwner && (
+                      <button
+                        onClick={() => toggleSelect(listing.id)}
+                        className={`absolute top-3 right-3 z-10 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                          isSelected
+                            ? "bg-red-500 text-white shadow-md"
+                            : "bg-white/90 text-gray-400 hover:text-red-500 border border-gray-200 shadow-sm"
+                        }`}
+                      >
+                        <i
+                          className={`fa-solid ${
+                            isSelected ? "fa-check" : "fa-square"
+                          } text-xs`}
+                        />
+                      </button>
+                    )}
+
+                    {isExpired && isAdmin && (
+                      <div className="absolute top-3 left-3 z-10 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        Expired
+                      </div>
+                    )}
+
                     <Link
                       href={`/listing/${listing.id}`}
                       className="block relative aspect-[4/3] bg-gray-100"
@@ -507,6 +784,17 @@ export default function DashboardPage() {
                         <i className="fa-solid fa-location-dot text-[10px] text-ys-500" />
                         {listing.city}, {listing.state}
                       </p>
+                      {listing.sale_date && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          <i className="fa-regular fa-calendar text-[10px] mr-1" />
+                          {new Date(
+                            listing.sale_date + "T00:00:00"
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
+                      )}
 
                       {isOwner && (
                         <div className="mt-3 flex gap-2">
@@ -555,38 +843,49 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* ===== COVERAGE TAB (admin only) ===== */}
+      {/* ===== COVERAGE TAB ===== */}
       {activeTab === "coverage" && isAdmin && (
         <>
           <h2 className="text-lg font-bold text-gray-900 mb-4">
             Coverage Overview
           </h2>
 
-          {/* Stats Summary */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             <div className="bg-white border border-gray-100 rounded-2xl p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">{listings.length}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {listings.length}
+              </p>
               <p className="text-xs text-gray-500 mt-1">Total Listings</p>
             </div>
             <div className="bg-white border border-gray-100 rounded-2xl p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">{sortedStates.length}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {sortedStates.length}
+              </p>
               <p className="text-xs text-gray-500 mt-1">States Covered</p>
             </div>
             <div className="bg-white border border-gray-100 rounded-2xl p-4 text-center">
               <p className="text-2xl font-bold text-gray-900">
-                {Object.values(stateMap).reduce((total, cityMap) => total + Object.keys(cityMap).length, 0)}
+                {Object.values(stateMap).reduce(
+                  (total, cityMap) => total + Object.keys(cityMap).length,
+                  0
+                )}
               </p>
               <p className="text-xs text-gray-500 mt-1">Cities Covered</p>
             </div>
             <div className="bg-white border border-gray-100 rounded-2xl p-4 text-center">
-              <p className={`text-2xl font-bold ${lowCoverageCities.length > 0 ? "text-amber-600" : "text-green-600"}`}>
+              <p
+                className={`text-2xl font-bold ${
+                  lowCoverageCities.length > 0
+                    ? "text-amber-600"
+                    : "text-green-600"
+                }`}
+              >
                 {lowCoverageCities.length}
               </p>
-              <p className="text-xs text-gray-500 mt-1">Low Coverage Cities</p>
+              <p className="text-xs text-gray-500 mt-1">Low Coverage</p>
             </div>
           </div>
 
-          {/* Low Coverage Alert */}
           {lowCoverageCities.length > 0 && (
             <div className="mb-6">
               <h3 className="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
@@ -606,13 +905,15 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        count === 0
-                          ? "bg-red-100 text-red-700"
-                          : count === 1
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}>
+                      <span
+                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          count === 0
+                            ? "bg-red-100 text-red-700"
+                            : count === 1
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
                         {count} listing{count !== 1 ? "s" : ""}
                       </span>
                       <button
@@ -632,15 +933,19 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* State-by-State Breakdown */}
           <h3 className="text-sm font-bold text-gray-700 mb-3">
             Listings by State
           </h3>
           <div className="space-y-3">
             {sortedStates.map((state) => {
               const cityMap = stateMap[state];
-              const totalForState = Object.values(cityMap).reduce((s, v) => s + v, 0);
-              const sortedCities = Object.entries(cityMap).sort((a, b) => b[1] - a[1]);
+              const totalForState = Object.values(cityMap).reduce(
+                (s, v) => s + v,
+                0
+              );
+              const sortedCities = Object.entries(cityMap).sort(
+                (a, b) => b[1] - a[1]
+              );
 
               return (
                 <div
@@ -649,31 +954,48 @@ export default function DashboardPage() {
                 >
                   <button
                     onClick={() => {
-                      setSelectedState(selectedState === state ? "all" : state);
+                      setSelectedState(
+                        selectedState === state ? "all" : state
+                      );
                       setSelectedCity("all");
                     }}
                     className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-ys-50 rounded-xl flex items-center justify-center">
-                        <span className="text-sm font-bold text-ys-800">{state}</span>
+                        <span className="text-sm font-bold text-ys-800">
+                          {state}
+                        </span>
                       </div>
                       <div className="text-left">
                         <p className="text-sm font-bold text-gray-900">
-                          {totalForState} listing{totalForState !== 1 ? "s" : ""}
+                          {totalForState} listing
+                          {totalForState !== 1 ? "s" : ""}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {sortedCities.length} cit{sortedCities.length !== 1 ? "ies" : "y"}
+                          {sortedCities.length} cit
+                          {sortedCities.length !== 1 ? "ies" : "y"}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {/* Mini coverage bar */}
                       <div className="hidden sm:block w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-ys-500 rounded-full"
                           style={{
-                            width: `${Math.min(100, (totalForState / Math.max(...sortedStates.map((s) => Object.values(stateMap[s]).reduce((a, b) => a + b, 0)))) * 100)}%`,
+                            width: `${Math.min(
+                              100,
+                              (totalForState /
+                                Math.max(
+                                  ...sortedStates.map((s) =>
+                                    Object.values(stateMap[s]).reduce(
+                                      (a, b) => a + b,
+                                      0
+                                    )
+                                  )
+                                )) *
+                                100
+                            )}%`,
                           }}
                         />
                       </div>
@@ -697,14 +1019,18 @@ export default function DashboardPage() {
                             }}
                             className="flex items-center justify-between px-3 py-2 bg-white rounded-xl border border-gray-100 hover:border-ys-300 hover:shadow-sm transition text-left"
                           >
-                            <span className="text-sm text-gray-700">{city}</span>
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                              count >= 5
-                                ? "bg-green-100 text-green-700"
-                                : count >= 3
-                                ? "bg-ys-50 text-ys-800"
-                                : "bg-amber-100 text-amber-700"
-                            }`}>
+                            <span className="text-sm text-gray-700">
+                              {city}
+                            </span>
+                            <span
+                              className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                count >= 5
+                                  ? "bg-green-100 text-green-700"
+                                  : count >= 3
+                                  ? "bg-ys-50 text-ys-800"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
                               {count}
                             </span>
                           </button>
@@ -781,7 +1107,8 @@ export default function DashboardPage() {
                             {reportedListing && (
                               <p className="text-sm text-gray-500 mt-0.5">
                                 <i className="fa-solid fa-location-dot text-[10px] mr-1" />
-                                {reportedListing.city}, {reportedListing.state}
+                                {reportedListing.city},{" "}
+                                {reportedListing.state}
                               </p>
                             )}
                           </div>
@@ -844,6 +1171,81 @@ export default function DashboardPage() {
         </>
       )}
 
+      {/* ===== DELETE CONFIRMATION MODAL ===== */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                <i className="fa-solid fa-triangle-exclamation text-xl text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Confirm Delete
+                </h3>
+                <p className="text-sm text-gray-500">
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+              <p className="text-sm text-red-800">
+                You are about to permanently delete{" "}
+                <span className="font-bold">{deleteConfirm.label}</span>.
+              </p>
+              <p className="text-sm text-red-600 mt-1">
+                This will remove {deleteConfirm.count} listing
+                {deleteConfirm.count !== 1 ? "s" : ""} and all associated
+                photos, saves, and reports.
+              </p>
+            </div>
+
+            {deleteConfirm.mode === "all" && (
+              <div className="bg-gray-900 text-white rounded-xl p-4 mb-6">
+                <p className="text-sm font-bold flex items-center gap-2">
+                  <i className="fa-solid fa-skull-crossbones text-red-400" />
+                  NUCLEAR OPTION
+                </p>
+                <p className="text-xs text-gray-300 mt-1">
+                  This will delete every single listing you have ever posted.
+                  Are you absolutely sure?
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                disabled={isDeleting}
+                className="flex-1 px-5 py-3 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl font-semibold transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeDelete}
+                disabled={isDeleting}
+                className="flex-1 px-5 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin text-sm" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-trash text-sm" />
+                    Delete {deleteConfirm.count} Listing
+                    {deleteConfirm.count !== 1 ? "s" : ""}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== BOOST MODAL ===== */}
       {boostTarget && (
         <BoostModal
           listingId={boostTarget.id}
