@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
           street_address: listing.address?.trim() || '',
           city: listing.city?.trim() || '',
           state: listing.state?.trim() || '',
-          zip: listing.zip?.trim() || '',
+          zip_code: listing.zip?.trim() || '',
           status: 'active',
         };
 
