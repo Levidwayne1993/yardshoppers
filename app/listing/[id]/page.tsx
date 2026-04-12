@@ -1,272 +1,549 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { Metadata } from "next";
-import ListingDetailClient from "./ListingDetailClient";
+"use client";
 
-async function getSupabase() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-      },
-    }
-  );
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase-browser";
+import BoostModal from "@/components/BoostModal";
+import ReportModal from "@/components/ReportModal";
+import CommentsSection from "@/components/CommentsSection";
+import RatingSection from "@/components/RatingSection";
+import MessageModal from "@/components/MessageModal";
+import RouteFloatingBar from "@/components/RouteFloatingBar";
+import { trackView } from "@/lib/seo-signals";
+
+interface Listing {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  street_address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  category: string;
+  sale_date: string;
+  start_time: string;
+  end_time: string;
+  created_at: string;
+  user_id: string;
+  is_boosted?: boolean;
+  profiles?: { display_name?: string };
+  listing_photos?: { id: string; photo_url: string }[];
 }
 
-async function getListing(id: string) {
-  const supabase = await getSupabase();
-  const { data } = await supabase
-    .from("listings")
-    .select("*, listing_photos(*), profiles(display_name)")
-    .eq("id", id)
-    .single();
-  return data;
-}
-
-export async function generateMetadata({
-  params,
+export default function ListingDetailClient({
+  listingId,
 }: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  const listing = await getListing(id);
+  listingId: string;
+}) {
+  const supabase = createClient();
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activePhoto, setActivePhoto] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
+  const [showBoostModal, setShowBoostModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [hostAvgRating, setHostAvgRating] = useState<number | null>(null);
+  const [hostTotalRatings, setHostTotalRatings] = useState<number>(0);
+
+  useEffect(() => {
+    async function load() {
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      setUser(u);
+
+      const { data } = await supabase
+        .from("listings")
+        .select("*, listing_photos(*), profiles(display_name)")
+        .eq("id", listingId)
+        .single();
+
+      if (data) {
+        setListing(data);
+
+        // Fetch host rating summary
+        const { data: ratingData } = await supabase
+          .from("host_ratings")
+          .select("avg_rating, total_ratings")
+          .eq("host_id", data.user_id)
+          .maybeSingle();
+
+        if (ratingData) {
+          setHostAvgRating(ratingData.avg_rating);
+          setHostTotalRatings(ratingData.total_ratings);
+        }
+      }
+
+      if (u) {
+        const { data: s } = await supabase
+          .from("saved_listings")
+          .select("id")
+          .eq("user_id", u.id)
+          .eq("listing_id", listingId)
+          .maybeSingle();
+        setSaved(!!s);
+      }
+
+      setLoading(false);
+    }
+    load();
+  }, [listingId]);
+
+  // ✅ Track view for trending/SEO signals
+  useEffect(() => {
+    trackView(listingId);
+  }, [listingId]);
+
+  async function toggleSave() {
+    if (!user) return;
+    if (saved) {
+      await supabase
+        .from("saved_listings")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("listing_id", listingId);
+      setSaved(false);
+    } else {
+      await supabase
+        .from("saved_listings")
+        .insert({ user_id: user.id, listing_id: listingId });
+      setSaved(true);
+    }
+  }
+
+  async function handleShare() {
+    const url = window.location.href;
+    if (navigator.share) {
+      await navigator.share({
+        title: listing?.title,
+        text: `Check out this yard sale on YardShoppers!`,
+        url,
+      });
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        <div className="animate-pulse space-y-6">
+          <div className="h-4 w-40 bg-gray-200 rounded" />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <div className="lg:col-span-3 aspect-[4/3] bg-gray-200 rounded-2xl" />
+            <div className="lg:col-span-2 space-y-4">
+              <div className="h-6 bg-gray-200 rounded w-3/4" />
+              <div className="h-8 bg-gray-200 rounded w-1/3" />
+              <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="h-4 bg-gray-200 rounded w-2/3" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!listing) {
-    return { title: "Listing Not Found" };
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-5">
+          <i className="fa-solid fa-ghost text-3xl text-gray-300" aria-hidden="true" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Listing Not Found</h1>
+        <p className="text-gray-500 mb-6">This listing may have been removed or doesn&apos;t exist.</p>
+        <Link
+          href="/browse"
+          className="px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
+        >
+          Browse Sales
+        </Link>
+      </div>
+    );
   }
 
-  const location = [listing.city, listing.state].filter(Boolean).join(", ");
-  const title = `${listing.title}${location ? ` in ${location}` : ""}`;
-  const description =
-    listing.description?.slice(0, 160) ||
-    `Check out this yard sale listing${location ? ` in ${location}` : ""} on YardShoppers.`;
   const photos = listing.listing_photos || [];
-  const ogImage =
-    photos.length > 0
-      ? photos[0].photo_url
-      : "https://www.yardshoppers.com/og-image.png";
-
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: `/listing/${id}`,
-    },
-    openGraph: {
-      type: "article",
-      url: `https://www.yardshoppers.com/listing/${id}`,
-      title,
-      description,
-      siteName: "YardShoppers",
-      images: [
-        {
-          url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: listing.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [ogImage],
-    },
-  };
-}
-
-export default async function ListingPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const listing = await getListing(id);
-
-  const jsonLd = listing ? buildJsonLd(listing, id) : null;
-
-  return (
-    <>
-      {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      )}
-      <ListingDetailClient listingId={id} />
-    </>
-  );
-}
-
-function buildJsonLd(listing: any, id: string) {
-  const baseUrl = "https://www.yardshoppers.com";
-  const photos = listing.listing_photos || [];
-  const location = [listing.address, listing.city, listing.state, listing.zip_code]
+  const location = [listing.street_address, listing.city, listing.state, listing.zip_code]
     .filter(Boolean)
     .join(", ");
-  const sellerName =
-    listing.profiles?.display_name || "YardShoppers Seller";
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 
-  const priceNum = listing.price
-    ? parseFloat(listing.price.replace(/[^0-9.]/g, ""))
+  const saleDay = listing.sale_date
+    ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
     : null;
 
-  let startDateTime: string | null = null;
-  let endDateTime: string | null = null;
-
-  if (listing.sale_date) {
-    const startTime = listing.sale_time_start || "08:00";
-    const endTime = listing.sale_time_end || "17:00";
-    const normalizeTime = (t: string) => {
-      const match = t.match(/(\d{1,2}):?(\d{2})?\s*(AM|PM)?/i);
-      if (!match) return "08:00";
-      let h = parseInt(match[1]);
-      const m = match[2] || "00";
-      const ampm = match[3];
-      if (ampm?.toUpperCase() === "PM" && h < 12) h += 12;
-      if (ampm?.toUpperCase() === "AM" && h === 12) h = 0;
-      return `${h.toString().padStart(2, "0")}:${m}`;
-    };
-    startDateTime = `${listing.sale_date}T${normalizeTime(startTime)}:00`;
-    endDateTime = `${listing.sale_date}T${normalizeTime(endTime)}:00`;
-  }
-
-  const graph: any[] = [];
-
-  // BreadcrumbList
-  const breadcrumbItems: any[] = [
-    {
-      "@type": "ListItem",
-      position: 1,
-      name: "Home",
-      item: baseUrl,
-    },
-    {
-      "@type": "ListItem",
-      position: 2,
-      name: "Browse",
-      item: `${baseUrl}/browse`,
-    },
-  ];
-
-  if (listing.category) {
-    breadcrumbItems.push({
-      "@type": "ListItem",
-      position: 3,
-      name: listing.category,
-      item: `${baseUrl}/browse?category=${encodeURIComponent(listing.category)}`,
-    });
-  }
-
-  breadcrumbItems.push({
-    "@type": "ListItem",
-    position: breadcrumbItems.length + 1,
-    name: listing.title,
-    item: `${baseUrl}/listing/${id}`,
-  });
-
-  graph.push({
-    "@type": "BreadcrumbList",
-    itemListElement: breadcrumbItems,
-  });
-
-  // Product schema
-  const product: any = {
-    "@type": "Product",
-    name: listing.title,
-    description: listing.description || `Yard sale listing on YardShoppers`,
-    url: `${baseUrl}/listing/${id}`,
-    image: photos.map((p: any) => p.photo_url),
-    brand: {
-      "@type": "Organization",
-      name: "YardShoppers",
-    },
-    offers: {
-      "@type": "Offer",
-      url: `${baseUrl}/listing/${id}`,
-      priceCurrency: "USD",
-      price: priceNum && !isNaN(priceNum) ? priceNum.toFixed(2) : "0.00",
-      availability: "https://schema.org/InStock",
-      itemCondition: "https://schema.org/UsedCondition",
-      seller: {
-        "@type": "Person",
-        name: sellerName,
-      },
-    },
-  };
-
-  if (location) {
-    product.offers.availableAtOrFrom = {
-      "@type": "Place",
-      name: listing.city || "Yard Sale Location",
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: listing.address || undefined,
-        addressLocality: listing.city || undefined,
-        addressRegion: listing.state || undefined,
-        postalCode: listing.zip_code || undefined,
-        addressCountry: "US",
-      },
-    };
-  }
-
-  graph.push(product);
-
-  // Event schema (GarageSaleEvent)
-  if (startDateTime) {
-    const event: any = {
-      "@type": "Event",
-      name: listing.title,
-      description:
-        listing.description ||
-        `Yard sale${listing.city ? ` in ${listing.city}` : ""} — browse items on YardShoppers`,
-      startDate: startDateTime,
-      endDate: endDateTime || startDateTime,
-      eventStatus: "https://schema.org/EventScheduled",
-      eventAttendanceMode:
-        "https://schema.org/OfflineEventAttendanceMode",
-      url: `${baseUrl}/listing/${id}`,
-      image: photos.length > 0 ? photos[0].photo_url : `${baseUrl}/og-image.png`,
-      organizer: {
-        "@type": "Person",
-        name: sellerName,
-      },
-      offers: {
-        "@type": "Offer",
-        url: `${baseUrl}/listing/${id}`,
-        price: "0",
-        priceCurrency: "USD",
-        availability: "https://schema.org/InStock",
-        validFrom: listing.created_at,
-      },
-    };
-
-    if (location) {
-      event.location = {
-        "@type": "Place",
-        name: `Yard Sale — ${listing.city || "Local"}`,
-        address: {
-          "@type": "PostalAddress",
-          streetAddress: listing.address || undefined,
-          addressLocality: listing.city || undefined,
-          addressRegion: listing.state || undefined,
-          postalCode: listing.zip_code || undefined,
-          addressCountry: "US",
-        },
-      };
+  // Format time for display (convert 24hr "08:00:00" to "8:00 AM")
+  function formatTime(timeStr: string | null | undefined): string | null {
+    if (!timeStr) return null;
+    try {
+      const [hours, minutes] = timeStr.split(":");
+      const h = parseInt(hours, 10);
+      const ampm = h >= 12 ? "PM" : "AM";
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${h12}:${minutes} ${ampm}`;
+    } catch {
+      return timeStr;
     }
-
-    graph.push(event);
   }
 
-  return {
-    "@context": "https://schema.org",
-    "@graph": graph,
-  };
+  const formattedStart = formatTime(listing.start_time);
+  const formattedEnd = formatTime(listing.end_time);
+
+  const isOwner = user && listing.user_id === user.id;
+
+  return (
+    <article className="max-w-6xl mx-auto px-4 sm:px-6 py-8" itemScope itemType="https://schema.org/Product">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+        <Link href="/" className="hover:text-ys-800 transition">Home</Link>
+        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" aria-hidden="true" />
+        <Link href="/browse" className="hover:text-ys-800 transition">Browse</Link>
+        {listing.category && (
+          <>
+            <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" aria-hidden="true" />
+            <Link
+              href={`/browse?category=${encodeURIComponent(listing.category)}`}
+              className="hover:text-ys-800 transition"
+            >
+              {listing.category}
+            </Link>
+          </>
+        )}
+        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" aria-hidden="true" />
+        <span className="text-gray-900 font-medium truncate max-w-[200px]">
+          {listing.title}
+        </span>
+      </nav>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div className="lg:col-span-3">
+          <div className="relative aspect-[4/3] bg-gray-100 rounded-2xl overflow-hidden">
+            {photos.length > 0 ? (
+              <Image
+                src={photos[activePhoto].photo_url}
+                alt={`${listing.title} — photo ${activePhoto + 1} of ${photos.length}${listing.city ? `, ${listing.city}` : ""}`}
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 60vw"
+                priority
+                itemProp="image"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full bg-ys-50">
+                <i className="fa-solid fa-camera text-5xl text-ys-300 mb-3" aria-hidden="true" />
+                <p className="text-sm text-ys-400">No photos available</p>
+              </div>
+            )}
+
+            {photos.length > 1 && (
+              <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm" aria-live="polite">
+                {activePhoto + 1} / {photos.length}
+              </div>
+            )}
+
+            {photos.length > 1 && (
+              <>
+                <button
+                  onClick={() =>
+                    setActivePhoto((p) => (p === 0 ? photos.length - 1 : p - 1))
+                  }
+                  aria-label="Previous photo"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
+                >
+                  <i className="fa-solid fa-chevron-left text-sm text-gray-700" aria-hidden="true" />
+                </button>
+                <button
+                  onClick={() =>
+                    setActivePhoto((p) => (p === photos.length - 1 ? 0 : p + 1))
+                  }
+                  aria-label="Next photo"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
+                >
+                  <i className="fa-solid fa-chevron-right text-sm text-gray-700" aria-hidden="true" />
+                </button>
+              </>
+            )}
+          </div>
+
+          {photos.length > 1 && (
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1" role="tablist" aria-label="Listing photos">
+              {photos.map((photo, i) => (
+                <button
+                  key={photo.id}
+                  onClick={() => setActivePhoto(i)}
+                  role="tab"
+                  aria-selected={i === activePhoto}
+                  aria-label={`View photo ${i + 1} of ${photos.length}`}
+                  className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                    i === activePhoto
+                      ? "border-ys-600 shadow-md"
+                      : "border-transparent opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <Image
+                    src={photo.photo_url}
+                    alt={`${listing.title} — thumbnail ${i + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {listing.description && (
+            <section className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">About This Sale</h2>
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line" itemProp="description">
+                {listing.description}
+              </p>
+            </section>
+          )}
+
+          {/* ===== RATINGS SECTION ===== */}
+          <RatingSection listingId={listing.id} hostId={listing.user_id} />
+
+          {/* ===== COMMENTS SECTION ===== */}
+          <CommentsSection listingId={listing.id} />
+        </div>
+
+        <div className="lg:col-span-2">
+          <div className="lg:sticky lg:top-24 space-y-5">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              {listing.category && (
+                <Link
+                  href={`/browse?category=${encodeURIComponent(listing.category)}`}
+                  className="inline-block text-xs font-semibold text-ys-800 bg-ys-100 px-3 py-1 rounded-full hover:bg-ys-200 transition mb-3"
+                >
+                  {listing.category}
+                </Link>
+              )}
+
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-xl font-bold text-gray-900 leading-tight" itemProp="name">
+                  {listing.title}
+                </h1>
+                <button
+                  onClick={toggleSave}
+                  className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center border transition-all ${
+                    saved
+                      ? "bg-red-50 border-red-200 text-red-500"
+                      : "bg-gray-50 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"
+                  }`}
+                  aria-label={saved ? "Unsave this listing" : "Save this listing"}
+                >
+                  <i className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`} aria-hidden="true" />
+                </button>
+              </div>
+
+              {listing.price && (
+                <p className="text-2xl font-extrabold text-ys-800 mt-2" itemProp="offers" itemScope itemType="https://schema.org/Offer">
+                  <span itemProp="price">{listing.price}</span>
+                  <meta itemProp="priceCurrency" content="USD" />
+                  <meta itemProp="availability" content="https://schema.org/InStock" />
+                </p>
+              )}
+
+              <div className="mt-5 space-y-3">
+                {location && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                      <i className="fa-solid fa-location-dot text-sm text-ys-700" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Location</p>
+                      <p className="text-sm text-gray-500">{location}</p>
+                    </div>
+                  </div>
+                )}
+
+                {saleDay && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                      <i className="fa-regular fa-calendar text-sm text-ys-700" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Date</p>
+                      <time className="text-sm text-gray-500" dateTime={listing.sale_date}>
+                        {saleDay}
+                      </time>
+                    </div>
+                  </div>
+                )}
+
+                {(formattedStart || formattedEnd) && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                      <i className="fa-regular fa-clock text-sm text-ys-700" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Time</p>
+                      <p className="text-sm text-gray-500">
+                        {formattedStart}
+                        {formattedEnd ? ` – ${formattedEnd}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 bg-ys-800 hover:bg-ys-900 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
+                >
+                  <i className="fa-solid fa-diamond-turn-right text-sm" aria-hidden="true" />
+                  Directions
+                </a>
+                <button
+                  onClick={handleShare}
+                  className="flex items-center justify-center gap-2 px-5 py-3 border border-gray-200 rounded-xl text-gray-700 hover:border-ys-600 hover:text-ys-800 transition-all"
+                >
+                  <i className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`} aria-hidden="true" />
+                  {copied ? "Copied!" : "Share"}
+                </button>
+              </div>
+
+              {/* ===== MESSAGE SELLER BUTTON ===== */}
+              {!isOwner && (
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      window.location.href = "/login";
+                      return;
+                    }
+                    setShowMessageModal(true);
+                  }}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-green-800 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
+                >
+                  <i className="fa-solid fa-envelope text-sm" aria-hidden="true" />
+                  Message Seller
+                </button>
+              )}
+
+              {isOwner && !listing.is_boosted && (
+                <button
+                  onClick={() => setShowBoostModal(true)}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-3 rounded-xl font-bold transition-all hover:shadow-md"
+                >
+                  <i className="fa-solid fa-rocket text-sm" aria-hidden="true" />
+                  Boost This Listing
+                </button>
+              )}
+
+              {isOwner && listing.is_boosted && (
+                <div className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-3 rounded-xl font-semibold">
+                  <i className="fa-solid fa-check-circle text-sm" aria-hidden="true" />
+                  This listing is boosted
+                </div>
+              )}
+            </div>
+
+            {listing.profiles && (
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Posted by</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
+                    <i className="fa-solid fa-user text-ys-700" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {listing.profiles.display_name || "YardShoppers Seller"}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-500">
+                        Joined{" "}
+                        {new Date(listing.created_at).toLocaleDateString("en-US", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </p>
+                      {hostAvgRating !== null && (
+                        <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full">
+                          <i className="fa-solid fa-star text-yellow-400 text-[10px]" />
+                          {hostAvgRating} ({hostTotalRatings})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {!user && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                    <p className="text-xs text-amber-800">
+                      <Link
+                        href="/login"
+                        className="font-semibold underline hover:no-underline"
+                      >
+                        Log in
+                      </Link>{" "}
+                      to contact the seller or save this listing.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <p className="text-center">
+              <button
+                onClick={() => {
+                  if (!user) {
+                    window.location.href = "/login";
+                    return;
+                  }
+                  setShowReportModal(true);
+                }}
+                className="text-xs text-gray-400 hover:text-red-500 transition"
+              >
+                <i className="fa-regular fa-flag mr-1" aria-hidden="true" />
+                Report this listing
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {showBoostModal && listing && (
+        <BoostModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowBoostModal(false)}
+        />
+      )}
+
+      {showReportModal && listing && (
+        <ReportModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowReportModal(false)}
+        />
+      )}
+
+      {showMessageModal && listing && (
+        <MessageModal
+          receiverId={listing.user_id}
+          receiverName={listing.profiles?.display_name || "Seller"}
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowMessageModal(false)}
+        />
+      )}
+
+      {/* ===== FLOATING ROUTE BAR ===== */}
+      <RouteFloatingBar listingId={listing.id} listingTitle={listing.title} />
+    </article>
+  );
 }
