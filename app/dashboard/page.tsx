@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -46,9 +46,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [boostTarget, setBoostTarget] = useState<Listing | null>(null);
-  const [activeTab, setActiveTab] = useState<"listings" | "reports">(
-    "listings"
-  );
+  const [activeTab, setActiveTab] = useState<"listings" | "reports" | "coverage">("listings");
+
+  // Admin filters
+  const [selectedState, setSelectedState] = useState<string>("all");
+  const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCoveragePanel, setShowCoveragePanel] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -94,8 +98,75 @@ export default function DashboardPage() {
     load();
   }, []);
 
+  // ===== COMPUTED: State & City breakdown =====
+  const stateMap = useMemo(() => {
+    const map: Record<string, Record<string, number>> = {};
+    listings.forEach((l) => {
+      const st = (l.state || "Unknown").toUpperCase().trim();
+      const ct = (l.city || "Unknown").trim();
+      if (!map[st]) map[st] = {};
+      map[st][ct] = (map[st][ct] || 0) + 1;
+    });
+    return map;
+  }, [listings]);
+
+  const sortedStates = useMemo(() => {
+    return Object.keys(stateMap).sort((a, b) => {
+      const countA = Object.values(stateMap[a]).reduce((s, v) => s + v, 0);
+      const countB = Object.values(stateMap[b]).reduce((s, v) => s + v, 0);
+      return countB - countA;
+    });
+  }, [stateMap]);
+
+  const citiesForSelectedState = useMemo(() => {
+    if (selectedState === "all") return [];
+    const cityMap = stateMap[selectedState] || {};
+    return Object.entries(cityMap).sort((a, b) => b[1] - a[1]);
+  }, [selectedState, stateMap]);
+
+  // ===== FILTERED LISTINGS =====
+  const filteredListings = useMemo(() => {
+    let result = listings;
+
+    if (selectedState !== "all") {
+      result = result.filter(
+        (l) => (l.state || "").toUpperCase().trim() === selectedState
+      );
+    }
+
+    if (selectedCity !== "all") {
+      result = result.filter(
+        (l) => (l.city || "").trim() === selectedCity
+      );
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (l) =>
+          l.title.toLowerCase().includes(q) ||
+          (l.city || "").toLowerCase().includes(q) ||
+          (l.state || "").toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [listings, selectedState, selectedCity, searchQuery]);
+
+  // ===== LOW COVERAGE: cities with < 3 listings =====
+  const lowCoverageCities = useMemo(() => {
+    const result: { state: string; city: string; count: number }[] = [];
+    Object.entries(stateMap).forEach(([state, cityMap]) => {
+      Object.entries(cityMap).forEach(([city, count]) => {
+        if (count < 3) {
+          result.push({ state, city, count });
+        }
+      });
+    });
+    return result.sort((a, b) => a.count - b.count);
+  }, [stateMap]);
+
   async function handleDelete(listingId: string) {
-    // Only allow deleting your own listings
     const listing = listings.find((l) => l.id === listingId);
     if (!listing || listing.user_id !== user?.id) {
       alert("You can only delete your own listings.");
@@ -133,6 +204,17 @@ export default function DashboardPage() {
     await supabase.auth.signOut();
     router.push("/");
     router.refresh();
+  }
+
+  function handleStateChange(state: string) {
+    setSelectedState(state);
+    setSelectedCity("all");
+  }
+
+  function clearFilters() {
+    setSelectedState("all");
+    setSelectedCity("all");
+    setSearchQuery("");
   }
 
   if (loading) {
@@ -210,7 +292,7 @@ export default function DashboardPage() {
       </div>
 
       {isAdmin && (
-        <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit flex-wrap">
           <button
             onClick={() => setActiveTab("listings")}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
@@ -221,6 +303,22 @@ export default function DashboardPage() {
           >
             <i className="fa-solid fa-grid-2 mr-2 text-xs" />
             All Listings ({listings.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("coverage")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
+              activeTab === "coverage"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <i className="fa-solid fa-map mr-2 text-xs" />
+            Coverage
+            {lowCoverageCities.length > 0 && (
+              <span className="ml-2 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                {lowCoverageCities.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("reports")}
@@ -241,36 +339,128 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ===== LISTINGS TAB ===== */}
       {activeTab === "listings" && (
         <>
+          {/* Admin Filters */}
+          {isAdmin && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-6">
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Search */}
+                <div className="flex-1 relative">
+                  <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search listings..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-300 focus:border-ys-400 transition"
+                  />
+                </div>
+
+                {/* State Filter */}
+                <select
+                  value={selectedState}
+                  onChange={(e) => handleStateChange(e.target.value)}
+                  className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-ys-300 min-w-[160px]"
+                >
+                  <option value="all">All States ({listings.length})</option>
+                  {sortedStates.map((st) => {
+                    const count = Object.values(stateMap[st]).reduce((s, v) => s + v, 0);
+                    return (
+                      <option key={st} value={st}>
+                        {st} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {/* City Filter */}
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  disabled={selectedState === "all"}
+                  className={`bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-ys-300 min-w-[180px] ${
+                    selectedState === "all" ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <option value="all">
+                    {selectedState === "all"
+                      ? "Select a state first"
+                      : `All Cities in ${selectedState} (${Object.values(stateMap[selectedState] || {}).reduce((s, v) => s + v, 0)})`}
+                  </option>
+                  {citiesForSelectedState.map(([city, count]) => (
+                    <option key={city} value={city}>
+                      {city} ({count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Active Filters */}
+              {(selectedState !== "all" || selectedCity !== "all" || searchQuery) && (
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-sm text-gray-500">
+                    Showing {filteredListings.length} of {listings.length} listings
+                    {selectedState !== "all" && (
+                      <span className="ml-1 inline-flex items-center gap-1 bg-ys-50 text-ys-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        {selectedState}
+                        {selectedCity !== "all" && ` / ${selectedCity}`}
+                      </span>
+                    )}
+                  </p>
+                  <button
+                    onClick={clearFilters}
+                    className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition"
+                  >
+                    <i className="fa-solid fa-xmark mr-1 text-xs" />
+                    Clear filters
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <h2 className="text-lg font-bold text-gray-900 mb-4">
             {isAdmin ? "All Listings" : "My Listings"}{" "}
             <span className="text-gray-400 font-normal">
-              ({listings.length})
+              ({filteredListings.length})
             </span>
           </h2>
 
-          {listings.length === 0 ? (
+          {filteredListings.length === 0 ? (
             <div className="text-center py-16 bg-white border border-gray-100 rounded-2xl">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i className="fa-solid fa-tag text-2xl text-gray-300" />
               </div>
               <p className="text-gray-500 mb-4">
-                {isAdmin
+                {selectedState !== "all" || selectedCity !== "all" || searchQuery
+                  ? "No listings match your filters."
+                  : isAdmin
                   ? "No listings yet."
                   : "You haven't posted any sales yet."}
               </p>
-              <Link
-                href="/post"
-                className="inline-flex items-center gap-2 bg-ys-800 hover:bg-ys-900 text-white px-6 py-2.5 rounded-full font-semibold transition"
-              >
-                <i className="fa-solid fa-plus text-xs" />
-                Post Your First Sale
-              </Link>
+              {(selectedState !== "all" || selectedCity !== "all" || searchQuery) ? (
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-2 bg-ys-800 hover:bg-ys-900 text-white px-6 py-2.5 rounded-full font-semibold transition"
+                >
+                  <i className="fa-solid fa-xmark text-xs" />
+                  Clear Filters
+                </button>
+              ) : (
+                <Link
+                  href="/post"
+                  className="inline-flex items-center gap-2 bg-ys-800 hover:bg-ys-900 text-white px-6 py-2.5 rounded-full font-semibold transition"
+                >
+                  <i className="fa-solid fa-plus text-xs" />
+                  Post Your First Sale
+                </Link>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {listings.map((listing) => {
+              {filteredListings.map((listing) => {
                 const photo = listing.listing_photos?.[0]?.photo_url;
                 const isOwner = listing.user_id === user?.id;
                 return (
@@ -365,6 +555,171 @@ export default function DashboardPage() {
         </>
       )}
 
+      {/* ===== COVERAGE TAB (admin only) ===== */}
+      {activeTab === "coverage" && isAdmin && (
+        <>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">
+            Coverage Overview
+          </h2>
+
+          {/* Stats Summary */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-bold text-gray-900">{listings.length}</p>
+              <p className="text-xs text-gray-500 mt-1">Total Listings</p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-bold text-gray-900">{sortedStates.length}</p>
+              <p className="text-xs text-gray-500 mt-1">States Covered</p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-bold text-gray-900">
+                {Object.values(stateMap).reduce((total, cityMap) => total + Object.keys(cityMap).length, 0)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Cities Covered</p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 text-center">
+              <p className={`text-2xl font-bold ${lowCoverageCities.length > 0 ? "text-amber-600" : "text-green-600"}`}>
+                {lowCoverageCities.length}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Low Coverage Cities</p>
+            </div>
+          </div>
+
+          {/* Low Coverage Alert */}
+          {lowCoverageCities.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
+                <i className="fa-solid fa-triangle-exclamation text-amber-500" />
+                Cities Needing More Listings (fewer than 3)
+              </h3>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl divide-y divide-amber-100">
+                {lowCoverageCities.map(({ state, city, count }) => (
+                  <div
+                    key={`${state}-${city}`}
+                    className="flex items-center justify-between px-4 py-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <i className="fa-solid fa-location-dot text-amber-500 text-xs" />
+                      <span className="text-sm font-semibold text-gray-900">
+                        {city}, {state}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        count === 0
+                          ? "bg-red-100 text-red-700"
+                          : count === 1
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}>
+                        {count} listing{count !== 1 ? "s" : ""}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedState(state);
+                          setSelectedCity(city);
+                          setActiveTab("listings");
+                        }}
+                        className="text-xs text-ys-700 hover:text-ys-900 font-semibold"
+                      >
+                        View
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* State-by-State Breakdown */}
+          <h3 className="text-sm font-bold text-gray-700 mb-3">
+            Listings by State
+          </h3>
+          <div className="space-y-3">
+            {sortedStates.map((state) => {
+              const cityMap = stateMap[state];
+              const totalForState = Object.values(cityMap).reduce((s, v) => s + v, 0);
+              const sortedCities = Object.entries(cityMap).sort((a, b) => b[1] - a[1]);
+
+              return (
+                <div
+                  key={state}
+                  className="bg-white border border-gray-100 rounded-2xl overflow-hidden"
+                >
+                  <button
+                    onClick={() => {
+                      setSelectedState(selectedState === state ? "all" : state);
+                      setSelectedCity("all");
+                    }}
+                    className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-ys-50 rounded-xl flex items-center justify-center">
+                        <span className="text-sm font-bold text-ys-800">{state}</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-bold text-gray-900">
+                          {totalForState} listing{totalForState !== 1 ? "s" : ""}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {sortedCities.length} cit{sortedCities.length !== 1 ? "ies" : "y"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* Mini coverage bar */}
+                      <div className="hidden sm:block w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-ys-500 rounded-full"
+                          style={{
+                            width: `${Math.min(100, (totalForState / Math.max(...sortedStates.map((s) => Object.values(stateMap[s]).reduce((a, b) => a + b, 0)))) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <i
+                        className={`fa-solid fa-chevron-down text-gray-400 text-xs transition-transform ${
+                          selectedState === state ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {selectedState === state && (
+                    <div className="border-t border-gray-100 px-5 py-3 bg-gray-50">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {sortedCities.map(([city, count]) => (
+                          <button
+                            key={city}
+                            onClick={() => {
+                              setSelectedCity(city);
+                              setActiveTab("listings");
+                            }}
+                            className="flex items-center justify-between px-3 py-2 bg-white rounded-xl border border-gray-100 hover:border-ys-300 hover:shadow-sm transition text-left"
+                          >
+                            <span className="text-sm text-gray-700">{city}</span>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                              count >= 5
+                                ? "bg-green-100 text-green-700"
+                                : count >= 3
+                                ? "bg-ys-50 text-ys-800"
+                                : "bg-amber-100 text-amber-700"
+                            }`}>
+                              {count}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* ===== REPORTS TAB ===== */}
       {activeTab === "reports" && isAdmin && (
         <>
           <h2 className="text-lg font-bold text-gray-900 mb-4">
