@@ -1,169 +1,130 @@
-import { RawExternalListing, NormalizedListing, CollectorResult } from "@/types/external";
-import { geocodeAddress } from "@/lib/geocode";
+import type {
+  RawExternalListing,
+  NormalizedExternalListing,
+  CollectorResult,
+} from '@/types/external';
 
-const US_STATES: Record<string, string> = {
-  Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA",
-  Colorado: "CO", Connecticut: "CT", Delaware: "DE", Florida: "FL", Georgia: "GA",
-  Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA",
-  Kansas: "KS", Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD",
-  Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS",
-  Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV",
-  "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY",
-  "North Carolina": "NC", "North Dakota": "ND", Ohio: "OH", Oklahoma: "OK",
-  Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI", "South Carolina": "SC",
-  "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT",
-  Virginia: "VA", Washington: "WA", "West Virginia": "WV", Wisconsin: "WI",
-  Wyoming: "WY",
+const STATE_ABBREVIATIONS: Record<string, string> = {
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR',
+  california: 'CA', colorado: 'CO', connecticut: 'CT', delaware: 'DE',
+  florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID',
+  illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS',
+  kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD',
+  massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS',
+  missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV',
+  'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK',
+  oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+  'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT',
+  vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV',
+  wisconsin: 'WI', wyoming: 'WY', 'district of columbia': 'DC',
 };
 
-function normalizeState(state: string | undefined): string | null {
+const CRAIGSLIST_CITY_STATES: Record<string, string> = {
+  seattle: 'WA', portland: 'OR', sfbay: 'CA', losangeles: 'CA',
+  chicago: 'IL', newyork: 'NY', boston: 'MA', denver: 'CO',
+  austin: 'TX', atlanta: 'GA', miami: 'FL', dallas: 'TX',
+  houston: 'TX', phoenix: 'AZ', philadelphia: 'PA', detroit: 'MI',
+  minneapolis: 'MN', sandiego: 'CA', tampa: 'FL', orlando: 'FL',
+};
+
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  'Estate Sale': ['estate', 'estate sale', 'downsizing', 'liquidation'],
+  'Garage Sale': ['garage', 'garage sale'],
+  'Yard Sale': ['yard', 'yard sale', 'lawn'],
+  'Moving Sale': ['moving', 'relocation', 'relocating'],
+  'Multi-Family Sale': ['multi-family', 'multi family', 'neighborhood', 'block sale', 'community'],
+  'Church / Charity Sale': ['church', 'charity', 'fundraiser', 'benefit', 'nonprofit'],
+  'Tools & Hardware': ['tools', 'hardware', 'workshop', 'power tools'],
+  'Baby & Kids': ['baby', 'kids', 'children', 'toys', 'nursery'],
+  'Furniture': ['furniture', 'couch', 'sofa', 'table', 'chairs', 'dresser'],
+  'Electronics': ['electronics', 'computer', 'phone', 'tv', 'gaming'],
+  'Clothing': ['clothing', 'clothes', 'shoes', 'accessories', 'fashion'],
+  'Antiques & Collectibles': ['antique', 'vintage', 'collectible', 'retro'],
+};
+
+export function normalizeState(state?: string, city?: string): string | null {
+  if (!state && city) {
+    const slug = city.toLowerCase().trim();
+    if (CRAIGSLIST_CITY_STATES[slug]) return CRAIGSLIST_CITY_STATES[slug];
+  }
   if (!state) return null;
-  const trimmed = state.trim().toUpperCase();
-  if (trimmed.length === 2 && Object.values(US_STATES).includes(trimmed)) {
-    return trimmed;
-  }
-  const fullName =
-    Object.keys(US_STATES).find(
-      (k) => k.toLowerCase() === state.trim().toLowerCase()
-    );
-  if (fullName) return US_STATES[fullName];
-  return state.trim().slice(0, 2).toUpperCase();
+  const trimmed = state.trim();
+  if (/^[A-Z]{2}$/.test(trimmed)) return trimmed;
+  if (/^[a-z]{2}$/i.test(trimmed)) return trimmed.toUpperCase();
+  const lookup = STATE_ABBREVIATIONS[trimmed.toLowerCase()];
+  return lookup ?? trimmed.toUpperCase().slice(0, 2);
 }
 
-function normalizePrice(price: string | undefined): string | null {
-  if (!price) return null;
-  const cleaned = price.replace(/[^$\d,.]/g, "");
-  if (!cleaned) return null;
-  return cleaned.startsWith("$") ? cleaned : `$${cleaned}`;
+export function guessCategory(title: string, description?: string): string {
+  const text = `${title} ${description || ''}`.toLowerCase();
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some((kw) => text.includes(kw))) return category;
+  }
+  return 'Garage Sale';
 }
 
-function normalizeTitle(title: string): string {
-  return title
-    .replace(/\s+/g, " ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .trim()
-    .slice(0, 300);
+export function computeExpiresAt(saleDate?: string): string {
+  if (saleDate) {
+    try {
+      const date = new Date(saleDate);
+      if (!isNaN(date.getTime())) {
+        date.setDate(date.getDate() + 2);
+        return date.toISOString();
+      }
+    } catch { /* fall through */ }
+  }
+  const fallback = new Date();
+  fallback.setDate(fallback.getDate() + 14);
+  return fallback.toISOString();
 }
 
-function normalizeDate(date: string | undefined): string | null {
-  if (!date) return null;
-  try {
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return null;
-    return d.toISOString().split("T")[0];
-  } catch {
-    return null;
-  }
-}
-
-function computeExpiry(saleDate: string | null): string | null {
-  if (!saleDate) {
-    const d = new Date();
-    d.setDate(d.getDate() + 14);
-    return d.toISOString();
-  }
-  const d = new Date(saleDate + "T23:59:59");
-  d.setDate(d.getDate() + 1);
-  return d.toISOString();
-}
-
-export async function normalizeListing(
-  raw: RawExternalListing,
-  source: string,
-  collectedAt: string
-): Promise<NormalizedListing> {
-  let lat = raw.latitude || null;
-  let lng = raw.longitude || null;
-  let city = raw.city || null;
-  let state = normalizeState(raw.state);
-
-  if ((!lat || !lng) && raw.address) {
-    const geo = await geocodeAddress(raw.address);
-    if (geo) {
-      lat = geo.lat;
-      lng = geo.lng;
-      if (!city) city = geo.city;
-      if (!state) state = normalizeState(geo.state || undefined);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1100));
-  }
-
-  if ((!lat || !lng) && city && state) {
-    const geo = await geocodeAddress(`${city}, ${state}`);
-    if (geo) {
-      lat = geo.lat;
-      lng = geo.lng;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1100));
-  }
-
-  const saleDate = normalizeDate(raw.sale_date);
+export function normalizeListing(
+  listing: RawExternalListing,
+  source: string
+): NormalizedExternalListing {
+  const now = new Date().toISOString();
+  const effectiveSource = listing.source || source;
+  const category = listing.category || guessCategory(listing.title, listing.description);
 
   return {
-    source,
-    source_id: raw.source_id,
-    source_url: raw.source_url,
-    title: normalizeTitle(raw.title),
-    description: raw.description?.slice(0, 2000) || null,
-    city,
-    state,
-    latitude: lat,
-    longitude: lng,
-    price: normalizePrice(raw.price),
-    sale_date: saleDate,
-    sale_time_start: raw.sale_time_start || null,
-    sale_time_end: raw.sale_time_end || null,
-    category: raw.categories?.[0] || null,
-    categories: raw.categories || null,
-    photo_urls: raw.photo_urls || null,
-    address: raw.address || null,
-    collected_at: collectedAt,
-    expires_at: computeExpiry(saleDate),
-    raw_data: raw.raw_data || null,
+    source: effectiveSource,
+    source_id: listing.source_id,
+    source_url: listing.source_url,
+    title: listing.title.trim(),
+    description: listing.description?.trim() || null,
+    city: listing.city?.trim() || null,
+    state: normalizeState(listing.state, listing.city),
+    latitude: listing.latitude ?? null,
+    longitude: listing.longitude ?? null,
+    price: listing.price ?? null,
+    sale_date: listing.sale_date || null,
+    sale_time_start: listing.sale_time_start || null,
+    sale_time_end: listing.sale_time_end || null,
+    category,
+    categories: listing.categories || [category],
+    photo_urls: listing.photo_urls || [],
+    address: listing.address || null,
+    collected_at: listing.collected_at || now,
+    expires_at: listing.expires_at || computeExpiresAt(listing.sale_date),
+    raw_data: (listing.raw_data as Record<string, unknown>) || null,
   };
 }
 
-export async function normalizeCollectorResult(
+export function normalizeCollectorResult(
   result: CollectorResult
-): Promise<NormalizedListing[]> {
-  const normalized: NormalizedListing[] = [];
-
-  for (const raw of result.listings) {
-    try {
-      const listing = await normalizeListing(raw, result.source, result.collected_at);
-      normalized.push(listing);
-    } catch {
-      // skip failed normalization
-    }
-  }
-
-  return normalized;
+): NormalizedExternalListing[] {
+  return result.sales.map((sale) => normalizeListing(sale, result.source));
 }
 
 export function deduplicateListings(
-  listings: NormalizedListing[]
-): NormalizedListing[] {
+  listings: NormalizedExternalListing[]
+): NormalizedExternalListing[] {
   const seen = new Set<string>();
-  const unique: NormalizedListing[] = [];
-
-  for (const listing of listings) {
-    if (seen.has(listing.source_id)) continue;
-    seen.add(listing.source_id);
-
-    const titleKey = listing.title.toLowerCase().replace(/\s+/g, "").slice(0, 50);
-    const locationKey = `${listing.city || ""}-${listing.state || ""}`.toLowerCase();
-    const dupeKey = `${titleKey}|${locationKey}|${listing.sale_date || ""}`;
-
-    if (seen.has(dupeKey)) continue;
-    seen.add(dupeKey);
-
-    unique.push(listing);
-  }
-
-  return unique;
+  return listings.filter((listing) => {
+    const key = `${listing.source}:${listing.source_id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }

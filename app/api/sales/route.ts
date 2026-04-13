@@ -1,192 +1,196 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-export const dynamic = "force-dynamic";
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const source = searchParams.get("source");
-    const search = searchParams.get("search");
-    const category = searchParams.get("category");
-    const city = searchParams.get("city");
-    const state = searchParams.get("state");
-    const lat = searchParams.get("lat");
-    const lng = searchParams.get("lng");
-    const distance = searchParams.get("distance");
-    const limit = Math.min(
-      parseInt(searchParams.get("limit") || "50"),
-      100
-    );
-    const offset = parseInt(searchParams.get("offset") || "0");
-
-    const results: Record<string, unknown>[] = [];
-
-    // ---- INTERNAL LISTINGS ----
-    if (!source || source === "internal") {
-      let internalQuery = supabase
-        .from("listings")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(limit);
-
-      if (search) {
-        internalQuery = internalQuery.or(
-          `title.ilike.%${search}%,description.ilike.%${search}%`
-        );
-      }
-      if (category) {
-        internalQuery = internalQuery.eq("category", category);
-      }
-      if (city) {
-        internalQuery = internalQuery.ilike("city", `%${city}%`);
-      }
-      if (state) {
-        internalQuery = internalQuery.eq("state", state);
-      }
-
-      const { data: internalData } = await internalQuery;
-
-      if (internalData) {
-        for (const item of internalData) {
-          results.push({
-            id: item.id,
-            title: item.title,
-            description: item.description,
-            city: item.city,
-            state: item.state,
-            latitude: item.latitude,
-            longitude: item.longitude,
-            price: item.price,
-            photo_urls: item.photo_urls || item.images || [],
-            category: item.category,
-            categories: item.categories || [item.category].filter(Boolean),
-            source: "internal",
-            source_url: null,
-            created_at: item.created_at,
-            address: item.address,
-            sale_date: item.sale_date,
-            boosted: item.boosted || false,
-            boost_tier: item.boost_tier || null,
-            user_id: item.user_id,
-          });
-        }
-      }
-    }
-
-    // ---- EXTERNAL LISTINGS ----
-    if (!source || source === "external") {
-      let externalQuery = supabase
-        .from("external_sales")
-        .select("*")
-        .order("collected_at", { ascending: false })
-        .limit(limit);
-
-      if (search) {
-        externalQuery = externalQuery.or(
-          `title.ilike.%${search}%,description.ilike.%${search}%`
-        );
-      }
-      if (category) {
-        externalQuery = externalQuery.eq("category", category);
-      }
-      if (city) {
-        externalQuery = externalQuery.ilike("city", `%${city}%`);
-      }
-      if (state) {
-        externalQuery = externalQuery.eq("state", state);
-      }
-
-      const { data: externalData } = await externalQuery;
-
-      if (externalData) {
-        for (const item of externalData) {
-          results.push({
-            id: item.id,
-            title: item.title,
-            description: item.description,
-            city: item.city,
-            state: item.state,
-            latitude: item.latitude,
-            longitude: item.longitude,
-            price: item.price,
-            photo_urls: item.photo_urls || [],
-            category: item.category,
-            categories: item.categories || [],
-            source: item.source,
-            source_url: item.source_url,
-            created_at: item.created_at,
-            address: item.address,
-            sale_date: item.sale_date,
-            boosted: false,
-            boost_tier: null,
-            user_id: null,
-          });
-        }
-      }
-    }
-
-    // ---- DISTANCE FILTER (post-query) ----
-    let filtered = results;
-    if (lat && lng && distance) {
-      const userLat = parseFloat(lat);
-      const userLng = parseFloat(lng);
-      const maxDist = parseFloat(distance);
-
-      filtered = results.filter((item) => {
-        const itemLat = item.latitude as number;
-        const itemLng = item.longitude as number;
-        if (!itemLat || !itemLng) return true; // include items with no coordinates
-        const dist = haversine(userLat, userLng, itemLat, itemLng);
-        return dist <= maxDist;
-      });
-    }
-
-    // Sort: boosted first, then by date
-    filtered.sort((a, b) => {
-      if (a.boosted && !b.boosted) return -1;
-      if (!a.boosted && b.boosted) return 1;
-      return (
-        new Date(b.created_at as string).getTime() -
-        new Date(a.created_at as string).getTime()
-      );
-    });
-
-    const paginated = filtered.slice(offset, offset + limit);
-
-    return NextResponse.json({
-      listings: paginated,
-      total: filtered.length,
-      limit,
-      offset,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+interface UnifiedSaleListing {
+  id: string;
+  source: string;
+  source_id: string;
+  source_url: string;
+  title: string;
+  description: string | null;
+  city: string | null;
+  state: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  price: number | null;
+  category: string | null;
+  sale_date: string | null;
+  sale_time_start: string | null;
+  sale_time_end: string | null;
+  photo_urls: string[];
+  address: string | null;
+  is_boosted: boolean;
+  boost_tier: string | null;
+  created_at: string;
 }
 
-// Haversine formula — returns distance in miles
-function haversine(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 3959; // Earth radius in miles
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3959;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get('q') || '';
+    const city = searchParams.get('city') || '';
+    const state = searchParams.get('state') || '';
+    const lat = parseFloat(searchParams.get('lat') || '');
+    const lng = parseFloat(searchParams.get('lng') || '');
+    const radius = parseFloat(searchParams.get('radius') || '50');
+    const category = searchParams.get('category') || '';
+    const source = searchParams.get('source') || '';
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100);
+    const offset = (page - 1) * limit;
+
+    const results: UnifiedSaleListing[] = [];
+
+    // INTERNAL LISTINGS
+    if (!source || source === 'internal') {
+      let internalQuery = supabase
+        .from('listings')
+        .select('*, listing_photos(url, position)')
+        .eq('status', 'active')
+        .order('is_boosted', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (query) internalQuery = internalQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+      if (city) internalQuery = internalQuery.ilike('city', `%${city}%`);
+      if (state) internalQuery = internalQuery.ilike('state', `%${state}%`);
+      if (category) internalQuery = internalQuery.eq('category', category);
+
+      const { data: internalListings, error: internalError } = await internalQuery;
+      if (internalError) console.error('Internal listings error:', internalError);
+
+      if (internalListings) {
+        for (const listing of internalListings) {
+          const rawPhotos = listing.listing_photos as { url: string; position: number }[] | null;
+          const photos = (rawPhotos || [])
+            .sort((a, b) => (a.position || 0) - (b.position || 0))
+            .map((p) => p.url);
+
+          results.push({
+            id: listing.id,
+            source: 'internal',
+            source_id: listing.id,
+            source_url: `https://www.yardshoppers.com/listing/${listing.id}`,
+            title: listing.title,
+            description: listing.description || null,
+            city: listing.city || null,
+            state: listing.state || null,
+            latitude: listing.latitude ?? null,
+            longitude: listing.longitude ?? null,
+            price: listing.price ?? null,
+            category: listing.category || null,
+            sale_date: listing.sale_date || null,
+            sale_time_start: listing.sale_time_start || null,
+            sale_time_end: listing.sale_time_end || null,
+            photo_urls: photos,
+            address: listing.address || null,
+            is_boosted: listing.is_boosted || false,
+            boost_tier: listing.boost_tier || null,
+            created_at: listing.created_at,
+          });
+        }
+      }
+    }
+
+    // EXTERNAL LISTINGS
+    if (!source || source !== 'internal') {
+      let externalQuery = supabase
+        .from('external_sales')
+        .select('*')
+        .gt('expires_at', new Date().toISOString())
+        .order('collected_at', { ascending: false });
+
+      if (query) externalQuery = externalQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+      if (city) externalQuery = externalQuery.ilike('city', `%${city}%`);
+      if (state) externalQuery = externalQuery.ilike('state', `%${state}%`);
+      if (category) externalQuery = externalQuery.eq('category', category);
+      if (source && source !== 'internal') externalQuery = externalQuery.eq('source', source);
+
+      const { data: externalListings, error: externalError } = await externalQuery;
+      if (externalError) console.error('External listings error:', externalError);
+
+      if (externalListings) {
+        for (const listing of externalListings) {
+          results.push({
+            id: listing.id,
+            source: listing.source,
+            source_id: listing.source_id,
+            source_url: listing.source_url,
+            title: listing.title,
+            description: listing.description || null,
+            city: listing.city || null,
+            state: listing.state || null,
+            latitude: listing.latitude ?? null,
+            longitude: listing.longitude ?? null,
+            price: listing.price ?? null,
+            category: listing.category || null,
+            sale_date: listing.sale_date || null,
+            sale_time_start: listing.sale_time_start || null,
+            sale_time_end: listing.sale_time_end || null,
+            photo_urls: listing.photo_urls || [],
+            address: listing.address || null,
+            is_boosted: false,
+            boost_tier: null,
+            created_at: listing.created_at,
+          });
+        }
+      }
+    }
+
+    // GEO FILTERING + SORTING
+    let filteredResults = results;
+
+    if (!isNaN(lat) && !isNaN(lng)) {
+      filteredResults = results.filter((r) => {
+        if (r.latitude === null || r.longitude === null) return true;
+        return haversineDistance(lat, lng, r.latitude, r.longitude) <= radius;
+      });
+      filteredResults.sort((a, b) => {
+        if (a.is_boosted && !b.is_boosted) return -1;
+        if (!a.is_boosted && b.is_boosted) return 1;
+        const distA = a.latitude !== null && a.longitude !== null
+          ? haversineDistance(lat, lng, a.latitude, a.longitude) : Infinity;
+        const distB = b.latitude !== null && b.longitude !== null
+          ? haversineDistance(lat, lng, b.latitude, b.longitude) : Infinity;
+        return distA - distB;
+      });
+    } else {
+      filteredResults.sort((a, b) => {
+        if (a.is_boosted && !b.is_boosted) return -1;
+        if (!a.is_boosted && b.is_boosted) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
+
+    const paginatedResults = filteredResults.slice(offset, offset + limit);
+
+    return NextResponse.json({
+      sales: paginatedResults,
+      total: filteredResults.length,
+      page,
+      limit,
+      hasMore: offset + limit < filteredResults.length,
+    });
+  } catch (error) {
+    console.error('Sales API error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch sales', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
 }

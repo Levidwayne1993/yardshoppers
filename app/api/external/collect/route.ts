@@ -1,91 +1,114 @@
-import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
-import { collectAllSources } from "@/lib/collectors";
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { collectAllSources } from '@/lib/collectors';
+import {
+  normalizeCollectorResult,
+  deduplicateListings,
+} from '@/lib/normalizers';
+import type { NormalizedExternalListing } from '@/types/external';
 
-export const maxDuration = 60;
-export const dynamic = "force-dynamic";
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-export async function POST(request: NextRequest) {
+const CRON_SECRET = process.env.CRON_SECRET;
+const BATCH_SIZE = 50;
+
+async function handleCollect(request: Request): Promise<NextResponse> {
+  if (CRON_SECRET) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${CRON_SECRET}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   try {
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
+    const { results } = await collectAllSources();
 
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    let allListings: NormalizedExternalListing[] = [];
+    const allErrors: string[] = [];
+
+    for (const result of results) {
+      const normalized = normalizeCollectorResult(result);
+      allListings.push(...normalized);
+      allErrors.push(...result.errors);
     }
 
-    // Clean expired listings
-    let cleaned = 0;
-    try {
-      const { data } = await supabaseAdmin.rpc(
-        "cleanup_expired_external_sales"
-      );
-      cleaned = typeof data === "number" ? data : 0;
-    } catch {
-      /* cleanup is optional */
-    }
+    allListings = deduplicateListings(allListings);
 
-    // Collect from all sources
-    const { sales, errors } = await collectAllSources();
+    let upsertedCount = 0;
+    let upsertErrors = 0;
 
-    let inserted = 0;
-    let skipped = 0;
+    for (let i = 0; i < allListings.length; i += BATCH_SIZE) {
+      const batch = allListings.slice(i, i + BATCH_SIZE);
 
-    // Batch insert in chunks of 50
-    for (let i = 0; i < sales.length; i += 50) {
-      const chunk = sales.slice(i, i + 50).map((sale) => ({
-        source: sale.source,
-        source_id: sale.source_id,
-        source_url: sale.source_url,
-        title: sale.title,
-        description: sale.description || null,
-        city: sale.city || null,
-        state: sale.state || null,
-        latitude: sale.latitude || null,
-        longitude: sale.longitude || null,
-        price: sale.price || null,
-        sale_date: sale.sale_date || null,
-        sale_time_start: sale.sale_time_start || null,
-        sale_time_end: sale.sale_time_end || null,
-        category: sale.category || null,
-        categories: sale.categories || [],
-        photo_urls: sale.photo_urls || [],
-        address: sale.address || null,
-        expires_at: sale.expires_at || null,
-        collected_at: new Date().toISOString(),
+      const rows = batch.map((listing) => ({
+        source: listing.source,
+        source_id: listing.source_id,
+        source_url: listing.source_url,
+        title: listing.title,
+        description: listing.description,
+        city: listing.city,
+        state: listing.state,
+        latitude: listing.latitude,
+        longitude: listing.longitude,
+        price: listing.price,
+        sale_date: listing.sale_date,
+        sale_time_start: listing.sale_time_start,
+        sale_time_end: listing.sale_time_end,
+        category: listing.category,
+        categories: listing.categories,
+        photo_urls: listing.photo_urls,
+        address: listing.address,
+        collected_at: listing.collected_at,
+        expires_at: listing.expires_at,
+        raw_data: listing.raw_data,
       }));
 
-      const { data, error } = await supabaseAdmin
-        .from("external_sales")
-        .upsert(chunk, {
-          onConflict: "source_id",
-          ignoreDuplicates: true,
-        })
-        .select("id");
+      const { error } = await supabaseAdmin
+        .from('external_sales')
+        .upsert(rows, { onConflict: 'source,source_id', ignoreDuplicates: false });
 
       if (error) {
-        skipped += chunk.length;
-        errors.push(`DB insert error: ${error.message}`);
+        upsertErrors += batch.length;
+        allErrors.push(`DB upsert batch ${Math.floor(i / BATCH_SIZE)}: ${error.message}`);
       } else {
-        inserted += data?.length || 0;
-        skipped += chunk.length - (data?.length || 0);
+        upsertedCount += batch.length;
       }
+    }
+
+    const { error: cleanupError } = await supabaseAdmin.rpc('cleanup_expired_external_sales');
+    if (cleanupError) {
+      allErrors.push(`Cleanup: ${cleanupError.message}`);
     }
 
     return NextResponse.json({
       success: true,
-      inserted,
-      skipped,
-      cleaned,
-      total_collected: sales.length,
-      errors,
+      collected: allListings.length,
+      upserted: upsertedCount,
+      upsertErrors,
+      collectorErrors: allErrors,
+      sources: results.map((r) => ({
+        source: r.source,
+        count: r.sales.length,
+        errors: r.errors,
+      })),
       timestamp: new Date().toISOString(),
     });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+  } catch (error) {
+    console.error('External collection failed:', error);
     return NextResponse.json(
-      { success: false, error: message },
+      { error: 'Collection failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: Request) {
+  return handleCollect(request);
+}
+
+export async function POST(request: Request) {
+  return handleCollect(request);
 }
