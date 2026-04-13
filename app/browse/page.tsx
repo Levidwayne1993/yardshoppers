@@ -222,8 +222,8 @@ function BrowseContent() {
               boost_started_at: listing.boost_started_at,
               created_at: listing.created_at,
               is_external: false,
-              source: null,
-              source_url: null,
+              source: "internal",
+              source_url: undefined,
             });
           }
         }

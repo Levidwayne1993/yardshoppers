@@ -1,73 +1,76 @@
-import { ExternalSale } from "@/types/external";
+import type { RawExternalListing, CollectorResult } from "@/types/external";
 
-// ============================================
-// SHARED UTILITIES
-// ============================================
+// ──────────────────────────────────────────────
+// SHARED CONSTANTS & HELPERS
+// ──────────────────────────────────────────────
 
-const BROWSER_HEADERS: Record<string, string> = {
+const BROWSER_HEADERS = {
   "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   Accept:
-    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-  "Accept-Language": "en-US,en;q=0.9",
-  "Cache-Control": "no-cache",
-  Pragma: "no-cache",
-  DNT: "1",
+    "text/html,application/xhtml+xml,application/xml;q=0.9," +
+    "image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.5",
+  "Accept-Encoding": "gzip, deflate, br",
   Connection: "keep-alive",
   "Upgrade-Insecure-Requests": "1",
-  "Sec-Fetch-Dest": "document",
-  "Sec-Fetch-Mode": "navigate",
-  "Sec-Fetch-Site": "none",
-  "Sec-Fetch-User": "?1",
+  "Cache-Control": "max-age=0",
 };
+
+export interface CollectorError {
+  source: string;
+  message: string;
+  timestamp: string;
+}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function randomDelay(min = 1000, max = 3000): Promise<void> {
-  return delay(Math.floor(Math.random() * (max - min) + min));
+  return delay(Math.floor(Math.random() * (max - min + 1)) + min);
 }
 
-function extractTag(xml: string, tag: string): string {
-  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i");
-
-  const match = xml.match(regex);
-  return match ? match[1].trim() : "";
+// Extract content between XML/HTML tags
+function extractTag(html: string, tag: string): string | null {
+  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i");
+  const match = html.match(regex);
+  return match ? match[1].trim() : null;
 }
 
+// Extract CDATA content from XML tags
 function extractCdataContent(text: string): string {
-  const cdataMatch = text.match(/<!\[CDATA\[([\s\S]*?)\]\]>/);
-
-
-  return cdataMatch
-    ? cdataMatch[1].trim()
-    : text.replace(/<[^>]*>/g, "").trim();
+  return text
+    .replace(/<!\[CDATA\[/g, "")
+    .replace(/\]\]>/g, "")
+    .trim();
 }
 
-function guessCategory(title: string, description: string): string {
-  const text = `${title} ${description}`.toLowerCase();
-  if (/furniture|couch|sofa|table|chair|desk|dresser|bed|mattress/.test(text))
-    return "Furniture";
-  if (/electronics?|tv|computer|laptop|phone|tablet|gaming/.test(text))
-    return "Electronics";
-  if (/cloth|shirt|pants|dress|shoes|jacket|fashion/.test(text))
-    return "Clothing";
-  if (/tool|drill|saw|hammer|wrench|mower|garden/.test(text)) return "Tools";
-  if (/toy|game|lego|puzzle|kid|child|baby/.test(text)) return "Toys & Games";
-  if (/book|dvd|cd|vinyl|record|movie|media/.test(text))
-    return "Books & Media";
-  if (/kitchen|dish|pot|pan|appliance|blender/.test(text)) return "Kitchen";
-  if (/sport|bike|bicycle|golf|fishing|camping/.test(text))
-    return "Sports & Outdoors";
-  if (/car|auto|vehicle|motor|tire|part/.test(text)) return "Automotive";
-  if (/antique|vintage|collectible|retro/.test(text)) return "Antiques";
-  return "General";
+// Simple category guesser based on keywords
+function guessCategory(
+  title: string,
+  description?: string
+): string | undefined {
+  const text = `${title} ${description || ""}`.toLowerCase();
+  if (/estate\s*sale/i.test(text)) return "estate-sale";
+  if (/garage\s*sale/i.test(text)) return "garage-sale";
+  if (/yard\s*sale/i.test(text)) return "yard-sale";
+  if (/moving\s*sale/i.test(text)) return "moving-sale";
+  if (/multi[- ]?family/i.test(text)) return "multi-family";
+  if (/church|charity|fundraiser/i.test(text)) return "charity";
+  if (/antique|vintage|collectible/i.test(text)) return "antiques";
+  if (/tool|hardware|workshop/i.test(text)) return "tools";
+  if (/furniture|couch|sofa|table|chair/i.test(text)) return "furniture";
+  if (/baby|kid|children|toy/i.test(text)) return "kids";
+  if (/electronic|computer|phone|tv/i.test(text)) return "electronics";
+  if (/cloth|fashion|shoe|dress/i.test(text)) return "clothing";
+  return undefined;
 }
 
-// ============================================
-// CRAIGSLIST — RSS FEEDS
-// ============================================
+// ──────────────────────────────────────────────
+// CRAIGSLIST COLLECTOR
+// ──────────────────────────────────────────────
 
 const CRAIGSLIST_REGIONS = [
   { id: "seattle", city: "Seattle", state: "WA" },
@@ -76,24 +79,20 @@ const CRAIGSLIST_REGIONS = [
   { id: "portland", city: "Portland", state: "OR" },
 ];
 
-async function collectCraigslist(): Promise<{
-  sales: ExternalSale[];
-  errors: string[];
-}> {
-  const sales: ExternalSale[] = [];
+async function collectCraigslist(): Promise<CollectorResult> {
+  const listings: RawExternalListing[] = [];
   const errors: string[] = [];
 
   for (const region of CRAIGSLIST_REGIONS) {
     try {
-      await randomDelay(1500, 3000);
+      // ⚠ ORIGINAL URL (broken):
+      // const url = `https://${region.id}.craigslist.org/search/gms?format=rss`;
+      // ✅ FIXED URL (use OpenRSS proxy):
+      const url = `https://openrss.org/${region.id}.craigslist.org/search/gms`;
 
-      const url = `https://${region.id}.craigslist.org/search/gms?format=rss`;
       const response = await fetch(url, {
-        headers: {
-          ...BROWSER_HEADERS,
-          Accept: "application/rss+xml, application/xml, text/xml, */*",
-        },
-        signal: AbortSignal.timeout(10000),
+        headers: BROWSER_HEADERS,
+        signal: AbortSignal.timeout(15000),
       });
 
       if (!response.ok) {
@@ -103,111 +102,97 @@ async function collectCraigslist(): Promise<{
 
       const xml = await response.text();
 
+      // Parse RSS items
       const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
-      let itemMatch;
+      let match;
 
-      while ((itemMatch = itemRegex.exec(xml)) !== null) {
-        try {
-          const item = itemMatch[1];
-          const title = extractCdataContent(extractTag(item, "title"));
-          const link = extractTag(item, "link");
-          const description = extractCdataContent(
-            extractTag(item, "description")
-          );
-          const dateStr =
-            extractTag(item, "dc:date") || extractTag(item, "pubDate");
+      while ((match = itemRegex.exec(xml)) !== null) {
+        const itemXml = match[1];
 
-          const encMatch = item.match(
-            /enc:enclosure[^>]*resource="([^"]+)"/i
-          );
-          const imageUrl = encMatch ? encMatch[1] : undefined;
+        const title = extractTag(itemXml, "title");
+        const link = extractTag(itemXml, "link");
+        const description = extractTag(itemXml, "description");
 
-          const idMatch = link.match(/\/(\d+)\.html/);
-          const sourceId = idMatch
-            ? `cl-${region.id}-${idMatch[1]}`
-            : `cl-${region.id}-${Date.now()}-${Math.random()
-                .toString(36)
-                .slice(2, 8)}`;
+        if (!title || !link) continue;
 
-          let saleDate: string | undefined;
-          if (dateStr) {
-            try {
-              saleDate = new Date(dateStr).toISOString().split("T")[0];
-            } catch {
-              /* ignore */
-            }
-          }
+        const cleanTitle = extractCdataContent(title);
+        const cleanDesc = description
+          ? extractCdataContent(description)
+          : undefined;
 
-          const category = guessCategory(title, description);
+        // Extract coordinates from geo tags if present
+        const lat = extractTag(itemXml, "geo:lat");
+        const lng = extractTag(itemXml, "geo:long");
 
-          sales.push({
-            source: "craigslist",
-            source_id: sourceId,
-            source_url: link,
-            title: title || "Garage Sale",
-            description: description || undefined,
-            city: region.city,
-            state: region.state,
-            category,
-            categories: [category, "Garage Sales"],
-            photo_urls: imageUrl ? [imageUrl] : [],
-            sale_date: saleDate,
-            expires_at: new Date(
-              Date.now() + 14 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-          });
-        } catch {
-          /* skip item */
-        }
+        // Generate stable source ID from URL
+        const sourceId = `cl-${region.id}-${link
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .slice(-20)}`;
+
+        listings.push({
+          source_id: sourceId,
+          source_url: link,
+          title: cleanTitle,
+          description: cleanDesc,
+          city: region.city,
+          state: region.state,
+          latitude: lat ? parseFloat(lat) : undefined,
+          longitude: lng ? parseFloat(lng) : undefined,
+          categories: [guessCategory(cleanTitle, cleanDesc) || "garage-sale"],
+        });
       }
-    } catch (err) {
+
+      await randomDelay(2000, 4000);
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`Craigslist ${region.id}: ${msg}`);
     }
   }
 
-  return { sales, errors };
+  return {
+    source: "craigslist",
+    listings,
+    collected_at: new Date().toISOString(),
+  };
 }
 
-// ============================================
-// ESTATESALES.NET
-// ============================================
+// ──────────────────────────────────────────────
+// ESTATE SALES COLLECTOR
+// ──────────────────────────────────────────────
 
 const ESTATE_LOCATIONS = [
-  { zip: "98501", city: "Olympia", state: "WA" },
-  { zip: "98101", city: "Seattle", state: "WA" },
-  { zip: "97201", city: "Portland", state: "OR" },
+  { city: "Olympia", state: "Washington", zip: "98501" },
+  { city: "Seattle", state: "Washington", zip: "98101" },
+  { city: "Portland", state: "Oregon", zip: "97201" },
 ];
 
-async function collectEstateSales(): Promise<{
-  sales: ExternalSale[];
-  errors: string[];
-}> {
-  const sales: ExternalSale[] = [];
+async function collectEstateSales(): Promise<CollectorResult> {
+  const listings: RawExternalListing[] = [];
   const errors: string[] = [];
 
   for (const loc of ESTATE_LOCATIONS) {
     try {
-      await randomDelay(1500, 3000);
+      // ⚠ ORIGINAL URL (broken - 404):
+      // const url = `https://www.estatesales.net/find-estate-sales/${loc.state}/${loc.city}/${loc.zip}`;
+      // ✅ FIXED URL:
+      const url = `https://www.estatesales.net/${loc.state}/${loc.city}/${loc.zip}`;
 
-      const url = `https://www.estatesales.net/find-estate-sales/${loc.state}/${loc.city}/${loc.zip}`;
       const response = await fetch(url, {
         headers: BROWSER_HEADERS,
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(15000),
       });
 
       if (!response.ok) {
-        errors.push(`EstateSales.net ${loc.city}: HTTP ${response.status}`);
+        errors.push(`EstateSales ${loc.city}: HTTP ${response.status}`);
         continue;
       }
 
       const html = await response.text();
 
-      // Try JSON-LD structured data first
+      // Look for JSON-LD structured data first (most reliable)
       const jsonLdRegex =
         /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
       let jsonLdMatch;
-      let foundJsonLd = false;
 
       while ((jsonLdMatch = jsonLdRegex.exec(html)) !== null) {
         try {
@@ -215,206 +200,223 @@ async function collectEstateSales(): Promise<{
           const events = Array.isArray(data) ? data : [data];
 
           for (const event of events) {
-            if (
-              event["@type"] === "Event" ||
-              event["@type"] === "Sale" ||
-              event["@type"] === "SaleEvent"
-            ) {
-              foundJsonLd = true;
-              const sourceId = `es-${loc.zip}-${(event.name || "")
-                .replace(/[^a-zA-Z0-9]/g, "-")
-                .slice(0, 30)}-${Math.random().toString(36).slice(2, 8)}`;
+            if (event["@type"] !== "Event" &&
+                event["@type"] !== "Sale") continue;
 
-              sales.push({
-                source: "estatesales",
-                source_id: sourceId,
-                source_url: event.url || url,
-                title: event.name || "Estate Sale",
-                description: event.description || undefined,
-                city: loc.city,
-                state: loc.state,
-                latitude: event.location?.geo?.latitude,
-                longitude: event.location?.geo?.longitude,
-                address: event.location?.address?.streetAddress,
-                category: "Estate Sales",
-                categories: ["Estate Sales"],
-                photo_urls: event.image
-                  ? ([] as string[]).concat(event.image).slice(0, 5)
-                  : [],
-                sale_date: event.startDate?.split("T")[0],
-                expires_at:
-                  event.endDate ||
-                  new Date(
-                    Date.now() + 14 * 24 * 60 * 60 * 1000
-                  ).toISOString(),
-              });
+            const name = event.name || event.headline || "";
+            const eventUrl = event.url || "";
+            const desc = event.description || "";
+            const startDate = event.startDate || "";
+            const endDate = event.endDate || "";
+
+            // Extract location
+            const location = event.location || {};
+            const address = location.address || {};
+            const streetAddress = address.streetAddress || "";
+            const city = address.addressLocality || loc.city;
+            const state = address.addressRegion || loc.state;
+
+            // Extract coordinates
+            const geo = location.geo || {};
+            const lat = geo.latitude
+              ? parseFloat(geo.latitude)
+              : undefined;
+            const lng = geo.longitude
+              ? parseFloat(geo.longitude)
+              : undefined;
+
+            // Extract photos
+            const photos: string[] = [];
+            if (event.image) {
+              if (Array.isArray(event.image)) {
+                photos.push(...event.image);
+              } else if (typeof event.image === "string") {
+                photos.push(event.image);
+              }
             }
+
+            const sourceId = `es-${eventUrl
+              .replace(/[^a-zA-Z0-9]/g, "")
+              .slice(-25)}`;
+
+            listings.push({
+              source_id: sourceId,
+              source_url: eventUrl.startsWith("http")
+                ? eventUrl
+                : `https://www.estatesales.net${eventUrl}`,
+              title: name,
+              description: desc,
+              city,
+              state,
+              latitude: lat,
+              longitude: lng,
+              address: streetAddress,
+              sale_date: startDate
+                ? startDate.split("T")[0]
+                : undefined,
+              photo_urls: photos.length > 0 ? photos : undefined,
+              categories: ["estate-sale"],
+            });
           }
         } catch {
-          /* skip parse error */
+          // JSON-LD parse failed, skip
         }
       }
 
-      // Fallback: parse listing links from HTML
-      if (!foundJsonLd) {
-        const linkRegex =
-          /href="(\/estate-sales\/\d+[^"]*)"[^>]*>[\s\S]*?([A-Z][^<]{5,80})/gi;
-        let linkMatch;
+      // Fallback: parse HTML listing cards if JSON-LD didn't yield results
+      if (listings.length === 0) {
+        const cardRegex =
+          /<a[^>]*href="(\/sale\/[^"]+)"[^>]*>[\s\S]*?<h2[^>]*>([^<]+)<\/h2>/gi;
+        let cardMatch;
 
-        while ((linkMatch = linkRegex.exec(html)) !== null) {
-          const href = linkMatch[1];
-          const title = linkMatch[2].trim();
-          if (!title || title.length < 5) continue;
+        while ((cardMatch = cardRegex.exec(html)) !== null) {
+          const saleUrl = `https://www.estatesales.net${cardMatch[1]}`;
+          const saleTitle = cardMatch[2].trim();
 
-          const sourceId = `es-${href
-            .replace(/[^a-zA-Z0-9]/g, "-")
-            .slice(0, 60)}`;
+          const sourceId = `es-${cardMatch[1]
+            .replace(/[^a-zA-Z0-9]/g, "")
+            .slice(-25)}`;
 
-          sales.push({
-            source: "estatesales",
+          listings.push({
             source_id: sourceId,
-            source_url: `https://www.estatesales.net${href}`,
-            title,
+            source_url: saleUrl,
+            title: saleTitle,
             city: loc.city,
             state: loc.state,
-            category: "Estate Sales",
-            categories: ["Estate Sales"],
-            photo_urls: [],
-            expires_at: new Date(
-              Date.now() + 14 * 24 * 60 * 60 * 1000
-            ).toISOString(),
+            categories: ["estate-sale"],
           });
         }
       }
-    } catch (err) {
+
+      await randomDelay(2000, 5000);
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      errors.push(`EstateSales.net ${loc.city}: ${msg}`);
+      errors.push(`EstateSales ${loc.city}: ${msg}`);
     }
   }
 
-  return { sales, errors };
+  return {
+    source: "estatesales",
+    listings,
+    collected_at: new Date().toISOString(),
+  };
 }
 
-// ============================================
-// GSALR.COM
-// ============================================
+// ──────────────────────────────────────────────
+// GSALR COLLECTOR
+// ──────────────────────────────────────────────
+// ⚠ NOTE: GSALR.com blocks all automated access.
+// Replace this entire function with a
+// GarageSaleFinder.com collector.
 
 const GSALR_SEARCHES = [
-  { state: "WA", city: "Olympia" },
-  { state: "WA", city: "Seattle" },
-  { state: "OR", city: "Portland" },
+  { query: "Olympia", state: "WA" },
+  { query: "Seattle", state: "WA" },
+  { query: "Portland", state: "OR" },
 ];
 
-async function collectGsalr(): Promise<{
-  sales: ExternalSale[];
-  errors: string[];
-}> {
-  const sales: ExternalSale[] = [];
+async function collectGsalr(): Promise<CollectorResult> {
+  const listings: RawExternalListing[] = [];
   const errors: string[] = [];
 
   for (const search of GSALR_SEARCHES) {
     try {
-      await randomDelay(1500, 3000);
+      const url =
+        `https://gsalr.com/search?q=` +
+        `${encodeURIComponent(search.query + " " + search.state)}`;
 
-      const url = `https://gsalr.com/garage-sales/${search.city.toLowerCase()}-${search.state.toLowerCase()}/`;
       const response = await fetch(url, {
         headers: BROWSER_HEADERS,
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(15000),
       });
 
       if (!response.ok) {
-        errors.push(`GSALR ${search.city}: HTTP ${response.status}`);
+        errors.push(`GSALR ${search.query}: HTTP ${response.status}`);
         continue;
       }
 
       const html = await response.text();
 
-      const linkRegex =
-        /href="(\/sale\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-      let linkMatch;
+      // Parse listing blocks from GSALR HTML
+      const listingRegex =
+        /<div class="sale-item"[\s\S]*?<a href="([^"]+)"[\s\S]*?<h\d[^>]*>([^<]+)<\/h\d>/gi;
+      let listingMatch;
 
-      while ((linkMatch = linkRegex.exec(html)) !== null) {
-        try {
-          const href = linkMatch[1];
-          const content = linkMatch[2];
-          const titleMatch = content.match(/<[^>]*>([^<]{5,100})<\//);
-          const title = titleMatch
-            ? titleMatch[1].trim()
-            : content
-                .replace(/<[^>]*>/g, "")
-                .trim()
-                .slice(0, 100);
+      while ((listingMatch = listingRegex.exec(html)) !== null) {
+        const saleUrl = listingMatch[1].startsWith("http")
+          ? listingMatch[1]
+          : `https://gsalr.com${listingMatch[1]}`;
+        const saleTitle = listingMatch[2].trim();
 
-          if (!title || title.length < 3) continue;
+        const sourceId = `gsalr-${listingMatch[1]
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .slice(-20)}`;
 
-          const dateMatch = content.match(
-            /(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})/
-          );
-          let saleDate: string | undefined;
-          if (dateMatch) {
-            try {
-              saleDate = new Date(dateMatch[1]).toISOString().split("T")[0];
-            } catch {
-              /* ignore */
-            }
-          }
-
-          const sourceId = `gsalr-${href
-            .replace(/[^a-zA-Z0-9]/g, "-")
-            .slice(0, 60)}`;
-          const category = guessCategory(title, "");
-
-          sales.push({
-            source: "gsalr",
-            source_id: sourceId,
-            source_url: `https://gsalr.com${href}`,
-            title,
-            city: search.city,
-            state: search.state,
-            category,
-            categories: [category, "Garage Sales"],
-            photo_urls: [],
-            expires_at: new Date(
-              Date.now() + 14 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-          });
-        } catch {
-          /* skip */
-        }
+        listings.push({
+          source_id: sourceId,
+          source_url: saleUrl,
+          title: saleTitle,
+          city: search.query,
+          state: search.state,
+          categories: [
+            guessCategory(saleTitle) || "garage-sale",
+          ],
+        });
       }
-    } catch (err) {
+
+      await randomDelay(2000, 4000);
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      errors.push(`GSALR ${search.city}: ${msg}`);
+      errors.push(`GSALR ${search.query}: ${msg}`);
     }
   }
 
-  return { sales, errors };
+  return {
+    source: "gsalr",
+    listings,
+    collected_at: new Date().toISOString(),
+  };
 }
 
-// ============================================
-// MAIN EXPORT — RUN ALL COLLECTORS
-// ============================================
+// ──────────────────────────────────────────────
+// MAIN ENTRY POINT
+// ──────────────────────────────────────────────
 
 export async function collectAllSources(): Promise<{
-  sales: ExternalSale[];
+  sales: RawExternalListing[];
   errors: string[];
 }> {
-  const [craigslist, estateSales, gsalr] = await Promise.all([
+  const errors: string[] = [];
+
+  // Run all three collectors in parallel
+  const [craigslist, estatesales, gsalr] = await Promise.allSettled([
     collectCraigslist(),
     collectEstateSales(),
     collectGsalr(),
   ]);
 
-  return {
-    sales: [
-      ...craigslist.sales,
-      ...estateSales.sales,
-      ...gsalr.sales,
-    ],
-    errors: [
-      ...craigslist.errors,
-      ...estateSales.errors,
-      ...gsalr.errors,
-    ],
-  };
+  const allListings: RawExternalListing[] = [];
+
+  // Process Craigslist results
+  if (craigslist.status === "fulfilled") {
+    allListings.push(...craigslist.value.listings);
+  } else {
+    errors.push(`Craigslist collector failed: ${craigslist.reason}`);
+  }
+
+  // Process EstateSales results
+  if (estatesales.status === "fulfilled") {
+    allListings.push(...estatesales.value.listings);
+  } else {
+    errors.push(`EstateSales collector failed: ${estatesales.reason}`);
+  }
+
+  // Process GSALR results
+  if (gsalr.status === "fulfilled") {
+    allListings.push(...gsalr.value.listings);
+  } else {
+    errors.push(`GSALR collector failed: ${gsalr.reason}`);
+  }
+
+  return { sales: allListings, errors };
 }
