@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, Fragment } from 'react';
-import { createBrowserClient } from '@/lib/supabase-browser';
+import { createClient } from '@/lib/supabase-browser';
 import type {
   ParsedListing,
   DuplicateCheckResult,
@@ -67,7 +67,7 @@ function ProbBadge({ p }: { p: number }) {
 // ============================================================
 
 export default function BulkImportPage() {
-  const supabase = createBrowserClient();
+  const supabase = createClient();
 
   // Auth
   const [isAdmin, setIsAdmin] = useState(false);
