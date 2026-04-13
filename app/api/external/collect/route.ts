@@ -16,12 +16,7 @@ const CRON_SECRET = process.env.CRON_SECRET;
 const BATCH_SIZE = 50;
 
 async function handleCollect(request: Request): Promise<NextResponse> {
-  if (CRON_SECRET) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+
 
   try {
     const { results } = await collectAllSources();
