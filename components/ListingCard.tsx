@@ -24,6 +24,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Free Stuff": "bg-green-100 text-green-800",
 };
 
+const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
+  craigslist: { label: "Craigslist", color: "bg-violet-100 text-violet-800" },
+  gsalr: { label: "GSALR", color: "bg-sky-100 text-sky-800" },
+  estatesales: { label: "EstateSales.net", color: "bg-rose-100 text-rose-800" },
+};
+
 interface ListingCardProps {
   listing: any;
   currentUserId?: string | null;
@@ -36,12 +42,15 @@ export default function ListingCard({
   const [saved, setSaved] = useState(false);
   const [showBoostModal, setShowBoostModal] = useState(false);
 
+  const isExternal = listing.is_external === true;
   const photos = listing.listing_photos || [];
   const coverPhoto = photos[0]?.photo_url;
 
   let categories: string[] = [];
   if (Array.isArray(listing.category)) {
     categories = listing.category;
+  } else if (Array.isArray(listing.categories)) {
+    categories = listing.categories;
   } else if (typeof listing.category === "string") {
     categories = listing.category.includes(",")
       ? listing.category.split(",").map((c: string) => c.trim())
@@ -51,94 +60,169 @@ export default function ListingCard({
   const isOwner = currentUserId && listing.user_id === currentUserId;
   const isBoosted = listing.is_boosted;
 
+  const sourceInfo = isExternal && listing.source
+    ? SOURCE_LABELS[listing.source] || {
+        label: listing.source,
+        color: "bg-gray-100 text-gray-700",
+      }
+    : null;
+
+  // Shared category badges renderer
+  const categoryBadges = categories.length > 0 && (
+    <div className="absolute top-3 right-3 flex flex-wrap gap-1 justify-end max-w-[60%]">
+      {categories.slice(0, 3).map((cat) => (
+        <span
+          key={cat}
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+            CATEGORY_COLORS[cat] || "bg-gray-100 text-gray-700"
+          }`}
+        >
+          {cat}
+        </span>
+      ))}
+      {categories.length > 3 && (
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">
+          +{categories.length - 3}
+        </span>
+      )}
+    </div>
+  );
+
+  // Shared heart button renderer
+  const heartButton = (
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSaved(!saved);
+      }}
+      className={`absolute bottom-3 left-3 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm ${
+        saved
+          ? "bg-red-500 text-white"
+          : "bg-white/90 text-gray-400 hover:text-red-500"
+      }`}
+    >
+      <i
+        className={`${saved ? "fa-solid" : "fa-regular"} fa-heart text-xs`}
+      />
+    </button>
+  );
+
   return (
     <>
       <div
         className={`group bg-white rounded-2xl overflow-hidden border transition-all duration-200 hover:shadow-xl hover:-translate-y-1 ${
           isBoosted
             ? "border-amber-200 shadow-md shadow-amber-100/50"
+            : isExternal
+            ? "border-indigo-100 shadow-sm"
             : "border-gray-100 shadow-sm"
         }`}
       >
-        <Link href={`/listing/${listing.id}`} className="block relative">
-          <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
-            {coverPhoto ? (
-              <Image
-                src={coverPhoto}
-                alt={listing.title}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full bg-ys-50">
-                <i className="fa-solid fa-tag text-3xl text-ys-300 mb-1" />
-                <p className="text-xs text-ys-400">No photo</p>
-              </div>
-            )}
-
-            {/* ✅ NEW: Tier-aware BoostBadge replaces hardcoded badge */}
-            {isBoosted && (
-              <div className="absolute top-3 left-3">
-                <BoostBadge
-                  tierKey={listing.boost_tier}
-                  expiresAt={listing.boost_expires_at}
+        {/* Image area: external listings open in new tab, internal use Link */}
+        {isExternal ? (
+          <a
+            href={listing.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block relative"
+          >
+            <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+              {coverPhoto ? (
+                <Image
+                  src={coverPhoto}
+                  alt={listing.title}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
-              </div>
-            )}
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full bg-indigo-50">
+                  <i className="fa-solid fa-arrow-up-right-from-square text-3xl text-indigo-300 mb-1" />
+                  <p className="text-xs text-indigo-400">External Sale</p>
+                </div>
+              )}
 
-            {categories.length > 0 && (
-              <div className="absolute top-3 right-3 flex flex-wrap gap-1 justify-end max-w-[60%]">
-                {categories.slice(0, 3).map((cat) => (
+              {sourceInfo && (
+                <div className="absolute top-3 left-3">
                   <span
-                    key={cat}
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      CATEGORY_COLORS[cat] || "bg-gray-100 text-gray-700"
-                    }`}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${sourceInfo.color} shadow-sm`}
                   >
-                    {cat}
+                    {sourceInfo.label}
                   </span>
-                ))}
-                {categories.length > 3 && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">
-                    +{categories.length - 3}
-                  </span>
-                )}
+                </div>
+              )}
+
+              {categoryBadges}
+
+              <div className="absolute bottom-3 right-3 bg-indigo-600/80 text-white text-[10px] font-medium px-2 py-1 rounded-lg backdrop-blur-sm flex items-center gap-1">
+                <i className="fa-solid fa-arrow-up-right-from-square" />
+                External
               </div>
-            )}
 
-            {photos.length > 1 && (
-              <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] font-medium px-2 py-1 rounded-lg backdrop-blur-sm flex items-center gap-1">
-                <i className="fa-solid fa-images" />
-                {photos.length}
-              </div>
-            )}
+              {heartButton}
+            </div>
+          </a>
+        ) : (
+          <Link href={`/listing/${listing.id}`} className="block relative">
+            <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+              {coverPhoto ? (
+                <Image
+                  src={coverPhoto}
+                  alt={listing.title}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full bg-ys-50">
+                  <i className="fa-solid fa-tag text-3xl text-ys-300 mb-1" />
+                  <p className="text-xs text-ys-400">No photo</p>
+                </div>
+              )}
 
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSaved(!saved);
-              }}
-              className={`absolute bottom-3 left-3 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm ${
-                saved
-                  ? "bg-red-500 text-white"
-                  : "bg-white/90 text-gray-400 hover:text-red-500"
-              }`}
-            >
-              <i
-                className={`${saved ? "fa-solid" : "fa-regular"} fa-heart text-xs`}
-              />
-            </button>
-          </div>
-        </Link>
+              {isBoosted && (
+                <div className="absolute top-3 left-3">
+                  <BoostBadge
+                    tierKey={listing.boost_tier}
+                    expiresAt={listing.boost_expires_at}
+                  />
+                </div>
+              )}
 
-        <div className="p-4">
-          <Link href={`/listing/${listing.id}`}>
-            <h3 className="font-bold text-gray-900 leading-tight line-clamp-2 group-hover:text-ys-800 transition-colors">
-              {listing.title}
-            </h3>
+              {categoryBadges}
+
+              {photos.length > 1 && (
+                <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] font-medium px-2 py-1 rounded-lg backdrop-blur-sm flex items-center gap-1">
+                  <i className="fa-solid fa-images" />
+                  {photos.length}
+                </div>
+              )}
+
+              {heartButton}
+            </div>
           </Link>
+        )}
+
+        {/* Card body */}
+        <div className="p-4">
+          {isExternal ? (
+            <a
+              href={listing.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <h3 className="font-bold text-gray-900 leading-tight line-clamp-2 group-hover:text-indigo-700 transition-colors">
+                {listing.title}
+              </h3>
+            </a>
+          ) : (
+            <Link href={`/listing/${listing.id}`}>
+              <h3 className="font-bold text-gray-900 leading-tight line-clamp-2 group-hover:text-ys-800 transition-colors">
+                {listing.title}
+              </h3>
+            </Link>
+          )}
 
           {listing.price && (
             <p className="text-lg font-extrabold text-ys-800 mt-1">
@@ -163,7 +247,7 @@ export default function ListingCard({
             </p>
           )}
 
-          {listing.sale_date && (
+          {listing.sale_date && !isExternal && (
             <div className="mt-2">
               <CountdownTimer
                 saleDate={listing.sale_date}
@@ -173,8 +257,21 @@ export default function ListingCard({
             </div>
           )}
 
-          {/* ✅ NEW: Show live countdown bar for owners with active boosts */}
-          {isOwner && isBoosted && (
+          {/* External: link to source */}
+          {isExternal && listing.source_url && (
+            <a
+              href={listing.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 w-full flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2 rounded-xl text-sm font-semibold transition-all"
+            >
+              <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
+              View on {sourceInfo?.label || "Source"}
+            </a>
+          )}
+
+          {/* Owner boost controls (internal only) */}
+          {!isExternal && isOwner && isBoosted && (
             <div className="mt-3">
               <BoostProgressBar
                 tierKey={listing.boost_tier}
@@ -184,7 +281,7 @@ export default function ListingCard({
             </div>
           )}
 
-          {isOwner && !isBoosted && (
+          {!isExternal && isOwner && !isBoosted && (
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -198,7 +295,7 @@ export default function ListingCard({
             </button>
           )}
 
-          {isOwner && isBoosted && (
+          {!isExternal && isOwner && isBoosted && (
             <div className="mt-3 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-xl text-sm font-semibold">
               <i className="fa-solid fa-check-circle text-xs" />
               Boosted

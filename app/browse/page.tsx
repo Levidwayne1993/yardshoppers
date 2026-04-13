@@ -11,6 +11,7 @@ import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
 import { cities } from "@/lib/cities";
 import { generateCollectionPageSchema, generateSearchResultsPageSchema } from "@/lib/seo-signals";
+import { UnifiedListing } from "@/types/external";
 
 const supabase = createClient();
 
@@ -21,6 +22,14 @@ const CATEGORIES = [
   "Kitchen", "Sports", "Books", "Antiques", "Garden", "Baby & Kids",
   "Vehicles", "Free Stuff",
 ];
+
+const SOURCE_FILTERS = [
+  { key: "all", label: "All Sales", icon: "fa-solid fa-layer-group" },
+  { key: "internal", label: "User Posted", icon: "fa-solid fa-user" },
+  { key: "external", label: "External", icon: "fa-solid fa-arrow-up-right-from-square" },
+] as const;
+
+type SourceFilter = "all" | "internal" | "external";
 
 function milesToDeg(miles: number) {
   return miles / 69;
@@ -103,7 +112,7 @@ function BrowseContent() {
   const isLocationReady = locationOverride ? true : !locationLoading;
 
   const initialCategory = searchParams.get("category");
-  const [listings, setListings] = useState<any[]>([]);
+  const [listings, setListings] = useState<UnifiedListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const debouncedSearch = useDebounce(search, 300);
@@ -114,6 +123,7 @@ function BrowseContent() {
   const [distance, setDistance] = useState(50);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
 
   useEffect(() => {
     async function getUser() {
@@ -151,45 +161,149 @@ function BrowseContent() {
     async function fetchListings() {
       setLoading(true);
 
-      let query = supabase.from("listings").select("*, listing_photos(*)");
+      const results: UnifiedListing[] = [];
 
-      if (debouncedSearch.trim()) {
-        const term = `%${debouncedSearch.trim()}%`;
-        query = query.or(
-          `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
-        );
-      }
+      // Fetch internal listings
+      if (sourceFilter === "all" || sourceFilter === "internal") {
+        let query = supabase.from("listings").select("*, listing_photos(*)");
 
-      if (selectedCategories.length > 0) {
-        const orClauses = selectedCategories
-          .map((cat) => `category.eq.${cat},categories.cs.{${cat}}`)
-          .join(",");
-        query = query.or(orClauses);
-      }
+        if (debouncedSearch.trim()) {
+          const term = `%${debouncedSearch.trim()}%`;
+          query = query.or(
+            `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
+          );
+        }
 
-      if (distance < 999 && effectiveLat && effectiveLng) {
-        const deg = milesToDeg(distance);
+        if (selectedCategories.length > 0) {
+          const orClauses = selectedCategories
+            .map((cat) => `category.eq.${cat},categories.cs.{${cat}}`)
+            .join(",");
+          query = query.or(orClauses);
+        }
+
+        if (distance < 999 && effectiveLat && effectiveLng) {
+          const deg = milesToDeg(distance);
+          query = query
+            .gte("latitude", effectiveLat - deg)
+            .lte("latitude", effectiveLat + deg)
+            .gte("longitude", effectiveLng - deg)
+            .lte("longitude", effectiveLng + deg);
+        }
+
         query = query
-          .gte("latitude", effectiveLat - deg)
-          .lte("latitude", effectiveLat + deg)
-          .gte("longitude", effectiveLng - deg)
-          .lte("longitude", effectiveLng + deg);
+          .order("is_boosted", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: sort === "oldest" });
+
+        query = query.limit(500);
+
+        const { data } = await query;
+
+        if (data) {
+          for (const listing of data) {
+            results.push({
+              id: listing.id,
+              title: listing.title,
+              description: listing.description,
+              city: listing.city,
+              state: listing.state,
+              latitude: listing.latitude,
+              longitude: listing.longitude,
+              price: listing.price,
+              sale_date: listing.sale_date,
+              sale_time_start: listing.sale_time_start,
+              sale_time_end: listing.sale_time_end,
+              category: listing.category,
+              categories: listing.categories,
+              listing_photos: listing.listing_photos || [],
+              user_id: listing.user_id,
+              is_boosted: listing.is_boosted || false,
+              boost_tier: listing.boost_tier,
+              boost_expires_at: listing.boost_expires_at,
+              boost_started_at: listing.boost_started_at,
+              created_at: listing.created_at,
+              is_external: false,
+              source: null,
+              source_url: null,
+            });
+          }
+        }
       }
 
-      query = query
-        .order("is_boosted", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: sort === "oldest" });
+      // Fetch external listings
+      if (sourceFilter === "all" || sourceFilter === "external") {
+        let extQuery = supabase
+          .from("external_sales")
+          .select("*")
+          .gt("expires_at", new Date().toISOString());
 
-      query = query.limit(500);
+        if (debouncedSearch.trim()) {
+          const term = `%${debouncedSearch.trim()}%`;
+          extQuery = extQuery.or(
+            `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
+          );
+        }
 
-      const { data } = await query;
-      let results = data || [];
+        if (selectedCategories.length > 0) {
+          const orClauses = selectedCategories
+            .map((cat) => `category.eq.${cat},categories.cs.{${cat}}`)
+            .join(",");
+          extQuery = extQuery.or(orClauses);
+        }
 
+        if (distance < 999 && effectiveLat && effectiveLng) {
+          const deg = milesToDeg(distance);
+          extQuery = extQuery
+            .gte("latitude", effectiveLat - deg)
+            .lte("latitude", effectiveLat + deg)
+            .gte("longitude", effectiveLng - deg)
+            .lte("longitude", effectiveLng + deg);
+        }
+
+        extQuery = extQuery
+          .order("collected_at", { ascending: sort === "oldest" })
+          .limit(500);
+
+        const { data: extData } = await extQuery;
+
+        if (extData) {
+          for (const ext of extData) {
+            results.push({
+              id: ext.id,
+              title: ext.title,
+              description: ext.description,
+              city: ext.city,
+              state: ext.state,
+              latitude: ext.latitude,
+              longitude: ext.longitude,
+              price: ext.price,
+              sale_date: ext.sale_date,
+              sale_time_start: ext.sale_time_start,
+              sale_time_end: ext.sale_time_end,
+              category: ext.category,
+              categories: ext.categories,
+              listing_photos: (ext.photo_urls || []).map((url: string) => ({
+                photo_url: url,
+              })),
+              user_id: null,
+              is_boosted: false,
+              boost_tier: null,
+              boost_expires_at: null,
+              boost_started_at: null,
+              created_at: ext.created_at,
+              is_external: true,
+              source: ext.source,
+              source_url: ext.source_url,
+            });
+          }
+        }
+      }
+
+      // Sort merged results
       if (sort === "nearest" && effectiveLat && effectiveLng && results.length > 0) {
-        const boosted = results.filter((l: any) => l.is_boosted);
-        const nonBoosted = results.filter((l: any) => !l.is_boosted);
+        const boosted = results.filter((l) => l.is_boosted);
+        const nonBoosted = results.filter((l) => !l.is_boosted);
 
-        const sortByDistance = (a: any, b: any) => {
+        const sortByDistance = (a: UnifiedListing, b: UnifiedListing) => {
           const distA =
             a.latitude && a.longitude
               ? getDistanceMiles(effectiveLat, effectiveLng, a.latitude, a.longitude)
@@ -204,21 +318,25 @@ function BrowseContent() {
         boosted.sort(sortByDistance);
         nonBoosted.sort(sortByDistance);
 
-        results = [...boosted, ...nonBoosted];
+        setListings([...boosted, ...nonBoosted]);
+      } else {
+        setListings(results);
       }
 
-      setListings(results);
       setVisibleCount(ITEMS_PER_PAGE);
       setLoading(false);
     }
 
     fetchListings();
-  }, [debouncedSearch, selectedCategories, sort, distance, effectiveLat, effectiveLng]);
+  }, [debouncedSearch, selectedCategories, sort, distance, effectiveLat, effectiveLng, sourceFilter]);
 
   const displayedListings = listings.slice(0, visibleCount);
   const hasMore = visibleCount < listings.length;
 
-  const hasFilters = debouncedSearch || selectedCategories.length > 0 || distance < 999 || locationOverride;
+  const internalCount = listings.filter((l) => !l.is_external).length;
+  const externalCount = listings.filter((l) => l.is_external).length;
+
+  const hasFilters = debouncedSearch || selectedCategories.length > 0 || distance < 999 || locationOverride || sourceFilter !== "all";
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -251,14 +369,18 @@ function BrowseContent() {
       "itemListElement": listings.slice(0, 20).map((listing, index) => ({
         "@type": "ListItem",
         "position": index + 1,
-        "url": `https://www.yardshoppers.com/listing/${listing.id}`,
+        "url": listing.is_external
+          ? listing.source_url
+          : `https://www.yardshoppers.com/listing/${listing.id}`,
         "name": listing.title,
         ...(listing.city && listing.state
           ? {
               "item": {
                 "@type": "Event",
                 "name": listing.title,
-                "url": `https://www.yardshoppers.com/listing/${listing.id}`,
+                "url": listing.is_external
+                  ? listing.source_url
+                  : `https://www.yardshoppers.com/listing/${listing.id}`,
                 "location": {
                   "@type": "Place",
                   "name": `${listing.city}, ${listing.state}`,
@@ -330,6 +452,30 @@ function BrowseContent() {
 
           <DistanceSelector value={distance} onChange={handleDistanceChange} />
 
+          {/* Source filter row */}
+          <div className="flex gap-2 items-center">
+            {SOURCE_FILTERS.map((sf) => (
+              <button
+                key={sf.key}
+                onClick={() => { setSourceFilter(sf.key as SourceFilter); setVisibleCount(ITEMS_PER_PAGE); }}
+                className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                  sourceFilter === sf.key
+                    ? "bg-ys-800 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <i className={`${sf.icon} text-[10px]`} aria-hidden="true" />
+                {sf.label}
+                {sf.key === "internal" && !loading && (
+                  <span className="text-[10px] opacity-75">({internalCount})</span>
+                )}
+                {sf.key === "external" && !loading && (
+                  <span className="text-[10px] opacity-75">({externalCount})</span>
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 items-center">
             <button
               onClick={clearCategories}
@@ -393,6 +539,9 @@ function BrowseContent() {
             {locationLabel && distance < 999 && (
               <span> within {distance} mi of {locationLabel}</span>
             )}
+            {sourceFilter !== "all" && (
+              <span> &middot; {sourceFilter === "internal" ? "User posted" : "External"} only</span>
+            )}
           </p>
           <button
             onClick={() => {
@@ -401,6 +550,7 @@ function BrowseContent() {
               setDistance(50);
               setSort("nearest");
               setLocationOverride(null);
+              setSourceFilter("all");
             }}
             className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition"
           >
@@ -431,6 +581,7 @@ function BrowseContent() {
             onClick={() => {
               setDistance(999);
               setSort("newest");
+              setSourceFilter("all");
             }}
             className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
           >

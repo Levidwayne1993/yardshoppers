@@ -185,9 +185,12 @@ export default function ListingDetailClient({
 
   const photos = listing.listing_photos || [];
   const displayAddress = listing.street_address || listing.address || "";
-  const location = [displayAddress, listing.city, listing.state, listing.zip_code]
-    .filter(Boolean)
-    .join(", ");
+// Prevent address from duplicating the city name
+const showAddress = displayAddress && displayAddress.toLowerCase().trim() !== listing.city?.toLowerCase().trim();
+const location = [showAddress ? displayAddress : "", listing.city, listing.state, listing.zip_code]
+  .filter(Boolean)
+  .join(", ");
+
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 
   const saleDay = listing.sale_date
