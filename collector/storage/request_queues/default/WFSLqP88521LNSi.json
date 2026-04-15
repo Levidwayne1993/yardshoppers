@@ -1,0 +1,9 @@
+{
+	"id": "WFSLqP88521LNSi",
+	"json": "{\"id\":\"WFSLqP88521LNSi\",\"url\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196133057\",\"uniqueKey\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196133057\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776287261845,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196133057",
+	"url": "https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196133057"
+}

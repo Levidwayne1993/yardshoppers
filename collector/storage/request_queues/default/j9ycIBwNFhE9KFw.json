@@ -1,0 +1,9 @@
+{
+	"id": "j9ycIBwNFhE9KFw",
+	"json": "{\"id\":\"j9ycIBwNFhE9KFw\",\"url\":\"https://garagesalefinder.com/s/NIhjP/orangevale-ca-95662\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhjP/orangevale-ca-95662\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776287261975,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIhjP/orangevale-ca-95662",
+	"url": "https://garagesalefinder.com/s/NIhjP/orangevale-ca-95662"
+}

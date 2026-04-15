@@ -1,0 +1,9 @@
+{
+	"id": "RIMakIPCdbiE2rn",
+	"json": "{\"id\":\"RIMakIPCdbiE2rn\",\"url\":\"https://garagesalefinder.com/s/NIUZB/2116-homewood-way-carmichael-ca-95608\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIUZB/2116-homewood-way-carmichael-ca-95608\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776287261884,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIUZB/2116-homewood-way-carmichael-ca-95608",
+	"url": "https://garagesalefinder.com/s/NIUZB/2116-homewood-way-carmichael-ca-95608"
+}

@@ -1,0 +1,9 @@
+{
+	"id": "4SJzYBQwh1Ll5Qw",
+	"json": "{\"id\":\"4SJzYBQwh1Ll5Qw\",\"url\":\"https://offerup.com/explore/sck/sacramento-ca/garage-sale/\",\"loadedUrl\":\"https://offerup.com/explore/sck/sacramento-ca/garage-sale\",\"uniqueKey\":\"https://offerup.com/explore/sck/sacramento-ca/garage-sale\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"OfferUp Sacramento\",\"sourceCategory\":\"marketplace\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-15T21:07:21.644Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://offerup.com/explore/sck/sacramento-ca/garage-sale",
+	"url": "https://offerup.com/explore/sck/sacramento-ca/garage-sale/"
+}

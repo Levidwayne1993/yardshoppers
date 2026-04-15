@@ -1,0 +1,9 @@
+{
+	"id": "LncJj800v32CNjB",
+	"json": "{\"id\":\"LncJj800v32CNjB\",\"url\":\"https://garagesalefinder.com/s/NIUtJ/holden-ct-sacramento-ca-95835\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIUtJ/holden-ct-sacramento-ca-95835\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776287261824,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIUtJ/holden-ct-sacramento-ca-95835",
+	"url": "https://garagesalefinder.com/s/NIUtJ/holden-ct-sacramento-ca-95835"
+}

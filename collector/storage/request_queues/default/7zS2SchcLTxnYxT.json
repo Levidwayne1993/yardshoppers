@@ -1,0 +1,9 @@
+{
+	"id": "7zS2SchcLTxnYxT",
+	"json": "{\"id\":\"7zS2SchcLTxnYxT\",\"url\":\"https://gsalr.com/list-garage-sale\",\"loadedUrl\":\"https://gsalr.com/list-garage-sale\",\"uniqueKey\":\"https://gsalr.com/list-garage-sale\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GSALR Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-15T21:07:51.793Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://gsalr.com/list-garage-sale",
+	"url": "https://gsalr.com/list-garage-sale"
+}

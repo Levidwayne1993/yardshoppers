@@ -1,0 +1,9 @@
+{
+	"id": "hQOqtVvfhl2qviV",
+	"json": "{\"id\":\"hQOqtVvfhl2qviV\",\"url\":\"https://garagesalefinder.com/s/NI5AL/775-m-st-davis-ca-95616\",\"uniqueKey\":\"https://garagesalefinder.com/s/NI5AL/775-m-st-davis-ca-95616\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776287261919,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NI5AL/775-m-st-davis-ca-95616",
+	"url": "https://garagesalefinder.com/s/NI5AL/775-m-st-davis-ca-95616"
+}

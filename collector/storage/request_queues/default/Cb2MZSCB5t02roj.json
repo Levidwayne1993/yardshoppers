@@ -1,0 +1,9 @@
+{
+	"id": "Cb2MZSCB5t02roj",
+	"json": "{\"id\":\"Cb2MZSCB5t02roj\",\"url\":\"https://www.reddit.com/r/California/comments/1sm9tr9/gavin_newsom_faces_growing_pressure_to_intervene/\",\"loadedUrl\":\"https://www.reddit.com/r/California/comments/1sm9tr9/gavin_newsom_faces_growing_pressure_to_intervene/\",\"uniqueKey\":\"https://www.reddit.com/r/California/comments/1sm9tr9/gavin_newsom_faces_growing_pressure_to_intervene\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Reddit California\",\"sourceCategory\":\"reddit\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-15T21:07:49.007Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.reddit.com/r/California/comments/1sm9tr9/gavin_newsom_faces_growing_pressure_to_intervene",
+	"url": "https://www.reddit.com/r/California/comments/1sm9tr9/gavin_newsom_faces_growing_pressure_to_intervene/"
+}

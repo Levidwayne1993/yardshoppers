@@ -1,0 +1,9 @@
+{
+	"id": "SCmf6zuUAEAesUZ",
+	"json": "{\"id\":\"SCmf6zuUAEAesUZ\",\"url\":\"https://www.reddit.com/r/California/\",\"loadedUrl\":\"https://www.reddit.com/r/California/\",\"uniqueKey\":\"https://www.reddit.com/r/California\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Reddit California\",\"sourceCategory\":\"reddit\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-15T21:07:24.894Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.reddit.com/r/California",
+	"url": "https://www.reddit.com/r/California/"
+}

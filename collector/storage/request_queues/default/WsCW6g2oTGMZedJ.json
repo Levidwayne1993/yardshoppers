@@ -1,0 +1,9 @@
+{
+	"id": "WsCW6g2oTGMZedJ",
+	"json": "{\"id\":\"WsCW6g2oTGMZedJ\",\"url\":\"https://garagesalefinder.com/s/NIhjT/1416-walden-dr-folsom-ca-95630\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhjT/1416-walden-dr-folsom-ca-95630\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776287262016,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIhjT/1416-walden-dr-folsom-ca-95630",
+	"url": "https://garagesalefinder.com/s/NIhjT/1416-walden-dr-folsom-ca-95630"
+}

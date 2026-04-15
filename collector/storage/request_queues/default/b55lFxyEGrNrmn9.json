@@ -1,0 +1,9 @@
+{
+	"id": "b55lFxyEGrNrmn9",
+	"json": "{\"id\":\"b55lFxyEGrNrmn9\",\"url\":\"https://www.reddit.com/r/unitedstatesofamerica/search?q=flair%3A%27california&sort=top&restrict_sr=on\",\"loadedUrl\":\"https://www.reddit.com/r/unitedstatesofamerica/search/?q=flair%3A%27california&sort=top&restrict_sr=on\",\"uniqueKey\":\"https://www.reddit.com/r/unitedstatesofamerica/search?q=flair%3A%27california&restrict_sr=on&sort=top\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Reddit California\",\"sourceCategory\":\"reddit\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-15T21:07:50.541Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.reddit.com/r/unitedstatesofamerica/search?q=flair%3A%27california&restrict_sr=on&sort=top",
+	"url": "https://www.reddit.com/r/unitedstatesofamerica/search?q=flair%3A%27california&sort=top&restrict_sr=on"
+}

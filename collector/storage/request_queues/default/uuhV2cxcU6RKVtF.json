@@ -1,0 +1,9 @@
+{
+	"id": "uuhV2cxcU6RKVtF",
+	"json": "{\"id\":\"uuhV2cxcU6RKVtF\",\"url\":\"https://garagesalefinder.com/s/NIG60/2741-black-hawk-ln-lincoln-ca-95648\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIG60/2741-black-hawk-ln-lincoln-ca-95648\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776287262061,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIG60/2741-black-hawk-ln-lincoln-ca-95648",
+	"url": "https://garagesalefinder.com/s/NIG60/2741-black-hawk-ln-lincoln-ca-95648"
+}

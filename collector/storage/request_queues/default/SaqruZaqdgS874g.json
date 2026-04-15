@@ -1,0 +1,9 @@
+{
+	"id": "SaqruZaqdgS874g",
+	"json": "{\"id\":\"SaqruZaqdgS874g\",\"url\":\"https://garagesalefinder.com/s/NIUSz/elk-grove-ca-95758\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIUSz/elk-grove-ca-95758\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776287261907,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIUSz/elk-grove-ca-95758",
+	"url": "https://garagesalefinder.com/s/NIUSz/elk-grove-ca-95758"
+}

@@ -1,0 +1,86 @@
+{
+  "requestsFinished": 51,
+  "requestsFailed": 2,
+  "requestsRetries": 14,
+  "requestsFailedPerMinute": 0,
+  "requestsFinishedPerMinute": 5,
+  "requestMinDurationMillis": 1226,
+  "requestMaxDurationMillis": 18045,
+  "requestTotalFailedDurationMillis": 20698,
+  "requestTotalFinishedDurationMillis": 366655,
+  "crawlerStartedAt": "2026-04-15T21:07:13.951Z",
+  "crawlerFinishedAt": "2026-04-15T21:18:07.363Z",
+  "statsPersistedAt": "2026-04-15T21:18:07.363Z",
+  "crawlerRuntimeMillis": 653613,
+  "crawlerLastStartTimestamp": 1776287233750,
+  "requestRetryHistogram": [
+    39,
+    9,
+    2,
+    3
+  ],
+  "statsId": 0,
+  "requestAvgFailedDurationMillis": 10349,
+  "requestAvgFinishedDurationMillis": 7189,
+  "requestTotalDurationMillis": 387353,
+  "requestsTotal": 53,
+  "requestsWithStatusCode": {
+    "200": 48,
+    "404": 3
+  },
+  "errors": {
+    "C:\\yardshoppers\\collector\\node_modules\\@crawlee\\src\\internals\\utils\\playwright-utils.ts:240:17": {
+      "missing error code": {
+        "Error": {
+          "page.goto: net::ERR_CONNECTION_CLOSED at https://www.garagesalehunter.com/garage-sales/sacramento-ca/": {
+            "count": 1
+          }
+        }
+      }
+    },
+    "C:\\yardshoppers\\collector\\node_modules\\@crawlee\\src\\crawlers\\crawler_utils.ts:13:11": {
+      "missing error code": {
+        "Error": {
+          "Navigation timed out after 20 seconds.": {
+            "count": 1
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "C:\\yardshoppers\\collector\\node_modules\\@crawlee\\src\\internals\\utils\\playwright-utils.ts:240:17": {
+      "missing error code": {
+        "Error": {
+          "page.goto: net::ERR_CONNECTION_CLOSED at _": {
+            "count": 4
+          },
+          "page.goto: Download is starting": {
+            "count": 6
+          },
+          "page.goto: Target page, context or browser has been closed": {
+            "count": 1
+          }
+        }
+      }
+    },
+    "C:\\yardshoppers\\collector\\node_modules\\@crawlee\\src\\crawlers\\crawler_utils.ts:13:11": {
+      "missing error code": {
+        "Error": {
+          "Navigation timed out after 20 seconds.": {
+            "count": 31
+          }
+        }
+      }
+    },
+    "C:\\yardshoppers\\collector\\node_modules\\@crawlee\\src\\browser-pool.ts:595:19": {
+      "missing error code": {
+        "Error": {
+          "browserController.newPage() failed: 8Hbdqzp2BXZFehu-ggLZr": {
+            "count": 1
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+	"id": "CbtdKIdL3lK05Gz",
+	"json": "{\"id\":\"CbtdKIdL3lK05Gz\",\"url\":\"https://www.yardsalesearch.com/garage-sales.html?a=MINE\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales.html?a=MINE\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales.html?a=MINE\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-15T21:09:26.103Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales.html?a=MINE",
+	"url": "https://www.yardsalesearch.com/garage-sales.html?a=MINE"
+}

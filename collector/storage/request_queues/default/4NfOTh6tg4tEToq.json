@@ -1,0 +1,9 @@
+{
+	"id": "4NfOTh6tg4tEToq",
+	"json": "{\"id\":\"4NfOTh6tg4tEToq\",\"url\":\"https://garagesalefinder.com/s/NISVF/4838-robertson-ave-carmichael-ca-95608/gallery\",\"uniqueKey\":\"https://garagesalefinder.com/s/NISVF/4838-robertson-ave-carmichael-ca-95608/gallery\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776287261848,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NISVF/4838-robertson-ave-carmichael-ca-95608/gallery",
+	"url": "https://garagesalefinder.com/s/NISVF/4838-robertson-ave-carmichael-ca-95608/gallery"
+}
