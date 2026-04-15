@@ -35,7 +35,16 @@ function extractTag(html: string, tag: string): string | null {
 function extractCdataContent(text: string): string {
   const cdataOpen = "<!" + "[CDATA[";
   const cdataClose = "]" + "]>";
-  return text.replace(new RegExp(cdataOpen.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), "").replace(new RegExp(cdataClose.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), "").trim();
+  return text
+    .replace(
+      new RegExp(cdataOpen.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+      ""
+    )
+    .replace(
+      new RegExp(cdataClose.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+      ""
+    )
+    .trim();
 }
 
 function guessCategory(
@@ -49,7 +58,8 @@ function guessCategory(
   if (/moving\s*sale/i.test(text)) return "Moving Sale";
   if (/multi[-\s]?family/i.test(text)) return "Multi-Family Sale";
   if (/church|charity|fundraiser/i.test(text)) return "Church / Charity Sale";
-  if (/antique|vintage|collectible/i.test(text)) return "Antiques & Collectibles";
+  if (/antique|vintage|collectible/i.test(text))
+    return "Antiques & Collectibles";
   if (/tool|hardware|workshop/i.test(text)) return "Tools & Hardware";
   if (/furniture|couch|sofa|table|chair/i.test(text)) return "Furniture";
   if (/baby|kid|children|toy/i.test(text)) return "Baby & Kids";
@@ -307,18 +317,333 @@ export async function collectEstateSales(): Promise<CollectorResult> {
 }
 
 // ──────────────────────────────────────────────
-// GSALR COLLECTOR
+// NEXTDOOR COLLECTOR (replaces dead GSALR)
 // ──────────────────────────────────────────────
-// GSALR.com blocks all automated access.
-// This returns empty until a replacement source
-// (e.g. GarageSaleFinder.com) is implemented.
 
-export async function collectGsalr(): Promise<CollectorResult> {
-  return {
-    source: "gsalr",
-    sales: [],
-    errors: ["GSALR: Source currently unavailable (blocked by site)"],
+// Nextdoor Search API types
+interface NextdoorFSFItem {
+  id: number;
+  title: string;
+  body: string;
+  price: string;
+  currency: string;
+  photo_urls: string[];
+  url: string;
+  neighborhood_name: string;
+  city: string;
+  state: string;
+  lat: number;
+  lon: number;
+  creation_date_epoch_seconds: number;
+  category: string;
+}
+
+interface NextdoorPost {
+  id: number;
+  title: string;
+  body: string;
+  latitude: number;
+  longitude: number;
+  url: string;
+  media: string[];
+  creation_date_epoch_seconds: number;
+  category: string;
+  comment_count: number;
+  author: {
+    name: string;
+    neighborhood_name: string;
   };
+}
+
+interface NextdoorEvent {
+  id: number;
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  photo_url: string;
+  url: string;
+  city: string;
+  state: string;
+  lat: number;
+  lon: number;
+  creation_date_epoch_seconds: number;
+  venue_name: string;
+  address: string;
+}
+
+const NEXTDOOR_BASE = "https://nextdoor.com/content_api/v2";
+const NEXTDOOR_RADIUS_MILES = 25;
+
+const YARD_SALE_KEYWORDS = [
+  "yard sale",
+  "garage sale",
+  "estate sale",
+  "moving sale",
+  "tag sale",
+  "rummage sale",
+  "community sale",
+  "multi family sale",
+  "neighborhood sale",
+];
+
+// Cities used for Nextdoor geo-searches (same coverage as Craigslist)
+const NEXTDOOR_CITIES = [
+  { name: "Olympia", lat: 47.0379, lng: -122.9007 },
+  { name: "Seattle", lat: 47.6062, lng: -122.3321 },
+  { name: "Tacoma", lat: 47.2529, lng: -122.4443 },
+  { name: "Portland", lat: 45.5152, lng: -122.6784 },
+  { name: "San Francisco", lat: 37.7749, lng: -122.4194 },
+  { name: "Los Angeles", lat: 34.0522, lng: -118.2437 },
+  { name: "San Diego", lat: 32.7157, lng: -117.1611 },
+  { name: "Chicago", lat: 41.8781, lng: -87.6298 },
+  { name: "New York", lat: 40.7128, lng: -74.006 },
+  { name: "Boston", lat: 42.3601, lng: -71.0589 },
+  { name: "Denver", lat: 39.7392, lng: -104.9903 },
+  { name: "Austin", lat: 30.2672, lng: -97.7431 },
+  { name: "Dallas", lat: 32.7767, lng: -96.797 },
+  { name: "Houston", lat: 29.7604, lng: -95.3698 },
+  { name: "Atlanta", lat: 33.749, lng: -84.388 },
+  { name: "Miami", lat: 25.7617, lng: -80.1918 },
+  { name: "Tampa", lat: 27.9506, lng: -82.4572 },
+  { name: "Orlando", lat: 28.5383, lng: -81.3792 },
+  { name: "Phoenix", lat: 33.4484, lng: -112.074 },
+  { name: "Philadelphia", lat: 39.9526, lng: -75.1652 },
+  { name: "Detroit", lat: 42.3314, lng: -83.0458 },
+  { name: "Minneapolis", lat: 44.9778, lng: -93.265 },
+];
+
+function isYardSaleRelated(text: string): boolean {
+  const lower = (text || "").toLowerCase();
+  return YARD_SALE_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+async function nextdoorFetch<T>(
+  endpoint: string,
+  params: Record<string, string | number>
+): Promise<T[]> {
+  const token = process.env.NEXTDOOR_API_TOKEN;
+  if (!token) throw new Error("NEXTDOOR_API_TOKEN not set");
+
+  const url = new URL(`${NEXTDOOR_BASE}/${endpoint}`);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, String(value));
+  });
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...BROWSER_HEADERS,
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Nextdoor ${endpoint}: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  if (Array.isArray(data)) return data as T[];
+  if (data?.results && Array.isArray(data.results))
+    return data.results as T[];
+  if (data?.items && Array.isArray(data.items)) return data.items as T[];
+  return [];
+}
+
+function fsfItemToListing(item: NextdoorFSFItem): RawExternalListing {
+  const createdAt = new Date(item.creation_date_epoch_seconds * 1000);
+  return {
+    source: "nextdoor",
+    source_id: `nextdoor-fsf-${item.id}`,
+    source_url:
+      item.url ||
+      `https://nextdoor.com/for_sale_and_free/item/${item.id}`,
+    title: item.title || "Untitled Listing",
+    description: item.body || "",
+    city: item.city || "",
+    state: item.state || "",
+    latitude: item.lat || undefined,
+    longitude: item.lon || undefined,
+    price: item.price
+      ? parseFloat(item.price.replace(/[^0-9.]/g, "")) || undefined
+      : undefined,
+    sale_date: createdAt.toISOString().split("T")[0],
+    photo_urls: item.photo_urls || [],
+    category: item.category
+      ? guessCategory(item.category + " " + item.title)
+      : guessCategory(item.title),
+    categories: item.category ? [item.category] : [],
+    collected_at: new Date().toISOString(),
+    expires_at: new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000
+    ).toISOString(),
+    raw_data: item,
+  };
+}
+
+function postToListing(post: NextdoorPost): RawExternalListing {
+  const createdAt = new Date(post.creation_date_epoch_seconds * 1000);
+  return {
+    source: "nextdoor",
+    source_id: `nextdoor-post-${post.id}`,
+    source_url: post.url || `https://nextdoor.com/p/${post.id}`,
+    title: post.title || "Untitled Post",
+    description: post.body || "",
+    city: "",
+    state: "",
+    latitude: post.latitude || undefined,
+    longitude: post.longitude || undefined,
+    sale_date: createdAt.toISOString().split("T")[0],
+    photo_urls: post.media || [],
+    category: guessCategory(post.title + " " + post.body),
+    categories: post.category ? [post.category] : [],
+    collected_at: new Date().toISOString(),
+    expires_at: new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000
+    ).toISOString(),
+    raw_data: post,
+  };
+}
+
+function eventToListing(event: NextdoorEvent): RawExternalListing {
+  return {
+    source: "nextdoor",
+    source_id: `nextdoor-event-${event.id}`,
+    source_url:
+      event.url || `https://nextdoor.com/events/${event.id}`,
+    title: event.title || "Untitled Event",
+    description: event.description || "",
+    city: event.city || "",
+    state: event.state || "",
+    latitude: event.lat || undefined,
+    longitude: event.lon || undefined,
+    address: event.address || event.venue_name || "",
+    sale_date:
+      event.start_date ||
+      new Date(event.creation_date_epoch_seconds * 1000)
+        .toISOString()
+        .split("T")[0],
+    sale_time_start: event.start_date || undefined,
+    sale_time_end: event.end_date || undefined,
+    photo_urls: event.photo_url ? [event.photo_url] : [],
+    category: guessCategory(
+      event.title + " " + (event.description || "")
+    ),
+    categories: [],
+    collected_at: new Date().toISOString(),
+    expires_at:
+      event.end_date ||
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    raw_data: event,
+  };
+}
+
+export async function collectNextdoor(): Promise<CollectorResult> {
+  const sales: RawExternalListing[] = [];
+  const errors: string[] = [];
+
+  if (!process.env.NEXTDOOR_API_TOKEN) {
+    return {
+      source: "nextdoor",
+      sales: [],
+      errors: [
+        "NEXTDOOR_API_TOKEN is not set — skipping Nextdoor collection",
+      ],
+    };
+  }
+
+  for (const city of NEXTDOOR_CITIES) {
+    try {
+      await randomDelay(500, 1500);
+
+      // 1. FSF (For Sale & Free) marketplace listings
+      try {
+        const fsfItems = await nextdoorFetch<NextdoorFSFItem>(
+          "search_sale_item",
+          {
+            lat: city.lat,
+            lon: city.lng,
+            radius: NEXTDOOR_RADIUS_MILES,
+          }
+        );
+        const yardSaleFSF = fsfItems.filter((item) =>
+          isYardSaleRelated(
+            item.title + " " + item.body + " " + (item.category || "")
+          )
+        );
+        for (const item of yardSaleFSF) sales.push(fsfItemToListing(item));
+        console.log(
+          `[Nextdoor FSF] ${city.name}: ${yardSaleFSF.length}/${fsfItems.length} yard-sale items`
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`Nextdoor FSF ${city.name}: ${msg}`);
+      }
+
+      await randomDelay(300, 800);
+
+      // 2. Posts with yard sale keywords
+      for (const keyword of ["yard sale", "garage sale", "estate sale"]) {
+        try {
+          const posts = await nextdoorFetch<NextdoorPost>("search_post", {
+            lat: city.lat,
+            lon: city.lng,
+            radius: NEXTDOOR_RADIUS_MILES,
+            query: keyword,
+          });
+          for (const post of posts) sales.push(postToListing(post));
+          console.log(
+            `[Nextdoor Posts] ${city.name} "${keyword}": ${posts.length} posts`
+          );
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push(`Nextdoor Posts ${city.name} "${keyword}": ${msg}`);
+        }
+        await randomDelay(200, 600);
+      }
+
+      // 3. Events (yard sale / community sale events)
+      try {
+        const events = await nextdoorFetch<NextdoorEvent>("search_event", {
+          lat: city.lat,
+          lon: city.lng,
+          radius: NEXTDOOR_RADIUS_MILES,
+        });
+        const yardSaleEvents = events.filter((event) =>
+          isYardSaleRelated(
+            event.title + " " + (event.description || "")
+          )
+        );
+        for (const event of yardSaleEvents)
+          sales.push(eventToListing(event));
+        console.log(
+          `[Nextdoor Events] ${city.name}: ${yardSaleEvents.length}/${events.length} yard-sale events`
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`Nextdoor Events ${city.name}: ${msg}`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`Nextdoor ${city.name} general: ${msg}`);
+    }
+  }
+
+  // Deduplicate within this collector (overlapping city radii)
+  const seen = new Set<string>();
+  const uniqueSales = sales.filter((sale) => {
+    if (seen.has(sale.source_id)) return false;
+    seen.add(sale.source_id);
+    return true;
+  });
+
+  console.log(
+    `[Nextdoor] Total unique listings: ${uniqueSales.length} (${errors.length} errors)`
+  );
+  return { source: "nextdoor", sales: uniqueSales, errors };
 }
 
 // ──────────────────────────────────────────────
@@ -333,7 +658,7 @@ export async function collectAllSources(): Promise<{
   const settled = await Promise.allSettled([
     collectCraigslist(),
     collectEstateSales(),
-    collectGsalr(),
+    collectNextdoor(),
   ]);
 
   const results: CollectorResult[] = [];
