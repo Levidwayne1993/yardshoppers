@@ -13,8 +13,10 @@ function loadEnv() {
       if (eqIndex === -1) continue;
       const key = trimmed.slice(0, eqIndex).trim();
       let value = trimmed.slice(eqIndex + 1).trim();
-      if ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))) {
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
         value = value.slice(1, -1);
       }
       vars[key] = value;
@@ -32,7 +34,9 @@ const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error("ERROR: Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
+  console.error(
+    "ERROR: Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local"
+  );
   process.exit(1);
 }
 
@@ -68,28 +72,19 @@ function randomDelay(min = 1500, max = 3000) {
 }
 
 function extractTag(xml, tag) {
-  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i");
+  const regex = new RegExp("<" + tag + "[^>]*>([\\s\\S]*?)<\\/" + tag + ">", "i");
   const match = xml.match(regex);
   return match ? match[1].trim() : "";
 }
 
 function extractCdataContent(text) {
-  const cdataMatch = text.match(/<!
-
-\[CDATA
-
-\[([\s\S]*?)\]
-
-\]
-
->/);
-  return cdataMatch
-    ? cdataMatch[1].trim()
-    : text.replace(/<[^>]*>/g, "").trim();
+  const cdataRegex = new RegExp("<!" + "\\[CDATA\\[([\\s\\S]*?)\\]\\]>", "");
+  const cdataMatch = text.match(cdataRegex);
+  return cdataMatch ? cdataMatch[1].trim() : text.replace(/<[^>]*>/g, "").trim();
 }
 
 function guessCategory(title, description) {
-  const text = `${title} ${description}`.toLowerCase();
+  const text = (title + " " + description).toLowerCase();
   if (/furniture|couch|sofa|table|chair|desk|dresser|bed|mattress/.test(text))
     return "Furniture";
   if (/electronics?|tv|computer|laptop|phone|tablet|gaming/.test(text))
@@ -126,9 +121,10 @@ async function collectCraigslist() {
   for (const region of CRAIGSLIST_REGIONS) {
     try {
       await randomDelay(1500, 3000);
-      console.log(`  Fetching Craigslist ${region.id}...`);
+      console.log("  Fetching Craigslist " + region.id + "...");
 
-      const url = `https://${region.id}.craigslist.org/search/gms?format=rss`;
+      const url =
+        "https://" + region.id + ".craigslist.org/search/gms?format=rss";
       const response = await fetch(url, {
         headers: {
           ...BROWSER_HEADERS,
@@ -138,7 +134,7 @@ async function collectCraigslist() {
       });
 
       if (!response.ok) {
-        errors.push(`Craigslist ${region.id}: HTTP ${response.status}`);
+        errors.push("Craigslist " + region.id + ": HTTP " + response.status);
         continue;
       }
 
@@ -151,20 +147,32 @@ async function collectCraigslist() {
           const item = itemMatch[1];
           const title = extractCdataContent(extractTag(item, "title"));
           const link = extractTag(item, "link");
-          const description = extractCdataContent(extractTag(item, "description"));
-          const dateStr = extractTag(item, "dc:date") || extractTag(item, "pubDate");
+          const description = extractCdataContent(
+            extractTag(item, "description")
+          );
+          const dateStr =
+            extractTag(item, "dc:date") || extractTag(item, "pubDate");
 
-          const encMatch = item.match(/enc:enclosure[^>]*resource="([^"]+)"/i);
+          const encMatch = item.match(
+            /enc:enclosure[^>]*resource="([^"]+)"/i
+          );
           const imageUrl = encMatch ? encMatch[1] : undefined;
 
           const idMatch = link.match(/\/(\d+)\.html/);
           const sourceId = idMatch
-            ? `cl-${region.id}-${idMatch[1]}`
-            : `cl-${region.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            ? "cl-" + region.id + "-" + idMatch[1]
+            : "cl-" +
+              region.id +
+              "-" +
+              Date.now() +
+              "-" +
+              Math.random().toString(36).slice(2, 8);
 
           let saleDate;
           if (dateStr) {
-            try { saleDate = new Date(dateStr).toISOString().split("T")[0]; } catch {}
+            try {
+              saleDate = new Date(dateStr).toISOString().split("T")[0];
+            } catch {}
           }
 
           const category = guessCategory(title, description);
@@ -181,14 +189,20 @@ async function collectCraigslist() {
             categories: [category, "Garage Sales"],
             photo_urls: imageUrl ? [imageUrl] : [],
             sale_date: saleDate || null,
-            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            expires_at: new Date(
+              Date.now() + 14 * 24 * 60 * 60 * 1000
+            ).toISOString(),
           });
         } catch {}
       }
 
-      console.log(`  Craigslist ${region.id}: found ${sales.length} items so far`);
+      console.log(
+        "  Craigslist " + region.id + ": found " + sales.length + " items so far"
+      );
     } catch (err) {
-      errors.push(`Craigslist ${region.id}: ${err.message || String(err)}`);
+      errors.push(
+        "Craigslist " + region.id + ": " + (err.message || String(err))
+      );
     }
   }
 
@@ -212,22 +226,31 @@ async function collectEstateSales() {
   for (const loc of ESTATE_LOCATIONS) {
     try {
       await randomDelay(1500, 3000);
-      console.log(`  Fetching EstateSales.net ${loc.city}...`);
+      console.log("  Fetching EstateSales.net " + loc.city + "...");
 
-      const url = `https://www.estatesales.net/find-estate-sales/${loc.state}/${loc.city}/${loc.zip}`;
+      const url =
+        "https://www.estatesales.net/find-estate-sales/" +
+        loc.state +
+        "/" +
+        loc.city +
+        "/" +
+        loc.zip;
       const response = await fetch(url, {
         headers: BROWSER_HEADERS,
         signal: AbortSignal.timeout(15000),
       });
 
       if (!response.ok) {
-        errors.push(`EstateSales.net ${loc.city}: HTTP ${response.status}`);
+        errors.push(
+          "EstateSales.net " + loc.city + ": HTTP " + response.status
+        );
         continue;
       }
 
       const html = await response.text();
 
-      const jsonLdRegex = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
+      const jsonLdRegex =
+        /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
       let jsonLdMatch;
       let foundJsonLd = false;
 
@@ -237,9 +260,21 @@ async function collectEstateSales() {
           const events = Array.isArray(data) ? data : [data];
 
           for (const event of events) {
-            if (event["@type"] === "Event" || event["@type"] === "Sale" || event["@type"] === "SaleEvent") {
+            if (
+              event["@type"] === "Event" ||
+              event["@type"] === "Sale" ||
+              event["@type"] === "SaleEvent"
+            ) {
               foundJsonLd = true;
-              const sourceId = `es-${loc.zip}-${(event.name || "").replace(/[^a-zA-Z0-9]/g, "-").slice(0, 30)}-${Math.random().toString(36).slice(2, 8)}`;
+              const sourceId =
+                "es-" +
+                loc.zip +
+                "-" +
+                (event.name || "")
+                  .replace(/[^a-zA-Z0-9]/g, "-")
+                  .slice(0, 30) +
+                "-" +
+                Math.random().toString(36).slice(2, 8);
 
               sales.push({
                 source: "estatesales",
@@ -254,9 +289,15 @@ async function collectEstateSales() {
                 address: event.location?.address?.streetAddress || null,
                 category: "Estate Sales",
                 categories: ["Estate Sales"],
-                photo_urls: event.image ? [].concat(event.image).slice(0, 5) : [],
+                photo_urls: event.image
+                  ? [].concat(event.image).slice(0, 5)
+                  : [],
                 sale_date: event.startDate?.split("T")[0] || null,
-                expires_at: event.endDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+                expires_at:
+                  event.endDate ||
+                  new Date(
+                    Date.now() + 14 * 24 * 60 * 60 * 1000
+                  ).toISOString(),
               });
             }
           }
@@ -264,7 +305,8 @@ async function collectEstateSales() {
       }
 
       if (!foundJsonLd) {
-        const linkRegex = /href="(\/estate-sales\/\d+[^"]*)"[^>]*>[\s\S]*?([A-Z][^<]{5,80})/gi;
+        const linkRegex =
+          /href="(\/estate-sales\/\d+[^"]*)"[^>]*>[\s\S]*?([A-Z][^<]{5,80})/gi;
         let linkMatch;
 
         while ((linkMatch = linkRegex.exec(html)) !== null) {
@@ -272,12 +314,16 @@ async function collectEstateSales() {
           const title = linkMatch[2].trim();
           if (!title || title.length < 5) continue;
 
-          const sourceId = `es-${href.replace(/[^a-zA-Z0-9]/g, "-").slice(0, 60)}`;
+          const sourceId =
+            "es-" +
+            href
+              .replace(/[^a-zA-Z0-9]/g, "-")
+              .slice(0, 60);
 
           sales.push({
             source: "estatesales",
             source_id: sourceId,
-            source_url: `https://www.estatesales.net${href}`,
+            source_url: "https://www.estatesales.net" + href,
             title,
             city: loc.city,
             state: loc.state,
@@ -288,14 +334,24 @@ async function collectEstateSales() {
             categories: ["Estate Sales"],
             photo_urls: [],
             sale_date: null,
-            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            expires_at: new Date(
+              Date.now() + 14 * 24 * 60 * 60 * 1000
+            ).toISOString(),
           });
         }
       }
 
-      console.log(`  EstateSales.net ${loc.city}: found ${sales.length} items so far`);
+      console.log(
+        "  EstateSales.net " +
+          loc.city +
+          ": found " +
+          sales.length +
+          " items so far"
+      );
     } catch (err) {
-      errors.push(`EstateSales.net ${loc.city}: ${err.message || String(err)}`);
+      errors.push(
+        "EstateSales.net " + loc.city + ": " + (err.message || String(err))
+      );
     }
   }
 
@@ -319,21 +375,27 @@ async function collectGsalr() {
   for (const search of GSALR_SEARCHES) {
     try {
       await randomDelay(1500, 3000);
-      console.log(`  Fetching GSALR ${search.city}...`);
+      console.log("  Fetching GSALR " + search.city + "...");
 
-      const url = `https://gsalr.com/garage-sales/${search.city.toLowerCase()}-${search.state.toLowerCase()}/`;
+      const url =
+        "https://gsalr.com/garage-sales/" +
+        search.city.toLowerCase() +
+        "-" +
+        search.state.toLowerCase() +
+        "/";
       const response = await fetch(url, {
         headers: BROWSER_HEADERS,
         signal: AbortSignal.timeout(15000),
       });
 
       if (!response.ok) {
-        errors.push(`GSALR ${search.city}: HTTP ${response.status}`);
+        errors.push("GSALR " + search.city + ": HTTP " + response.status);
         continue;
       }
 
       const html = await response.text();
-      const linkRegex = /href="(\/sale\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+      const linkRegex =
+        /href="(\/sale\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
       let linkMatch;
 
       while ((linkMatch = linkRegex.exec(html)) !== null) {
@@ -343,23 +405,34 @@ async function collectGsalr() {
           const titleMatch = content.match(/<[^>]*>([^<]{5,100})<\//);
           const title = titleMatch
             ? titleMatch[1].trim()
-            : content.replace(/<[^>]*>/g, "").trim().slice(0, 100);
+            : content
+                .replace(/<[^>]*>/g, "")
+                .trim()
+                .slice(0, 100);
 
           if (!title || title.length < 3) continue;
 
-          const dateMatch = content.match(/(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})/);
+          const dateMatch = content.match(
+            /(\w+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})/
+          );
           let saleDate;
           if (dateMatch) {
-            try { saleDate = new Date(dateMatch[1]).toISOString().split("T")[0]; } catch {}
+            try {
+              saleDate = new Date(dateMatch[1]).toISOString().split("T")[0];
+            } catch {}
           }
 
-          const sourceId = `gsalr-${href.replace(/[^a-zA-Z0-9]/g, "-").slice(0, 60)}`;
+          const sourceId =
+            "gsalr-" +
+            href
+              .replace(/[^a-zA-Z0-9]/g, "-")
+              .slice(0, 60);
           const category = guessCategory(title, "");
 
           sales.push({
             source: "gsalr",
             source_id: sourceId,
-            source_url: `https://gsalr.com${href}`,
+            source_url: "https://gsalr.com" + href,
             title,
             city: search.city,
             state: search.state,
@@ -370,14 +443,20 @@ async function collectGsalr() {
             categories: [category, "Garage Sales"],
             photo_urls: [],
             sale_date: saleDate || null,
-            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            expires_at: new Date(
+              Date.now() + 14 * 24 * 60 * 60 * 1000
+            ).toISOString(),
           });
         } catch {}
       }
 
-      console.log(`  GSALR ${search.city}: found ${sales.length} items so far`);
+      console.log(
+        "  GSALR " + search.city + ": found " + sales.length + " items so far"
+      );
     } catch (err) {
-      errors.push(`GSALR ${search.city}: ${err.message || String(err)}`);
+      errors.push(
+        "GSALR " + search.city + ": " + (err.message || String(err))
+      );
     }
   }
 
@@ -451,7 +530,7 @@ const NEWSPAPER_SOURCES = [
 ];
 
 /**
- * Concurrency limiter — runs up to `poolLimit` async tasks at a time.
+ * Concurrency limiter - runs up to poolLimit async tasks at a time.
  * Returns Promise.allSettled-style results for every item.
  */
 async function asyncPool(poolLimit, items, iteratorFn) {
@@ -459,10 +538,14 @@ async function asyncPool(poolLimit, items, iteratorFn) {
   const executing = new Set();
 
   for (const item of items) {
-    const p = Promise.resolve().then(() => iteratorFn(item));
+    const p = Promise.resolve().then(function () {
+      return iteratorFn(item);
+    });
     results.push(p);
     executing.add(p);
-    const clean = () => executing.delete(p);
+    const clean = function () {
+      executing.delete(p);
+    };
     p.then(clean, clean);
 
     if (executing.size >= poolLimit) {
@@ -475,7 +558,7 @@ async function asyncPool(poolLimit, items, iteratorFn) {
 
 /**
  * Scrape a single newspaper classified page.
- * Uses 4 extraction strategies since each paper's site is structured differently:
+ * Uses 4 extraction strategies since each paper site is structured differently:
  *   1. JSON-LD structured data
  *   2. Classified URL patterns
  *   3. HTML card / article structures
@@ -494,58 +577,77 @@ async function scrapeNewspaperSource(source) {
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error("HTTP " + response.status);
   }
 
   const html = await response.text();
   const baseUrl = new URL(source.url).origin;
 
-  // ── Strategy 1: JSON-LD structured data ──
-  const jsonLdRegex = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi;
-  let jsonLdMatch;
-  while ((jsonLdMatch = jsonLdRegex.exec(html)) !== null) {
+  // -- Strategy 1: JSON-LD structured data --
+  var jsonLdPattern = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi;
+  var jsonLdMatch;
+  while ((jsonLdMatch = jsonLdPattern.exec(html)) !== null) {
     try {
-      const parsed = JSON.parse(jsonLdMatch[1]);
-      const items = Array.isArray(parsed) ? parsed : (parsed["@graph"] || [parsed]);
-      for (const item of items) {
-        const type = item["@type"] || "";
+      var parsed = JSON.parse(jsonLdMatch[1]);
+      var items = Array.isArray(parsed)
+        ? parsed
+        : parsed["@graph"] || [parsed];
+      for (var ii = 0; ii < items.length; ii++) {
+        var item = items[ii];
+        var type = item["@type"] || "";
         if (/Product|Offer|Event|Sale|ClassifiedAd|ListItem/i.test(type)) {
-          const title = item.name || item.headline || item.title || "";
-          const link = item.url || "";
+          var title = item.name || item.headline || item.title || "";
+          var link = item.url || "";
           if (!title || title.length < 3) continue;
 
           listings.push({
             title: title.slice(0, 200),
-            link: link.startsWith("http") ? link : `${baseUrl}${link}`,
+            link: link.startsWith("http") ? link : baseUrl + link,
             description: (item.description || "").slice(0, 500),
-            price: item.offers?.price || item.price || null,
-            image: typeof item.image === "string" ? item.image : (item.image?.url || null),
-            date: item.datePosted || item.datePublished || item.startDate || null,
+            price:
+              (item.offers && item.offers.price) || item.price || null,
+            image:
+              typeof item.image === "string"
+                ? item.image
+                : (item.image && item.image.url) || null,
+            date:
+              item.datePosted ||
+              item.datePublished ||
+              item.startDate ||
+              null,
           });
         }
       }
-    } catch {}
+    } catch (e) {}
   }
 
-  // ── Strategy 2: Classified listing link patterns ──
+  // -- Strategy 2: Classified listing link patterns --
   if (listings.length === 0) {
-    const classifiedLinkRegex =
+    var classifiedLinkRegex =
       /href="((?:\/classifieds?\/|\/listing\/|\/ad\/|\/sell\/|\/for-sale\/|\/garage-sale\/|\/yard-sale\/)[^"]{5,300})"[^>]*>\s*([^<]{5,200})\s*<\/a>/gi;
 
-    let match;
-    while ((match = classifiedLinkRegex.exec(html)) !== null) {
-      const href = match[1];
-      const title = match[2].replace(/<[^>]*>/g, "").trim();
+    var clMatch;
+    while ((clMatch = classifiedLinkRegex.exec(html)) !== null) {
+      var href = clMatch[1];
+      var anchorTitle = clMatch[2].replace(/<[^>]*>/g, "").trim();
 
       if (/\.(css|js|png|jpg|gif|svg|ico)(\?|$)/i.test(href)) continue;
-      if (/login|signup|sign-in|register|subscribe|account|privacy|terms|contact|about|faq/i.test(href)) continue;
-      if (!title || title.length < 4 || title.length > 200) continue;
+      if (
+        /login|signup|sign-in|register|subscribe|account|privacy|terms|contact|about|faq/i.test(
+          href
+        )
+      )
+        continue;
+      if (!anchorTitle || anchorTitle.length < 4 || anchorTitle.length > 200)
+        continue;
 
-      const fullUrl = href.startsWith("http") ? href : `${baseUrl}${href.startsWith("/") ? "" : "/"}${href}`;
-      if (listings.some((l) => l.link === fullUrl)) continue;
+      var fullUrl = href.startsWith("http")
+        ? href
+        : baseUrl + (href.startsWith("/") ? "" : "/") + href;
+      if (listings.some(function (l) { return l.link === fullUrl; })) continue;
 
       listings.push({
-        title: title.slice(0, 200),
+        title: anchorTitle.slice(0, 200),
         link: fullUrl,
         description: null,
         price: null,
@@ -555,30 +657,39 @@ async function scrapeNewspaperSource(source) {
     }
   }
 
-  // ── Strategy 3: Generic listing cards / article-like structures ──
+  // -- Strategy 3: Generic listing cards / article-like structures --
   if (listings.length === 0) {
-    const cardPatterns = [
+    var cardPatterns = [
       /<a[^>]*href="([^"]{10,300})"[^>]*>[\s\S]*?<h[2-4][^>]*>([^<]{5,200})<\/h[2-4]>/gi,
       /<a[^>]*href="([^"]{10,300})"[^>]*data-(?:listing|item|ad|result)[^>]*>[\s\S]*?([A-Z][^<]{5,150})/gi,
       /<article[^>]*>[\s\S]*?<a[^>]*href="([^"]{10,300})"[^>]*>([\s\S]*?)<\/a>/gi,
     ];
 
-    for (const pattern of cardPatterns) {
-      let match;
-      while ((match = pattern.exec(html)) !== null) {
-        const href = match[1];
-        let title = match[2].replace(/<[^>]*>/g, "").trim();
+    for (var pi = 0; pi < cardPatterns.length; pi++) {
+      var pattern = cardPatterns[pi];
+      var cardMatch;
+      while ((cardMatch = pattern.exec(html)) !== null) {
+        var cardHref = cardMatch[1];
+        var cardTitle = cardMatch[2].replace(/<[^>]*>/g, "").trim();
 
-        if (/\.(css|js|png|jpg|gif|svg|ico)(\?|$)/i.test(href)) continue;
-        if (/login|signup|register|subscribe|account|privacy|terms/i.test(href)) continue;
-        if (!title || title.length < 4 || title.length > 200) continue;
+        if (/\.(css|js|png|jpg|gif|svg|ico)(\?|$)/i.test(cardHref)) continue;
+        if (
+          /login|signup|register|subscribe|account|privacy|terms/i.test(
+            cardHref
+          )
+        )
+          continue;
+        if (!cardTitle || cardTitle.length < 4 || cardTitle.length > 200)
+          continue;
 
-        const fullUrl = href.startsWith("http") ? href : `${baseUrl}${href.startsWith("/") ? "" : "/"}${href}`;
-        if (listings.some((l) => l.link === fullUrl)) continue;
+        var cardFullUrl = cardHref.startsWith("http")
+          ? cardHref
+          : baseUrl + (cardHref.startsWith("/") ? "" : "/") + cardHref;
+        if (listings.some(function (l) { return l.link === cardFullUrl; })) continue;
 
         listings.push({
-          title: title.slice(0, 200),
-          link: fullUrl,
+          title: cardTitle.slice(0, 200),
+          link: cardFullUrl,
           description: null,
           price: null,
           image: null,
@@ -589,53 +700,63 @@ async function scrapeNewspaperSource(source) {
     }
   }
 
-  // ── Strategy 4: RSS / Atom feed discovery and parsing ──
+  // -- Strategy 4: RSS / Atom feed discovery and parsing --
   if (listings.length === 0) {
-    const rssLinkMatch = html.match(
+    var rssLinkMatch = html.match(
       /<link[^>]*type="application\/(?:rss|atom)\+xml"[^>]*href="([^"]+)"/i
     );
     if (rssLinkMatch) {
-      const feedUrl = rssLinkMatch[1].startsWith("http")
+      var feedUrl = rssLinkMatch[1].startsWith("http")
         ? rssLinkMatch[1]
-        : `${baseUrl}${rssLinkMatch[1]}`;
+        : baseUrl + rssLinkMatch[1];
 
       try {
-        const feedResp = await fetch(feedUrl, {
+        var feedResp = await fetch(feedUrl, {
           headers: {
             ...BROWSER_HEADERS,
-            Accept: "application/rss+xml, application/xml, text/xml, */*",
+            Accept:
+              "application/rss+xml, application/xml, text/xml, */*",
           },
           signal: AbortSignal.timeout(10000),
         });
 
         if (feedResp.ok) {
-          const feedXml = await feedResp.text();
-          const itemRegex = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/gi;
-          let feedMatch;
+          var feedXml = await feedResp.text();
+          var feedItemRegex =
+            /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/gi;
+          var feedMatch;
 
-          while ((feedMatch = itemRegex.exec(feedXml)) !== null) {
-            const itemXml = feedMatch[1];
-            const title = extractCdataContent(extractTag(itemXml, "title") || "");
-            const link = extractTag(itemXml, "link") || "";
-            const desc = extractCdataContent(
-              extractTag(itemXml, "description") || extractTag(itemXml, "summary") || ""
+          while ((feedMatch = feedItemRegex.exec(feedXml)) !== null) {
+            var itemXml = feedMatch[1];
+            var feedTitle = extractCdataContent(
+              extractTag(itemXml, "title") || ""
             );
-            const pubDate =
-              extractTag(itemXml, "pubDate") || extractTag(itemXml, "published") || "";
+            var feedLink = extractTag(itemXml, "link") || "";
+            var feedDesc = extractCdataContent(
+              extractTag(itemXml, "description") ||
+                extractTag(itemXml, "summary") ||
+                ""
+            );
+            var pubDate =
+              extractTag(itemXml, "pubDate") ||
+              extractTag(itemXml, "published") ||
+              "";
 
-            if (!title || title.length < 3) continue;
+            if (!feedTitle || feedTitle.length < 3) continue;
 
             listings.push({
-              title: title.slice(0, 200),
-              link: link.startsWith("http") ? link : `${baseUrl}${link}`,
-              description: desc.slice(0, 500) || null,
+              title: feedTitle.slice(0, 200),
+              link: feedLink.startsWith("http")
+                ? feedLink
+                : baseUrl + feedLink,
+              description: feedDesc.slice(0, 500) || null,
               price: null,
               image: null,
               date: pubDate || null,
             });
           }
         }
-      } catch {}
+      } catch (feedErr) {}
     }
   }
 
@@ -647,37 +768,44 @@ async function scrapeNewspaperSource(source) {
  * Runs up to 5 sources concurrently with random delays between requests.
  */
 async function collectNewspaperClassifieds() {
-  const sales = [];
-  const errors = [];
+  var sales = [];
+  var errors = [];
 
-  console.log(`  Fetching Newspaper Classifieds (${NEWSPAPER_SOURCES.length} sources)...`);
+  console.log(
+    "  Fetching Newspaper Classifieds (" +
+      NEWSPAPER_SOURCES.length +
+      " sources)..."
+  );
 
-  const results = await asyncPool(5, NEWSPAPER_SOURCES, async (source) => {
+  var results = await asyncPool(5, NEWSPAPER_SOURCES, async function (source) {
     try {
       await randomDelay(2000, 5000);
-      console.log(`    Scraping ${source.name}...`);
+      console.log("    Scraping " + source.name + "...");
 
-      const listings = await scrapeNewspaperSource(source);
+      var listings = await scrapeNewspaperSource(source);
 
-      const sourceSales = listings.slice(0, 50).map((listing, idx) => {
-        const slugName = source.name
+      var sourceSales = listings.slice(0, 50).map(function (listing, idx) {
+        var slugName = source.name
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .slice(0, 20);
-        const slugTitle = (listing.title || "")
+        var slugTitle = (listing.title || "")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .slice(0, 30);
-        const sourceId = `news-${slugName}-${slugTitle}-${idx}`;
+        var sourceId = "news-" + slugName + "-" + slugTitle + "-" + idx;
 
-        let saleDate = null;
+        var saleDate = null;
         if (listing.date) {
           try {
             saleDate = new Date(listing.date).toISOString().split("T")[0];
-          } catch {}
+          } catch (e) {}
         }
 
-        const category = guessCategory(listing.title || "", listing.description || "");
+        var category = guessCategory(
+          listing.title || "",
+          listing.description || ""
+        );
 
         return {
           source: "newspaper",
@@ -690,35 +818,51 @@ async function collectNewspaperClassifieds() {
           latitude: null,
           longitude: null,
           address: null,
-          category,
+          category: category,
           categories: [category, "Classifieds"],
           photo_urls: listing.image ? [listing.image] : [],
           sale_date: saleDate,
           price: listing.price || null,
-          expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          expires_at: new Date(
+            Date.now() + 14 * 24 * 60 * 60 * 1000
+          ).toISOString(),
         };
       });
 
-      console.log(`    ${source.name}: found ${sourceSales.length} listings`);
+      console.log(
+        "    " + source.name + ": found " + sourceSales.length + " listings"
+      );
       return { source: source.name, sales: sourceSales, error: null };
     } catch (err) {
-      const msg = err.message || String(err);
-      console.log(`    ${source.name}: ERROR - ${msg}`);
-      return { source: source.name, sales: [], error: `${source.name}: ${msg}` };
+      var msg = err.message || String(err);
+      console.log("    " + source.name + ": ERROR - " + msg);
+      return {
+        source: source.name,
+        sales: [],
+        error: source.name + ": " + msg,
+      };
     }
   });
 
-  for (const result of results) {
+  for (var ri = 0; ri < results.length; ri++) {
+    var result = results[ri];
     if (result.status === "fulfilled") {
-      sales.push(...result.value.sales);
+      sales.push.apply(sales, result.value.sales);
       if (result.value.error) errors.push(result.value.error);
     } else {
-      errors.push(`Newspaper collector: ${result.reason?.message || "Unknown error"}`);
+      errors.push(
+        "Newspaper collector: " +
+          ((result.reason && result.reason.message) || "Unknown error")
+      );
     }
   }
 
   console.log(
-    `  Newspaper Classifieds total: ${sales.length} listings from ${NEWSPAPER_SOURCES.length} sources`
+    "  Newspaper Classifieds total: " +
+      sales.length +
+      " listings from " +
+      NEWSPAPER_SOURCES.length +
+      " sources"
   );
   return { sales, errors };
 }
@@ -729,7 +873,7 @@ async function collectNewspaperClassifieds() {
 
 async function main() {
   console.log("==========================================");
-  console.log(`YardShoppers Collector - ${new Date().toLocaleString()}`);
+  console.log("YardShoppers Collector - " + new Date().toLocaleString());
   console.log("==========================================");
   console.log("");
 
@@ -737,7 +881,7 @@ async function main() {
   try {
     const { data } = await supabase.rpc("cleanup_expired_external_sales");
     cleaned = typeof data === "number" ? data : 0;
-    console.log(`Cleaned ${cleaned} expired listings`);
+    console.log("Cleaned " + cleaned + " expired listings");
   } catch {
     console.log("Cleanup skipped (function may not exist yet)");
   }
@@ -767,34 +911,36 @@ async function main() {
   ];
 
   console.log("");
-  console.log(`Total collected: ${allSales.length}`);
+  console.log("Total collected: " + allSales.length);
   console.log("");
 
   let inserted = 0;
   let skipped = 0;
 
   for (let i = 0; i < allSales.length; i += 50) {
-    const chunk = allSales.slice(i, i + 50).map((sale) => ({
-      source: sale.source,
-      source_id: sale.source_id,
-      source_url: sale.source_url,
-      title: sale.title,
-      description: sale.description || null,
-      city: sale.city || null,
-      state: sale.state || null,
-      latitude: sale.latitude || null,
-      longitude: sale.longitude || null,
-      price: sale.price || null,
-      sale_date: sale.sale_date || null,
-      sale_time_start: sale.sale_time_start || null,
-      sale_time_end: sale.sale_time_end || null,
-      category: sale.category || null,
-      categories: sale.categories || [],
-      photo_urls: sale.photo_urls || [],
-      address: sale.address || null,
-      expires_at: sale.expires_at || null,
-      collected_at: new Date().toISOString(),
-    }));
+    const chunk = allSales.slice(i, i + 50).map(function (sale) {
+      return {
+        source: sale.source,
+        source_id: sale.source_id,
+        source_url: sale.source_url,
+        title: sale.title,
+        description: sale.description || null,
+        city: sale.city || null,
+        state: sale.state || null,
+        latitude: sale.latitude || null,
+        longitude: sale.longitude || null,
+        price: sale.price || null,
+        sale_date: sale.sale_date || null,
+        sale_time_start: sale.sale_time_start || null,
+        sale_time_end: sale.sale_time_end || null,
+        category: sale.category || null,
+        categories: sale.categories || [],
+        photo_urls: sale.photo_urls || [],
+        address: sale.address || null,
+        expires_at: sale.expires_at || null,
+        collected_at: new Date().toISOString(),
+      };
+    });
 
     const { data, error } = await supabase
       .from("external_sales")
@@ -803,32 +949,32 @@ async function main() {
 
     if (error) {
       skipped += chunk.length;
-      allErrors.push(`DB insert error: ${error.message}`);
+      allErrors.push("DB insert error: " + error.message);
     } else {
-      inserted += data?.length || 0;
-      skipped += chunk.length - (data?.length || 0);
+      inserted += (data && data.length) || 0;
+      skipped += chunk.length - ((data && data.length) || 0);
     }
   }
 
   console.log("==========================================");
   console.log("RESULTS:");
-  console.log(`  Inserted: ${inserted}`);
-  console.log(`  Skipped:  ${skipped}`);
-  console.log(`  Cleaned:  ${cleaned}`);
-  console.log(`  Errors:   ${allErrors.length}`);
+  console.log("  Inserted: " + inserted);
+  console.log("  Skipped:  " + skipped);
+  console.log("  Cleaned:  " + cleaned);
+  console.log("  Errors:   " + allErrors.length);
 
   if (allErrors.length > 0) {
     console.log("");
     console.log("ERRORS:");
     for (const err of allErrors) {
-      console.log(`  - ${err}`);
+      console.log("  - " + err);
     }
   }
 
   console.log("==========================================");
 }
 
-main().catch((err) => {
+main().catch(function (err) {
   console.error("FATAL ERROR:", err);
   process.exit(1);
 });

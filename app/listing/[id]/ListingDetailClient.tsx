@@ -33,6 +33,8 @@ interface Listing {
   is_boosted?: boolean;
   profiles?: { display_name?: string } | null;
   listing_photos?: { id: string; photo_url: string }[];
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export default function ListingDetailClient({
@@ -52,6 +54,7 @@ export default function ListingDetailClient({
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [hostAvgRating, setHostAvgRating] = useState<number | null>(null);
   const [hostTotalRatings, setHostTotalRatings] = useState<number>(0);
+  const [isFromExternal, setIsFromExternal] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -60,15 +63,23 @@ export default function ListingDetailClient({
       } = await supabase.auth.getUser();
       setUser(u);
 
-      // Try with profiles join first
-      let { data, error } = await supabase
-        .from("listings")
-        .select("*, listing_photos(*), profiles(display_name)")
-        .eq("id", listingId)
-        .single();
+      let data: any = null;
+
+      // Try internal listings table first (with profiles join)
+      {
+        const { data: d, error } = await supabase
+          .from("listings")
+          .select("*, listing_photos(*), profiles(display_name)")
+          .eq("id", listingId)
+          .single();
+
+        if (!error && d) {
+          data = d;
+        }
+      }
 
       // If profiles join fails, retry without it
-      if (error || !data) {
+      if (!data) {
         const { data: fallback } = await supabase
           .from("listings")
           .select("*, listing_photos(*)")
@@ -79,19 +90,63 @@ export default function ListingDetailClient({
         }
       }
 
+      // If still not found, try external_sales table
+      if (!data) {
+        const { data: extData } = await supabase
+          .from("external_sales")
+          .select("*")
+          .eq("id", listingId)
+          .single();
+
+        if (extData) {
+          setIsFromExternal(true);
+          data = {
+            id: extData.id,
+            title: extData.title || "Classified Listing",
+            description: extData.description || "",
+            price: extData.price || "",
+            street_address: extData.address || "",
+            address: extData.address || "",
+            city: extData.city || "",
+            state: extData.state || "",
+            zip_code: "",
+            category: extData.category || "",
+            sale_date: extData.sale_date || "",
+            start_time: null,
+            end_time: null,
+            sale_time_start: extData.sale_time_start || null,
+            sale_time_end: extData.sale_time_end || null,
+            created_at: extData.collected_at || extData.created_at || "",
+            user_id: "",
+            is_boosted: false,
+            profiles: null,
+            listing_photos: (extData.photo_urls || []).map(
+              (url: string, i: number) => ({
+                id: `ext-photo-${i}`,
+                photo_url: url,
+              })
+            ),
+            latitude: extData.latitude ?? null,
+            longitude: extData.longitude ?? null,
+          };
+        }
+      }
+
       if (data) {
         setListing(data);
 
-        // Fetch host rating summary
-        const { data: ratingData } = await supabase
-          .from("host_ratings")
-          .select("avg_rating, total_ratings")
-          .eq("host_id", data.user_id)
-          .maybeSingle();
+        // Fetch host rating summary (only for internal listings with a user_id)
+        if (data.user_id) {
+          const { data: ratingData } = await supabase
+            .from("host_ratings")
+            .select("avg_rating, total_ratings")
+            .eq("host_id", data.user_id)
+            .maybeSingle();
 
-        if (ratingData) {
-          setHostAvgRating(ratingData.avg_rating);
-          setHostTotalRatings(ratingData.total_ratings);
+          if (ratingData) {
+            setHostAvgRating(ratingData.avg_rating);
+            setHostTotalRatings(ratingData.total_ratings);
+          }
         }
       }
 
@@ -169,10 +224,17 @@ export default function ListingDetailClient({
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-5">
-          <i className="fa-solid fa-ghost text-3xl text-gray-300" aria-hidden="true" />
+          <i
+            className="fa-solid fa-ghost text-3xl text-gray-300"
+            aria-hidden="true"
+          />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Listing Not Found</h1>
-        <p className="text-gray-500 mb-6">This listing may have been removed or doesn&apos;t exist.</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          Listing Not Found
+        </h1>
+        <p className="text-gray-500 mb-6">
+          This listing may have been removed or doesn&apos;t exist.
+        </p>
         <Link
           href="/browse"
           className="px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
@@ -185,13 +247,24 @@ export default function ListingDetailClient({
 
   const photos = listing.listing_photos || [];
   const displayAddress = listing.street_address || listing.address || "";
-// Prevent address from duplicating the city name
-const showAddress = displayAddress && displayAddress.toLowerCase().trim() !== listing.city?.toLowerCase().trim();
-const location = [showAddress ? displayAddress : "", listing.city, listing.state, listing.zip_code]
-  .filter(Boolean)
-  .join(", ");
+  // Prevent address from duplicating the city name
+  const showAddress =
+    displayAddress &&
+    displayAddress.toLowerCase().trim() !== listing.city?.toLowerCase().trim();
+  const location = [
+    showAddress ? displayAddress : "",
+    listing.city,
+    listing.state,
+    listing.zip_code,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+  // Build maps URL — prefer lat/lng if available, otherwise use text address
+  const mapsUrl =
+    listing.latitude && listing.longitude
+      ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 
   const saleDay = listing.sale_date
     ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString("en-US", {
@@ -220,17 +293,34 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
   const formattedStart = formatTime(rawStart);
   const formattedEnd = formatTime(rawEnd);
 
-  const isOwner = user && listing.user_id === user.id;
+  const isOwner = user && listing.user_id && listing.user_id === user.id;
 
   return (
-    <article className="max-w-6xl mx-auto px-4 sm:px-6 py-8" itemScope itemType="https://schema.org/Product">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-        <Link href="/" className="hover:text-ys-800 transition">Home</Link>
-        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" aria-hidden="true" />
-        <Link href="/browse" className="hover:text-ys-800 transition">Browse</Link>
+    <article
+      className="max-w-6xl mx-auto px-4 sm:px-6 py-8"
+      itemScope
+      itemType="https://schema.org/Product"
+    >
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-2 text-sm text-gray-500 mb-6"
+      >
+        <Link href="/" className="hover:text-ys-800 transition">
+          Home
+        </Link>
+        <i
+          className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+          aria-hidden="true"
+        />
+        <Link href="/browse" className="hover:text-ys-800 transition">
+          Browse
+        </Link>
         {listing.category && (
           <>
-            <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" aria-hidden="true" />
+            <i
+              className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+              aria-hidden="true"
+            />
             <Link
               href={`/browse?category=${encodeURIComponent(listing.category)}`}
               className="hover:text-ys-800 transition"
@@ -239,7 +329,10 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
             </Link>
           </>
         )}
-        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" aria-hidden="true" />
+        <i
+          className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+          aria-hidden="true"
+        />
         <span className="text-gray-900 font-medium truncate max-w-[200px]">
           {listing.title}
         </span>
@@ -260,13 +353,19 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full bg-ys-50">
-                <i className="fa-solid fa-camera text-5xl text-ys-300 mb-3" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-camera text-5xl text-ys-300 mb-3"
+                  aria-hidden="true"
+                />
                 <p className="text-sm text-ys-400">No photos available</p>
               </div>
             )}
 
             {photos.length > 1 && (
-              <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm" aria-live="polite">
+              <div
+                className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm"
+                aria-live="polite"
+              >
                 {activePhoto + 1} / {photos.length}
               </div>
             )}
@@ -275,29 +374,43 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
               <>
                 <button
                   onClick={() =>
-                    setActivePhoto((p) => (p === 0 ? photos.length - 1 : p - 1))
+                    setActivePhoto((p) =>
+                      p === 0 ? photos.length - 1 : p - 1
+                    )
                   }
                   aria-label="Previous photo"
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
-                  <i className="fa-solid fa-chevron-left text-sm text-gray-700" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-chevron-left text-sm text-gray-700"
+                    aria-hidden="true"
+                  />
                 </button>
                 <button
                   onClick={() =>
-                    setActivePhoto((p) => (p === photos.length - 1 ? 0 : p + 1))
+                    setActivePhoto((p) =>
+                      p === photos.length - 1 ? 0 : p + 1
+                    )
                   }
                   aria-label="Next photo"
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
-                  <i className="fa-solid fa-chevron-right text-sm text-gray-700" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-chevron-right text-sm text-gray-700"
+                    aria-hidden="true"
+                  />
                 </button>
               </>
             )}
           </div>
 
           {photos.length > 1 && (
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-1" role="tablist" aria-label="Listing photos">
-              {photos.map((photo, i) => (
+            <div
+              className="flex gap-2 mt-3 overflow-x-auto pb-1"
+              role="tablist"
+              aria-label="Listing photos"
+            >
+              {photos.map((photo: { id: string; photo_url: string }, i: number) => (
                 <button
                   key={photo.id}
                   onClick={() => setActivePhoto(i)}
@@ -324,14 +437,21 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
 
           {listing.description && (
             <section className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-3">About This Sale</h2>
-              <p className="text-gray-600 leading-relaxed whitespace-pre-line" itemProp="description">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">
+                About This Sale
+              </h2>
+              <p
+                className="text-gray-600 leading-relaxed whitespace-pre-line"
+                itemProp="description"
+              >
                 {listing.description}
               </p>
             </section>
           )}
 
-          <RatingSection listingId={listing.id} hostId={listing.user_id} />
+          {!isFromExternal && (
+            <RatingSection listingId={listing.id} hostId={listing.user_id} />
+          )}
           <CommentsSection listingId={listing.id} />
         </div>
 
@@ -348,7 +468,10 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
               )}
 
               <div className="flex items-start justify-between gap-3">
-                <h1 className="text-xl font-bold text-gray-900 leading-tight" itemProp="name">
+                <h1
+                  className="text-xl font-bold text-gray-900 leading-tight"
+                  itemProp="name"
+                >
                   {listing.title}
                 </h1>
                 <button
@@ -358,17 +481,30 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
                       ? "bg-red-50 border-red-200 text-red-500"
                       : "bg-gray-50 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"
                   }`}
-                  aria-label={saved ? "Unsave this listing" : "Save this listing"}
+                  aria-label={
+                    saved ? "Unsave this listing" : "Save this listing"
+                  }
                 >
-                  <i className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`} aria-hidden="true" />
+                  <i
+                    className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`}
+                    aria-hidden="true"
+                  />
                 </button>
               </div>
 
               {listing.price && (
-                <p className="text-2xl font-extrabold text-ys-800 mt-2" itemProp="offers" itemScope itemType="https://schema.org/Offer">
+                <p
+                  className="text-2xl font-extrabold text-ys-800 mt-2"
+                  itemProp="offers"
+                  itemScope
+                  itemType="https://schema.org/Offer"
+                >
                   <span itemProp="price">{listing.price}</span>
                   <meta itemProp="priceCurrency" content="USD" />
-                  <meta itemProp="availability" content="https://schema.org/InStock" />
+                  <meta
+                    itemProp="availability"
+                    content="https://schema.org/InStock"
+                  />
                 </p>
               )}
 
@@ -376,10 +512,15 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
                 {location && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      <i className="fa-solid fa-location-dot text-sm text-ys-700" aria-hidden="true" />
+                      <i
+                        className="fa-solid fa-location-dot text-sm text-ys-700"
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Location</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        Location
+                      </p>
                       <p className="text-sm text-gray-500">{location}</p>
                     </div>
                   </div>
@@ -388,11 +529,17 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
                 {saleDay && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      <i className="fa-regular fa-calendar text-sm text-ys-700" aria-hidden="true" />
+                      <i
+                        className="fa-regular fa-calendar text-sm text-ys-700"
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">Date</p>
-                      <time className="text-sm text-gray-500" dateTime={listing.sale_date}>
+                      <time
+                        className="text-sm text-gray-500"
+                        dateTime={listing.sale_date}
+                      >
                         {saleDay}
                       </time>
                     </div>
@@ -402,7 +549,10 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
                 {(formattedStart || formattedEnd) && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      <i className="fa-regular fa-clock text-sm text-ys-700" aria-hidden="true" />
+                      <i
+                        className="fa-regular fa-clock text-sm text-ys-700"
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">Time</p>
@@ -422,19 +572,26 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
                   rel="noopener noreferrer"
                   className="flex-1 flex items-center justify-center gap-2 bg-ys-800 hover:bg-ys-900 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
                 >
-                  <i className="fa-solid fa-diamond-turn-right text-sm" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-diamond-turn-right text-sm"
+                    aria-hidden="true"
+                  />
                   Directions
                 </a>
                 <button
                   onClick={handleShare}
                   className="flex items-center justify-center gap-2 px-5 py-3 border border-gray-200 rounded-xl text-gray-700 hover:border-ys-600 hover:text-ys-800 transition-all"
                 >
-                  <i className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`} aria-hidden="true" />
+                  <i
+                    className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`}
+                    aria-hidden="true"
+                  />
                   {copied ? "Copied!" : "Share"}
                 </button>
               </div>
 
-              {!isOwner && (
+              {/* Message Seller — only for internal listings with a real seller */}
+              {!isFromExternal && !isOwner && (
                 <button
                   onClick={() => {
                     if (!user) {
@@ -445,35 +602,51 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
                   }}
                   className="mt-4 w-full flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-green-800 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
                 >
-                  <i className="fa-solid fa-envelope text-sm" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-envelope text-sm"
+                    aria-hidden="true"
+                  />
                   Message Seller
                 </button>
               )}
 
-              {isOwner && !listing.is_boosted && (
+              {/* Boost controls — only for internal listings owned by the user */}
+              {!isFromExternal && isOwner && !listing.is_boosted && (
                 <button
                   onClick={() => setShowBoostModal(true)}
                   className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-3 rounded-xl font-bold transition-all hover:shadow-md"
                 >
-                  <i className="fa-solid fa-rocket text-sm" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-rocket text-sm"
+                    aria-hidden="true"
+                  />
                   Boost This Listing
                 </button>
               )}
 
-              {isOwner && listing.is_boosted && (
+              {!isFromExternal && isOwner && listing.is_boosted && (
                 <div className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-3 rounded-xl font-semibold">
-                  <i className="fa-solid fa-check-circle text-sm" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-check-circle text-sm"
+                    aria-hidden="true"
+                  />
                   This listing is boosted
                 </div>
               )}
             </div>
 
-            {listing.profiles && (
+            {/* Posted by section — only for internal listings */}
+            {!isFromExternal && listing.profiles && (
               <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Posted by</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Posted by
+                </h3>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
-                    <i className="fa-solid fa-user text-ys-700" aria-hidden="true" />
+                    <i
+                      className="fa-solid fa-user text-ys-700"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">
@@ -482,10 +655,13 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
                     <div className="flex items-center gap-2">
                       <p className="text-xs text-gray-500">
                         Joined{" "}
-                        {new Date(listing.created_at).toLocaleDateString("en-US", {
-                          month: "long",
-                          year: "numeric",
-                        })}
+                        {new Date(listing.created_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "long",
+                            year: "numeric",
+                          }
+                        )}
                       </p>
                       {hostAvgRating !== null && (
                         <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full">
@@ -524,7 +700,10 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
                 }}
                 className="text-xs text-gray-400 hover:text-red-500 transition"
               >
-                <i className="fa-regular fa-flag mr-1" aria-hidden="true" />
+                <i
+                  className="fa-regular fa-flag mr-1"
+                  aria-hidden="true"
+                />
                 Report this listing
               </button>
             </p>
@@ -548,7 +727,7 @@ const location = [showAddress ? displayAddress : "", listing.city, listing.state
         />
       )}
 
-      {showMessageModal && listing && (
+      {showMessageModal && listing && !isFromExternal && (
         <MessageModal
           receiverId={listing.user_id}
           receiverName={listing.profiles?.display_name || "Seller"}
