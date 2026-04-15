@@ -1,18 +1,24 @@
 {
   "name": "yardshoppers-collector",
-  "version": "1.0.0",
-  "description": "Crawlee-based yard sale aggregator for YardShoppers",
+  "version": "2.0.0",
+  "description": "Crawlee + ScraperAI yard sale aggregator for YardShoppers - 28 cities, 750+ sources",
   "type": "module",
   "scripts": {
     "collect": "tsx src/main.ts",
-    "collect:dev": "tsx --watch src/main.ts"
+    "collect:dev": "tsx --watch src/main.ts",
+    "collect:crawlee-only": "tsx src/main.ts --crawlee-only",
+    "collect:scraperai-only": "tsx src/main.ts --scraperai-only",
+    "collect:city": "tsx src/main.ts --city"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "crawlee": "^3.12.1",
     "playwright": "^1.50.1",
     "dotenv": "^16.4.7",
-    "fast-xml-parser": "^4.5.1"
+    "fast-xml-parser": "^4.5.1",
+    "cheerio": "^1.0.0",
+    "crypto-js": "^4.2.0",
+    "p-limit": "^6.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",

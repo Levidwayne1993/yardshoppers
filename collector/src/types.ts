@@ -1,41 +1,80 @@
-// ============================================================
-//  Types — shared across all collector modules
-//  Column names match what the browse page queries
-// ============================================================
+// ============================================
+// CRAWLER ASSIGNMENT
+// ============================================
+export type CrawlerType = 'crawlee' | 'scraperai';
 
-/** Raw data as scraped — messy, inconsistent, per-source */
-export interface RawSale {
-  title: string;
+// ============================================
+// SOURCE CATEGORIES
+// ============================================
+export type SourceCategory =
+  | 'craigslist'
+  | 'facebook'
+  | 'offerup'
+  | 'reddit'
+  | 'nextdoor'
+  | 'yardsale-directory'
+  | 'estate-sale'
+  | 'newspaper'
+  | 'community-board'
+  | 'marketplace'
+  | 'hyperlocal'
+  | 'tv-station'
+  | 'public-radio';
+
+// ============================================
+// CITY SOURCE ENTRY
+// ============================================
+export interface CitySource {
+  url: string;
+  name: string;
+  crawler: CrawlerType;
+  category: SourceCategory;
+  /** Max crawl depth for Crawlee. Default: 2 */
+  maxDepth?: number;
+}
+
+// ============================================
+// CITY CONFIG
+// ============================================
+export interface CityConfig {
+  city: string;
+  state: string;
+  sources: CitySource[];
+}
+
+// ============================================
+// RAW EXTRACTED LISTING (before normalization)
+// ============================================
+export interface RawListing {
+  title?: string;
   description?: string;
+  date?: string;
+  time?: string;
   address?: string;
   city?: string;
   state?: string;
-  zip_code?: string;
+  zip?: string;
+  photos?: string[];
   latitude?: number;
   longitude?: number;
+  sourceUrl: string;
+  sourceName: string;
+  sourceCategory: SourceCategory;
   price?: string;
-  start_date?: string | number;
-  end_date?: string | number;
-  start_time?: string;
-  end_time?: string;
-  image_url?: string;
-  image_urls?: string[];
-  url: string;
-  source: string;
-  category?: string;
-  categories?: string[];
+  rawHtml?: string;
 }
 
-/** Clean data ready for Supabase — column names match the table */
+// ============================================
+// NORMALIZED SALE (matches external_sales table)
+// ============================================
 export interface NormalizedSale {
-  source_id: string;
   source: string;
+  source_id: string;
+  source_url: string;
   title: string;
   description: string | null;
-  address: string | null;
   city: string | null;
   state: string | null;
-  zip_code: string | null;
   latitude: number | null;
   longitude: number | null;
   price: string | null;
@@ -43,54 +82,37 @@ export interface NormalizedSale {
   sale_time_start: string | null;
   sale_time_end: string | null;
   category: string | null;
-  categories: string[] | null;
+  categories: string[];
   photo_urls: string[];
-  source_url: string;
+  address: string | null;
+  zip: string | null;
+  expires_at: string | null;
+  collected_at: string;
 }
 
-/** Per-region result for summary logging */
-export interface CollectorResult {
-  source: string;
-  region: string;
-  salesFound: number;
+// ============================================
+// COLLECTION RESULT
+// ============================================
+export interface CollectionResult {
+  sales: NormalizedSale[];
   errors: string[];
+  source: string;
+  city: string;
+  state: string;
+  duration: number;
 }
 
-/** Craigslist RSS item shape */
-export interface CraigslistRssItem {
-  title?: string;
-  link?: string;
-  description?: string;
-  'dc:date'?: string;
-  'enc:enclosure'?: {
-    '@_resource'?: string;
-  };
-}
-
-/** EstateSales.net API response shape */
-export interface EstateSalesApiSale {
-  id?: number | string;
-  title?: string;
-  name?: string;
-  description?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  lat?: number;
-  latitude?: number;
-  lng?: number;
-  longitude?: number;
-  startDate?: string;
-  endDate?: string;
-  dates?: string;
-  mainImage?: string;
-  image?: string;
-  images?: string[];
-  pictureUrl?: string;
-  url?: string;
-  link?: string;
-  price?: string;
-  category?: string;
-  categories?: string[];
+// ============================================
+// SCRAPER STATS
+// ============================================
+export interface ScraperStats {
+  totalCollected: number;
+  totalInserted: number;
+  totalSkipped: number;
+  totalErrors: number;
+  totalCleaned: number;
+  citiesProcessed: number;
+  duration: number;
+  byCity: Record<string, { collected: number; inserted: number; errors: number }>;
+  bySource: Record<string, { collected: number; errors: number }>;
 }
