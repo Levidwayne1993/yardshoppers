@@ -226,7 +226,7 @@ function extractListingsFromPage(
       const fullUrl = href.startsWith('http') ? href : new URL(href, sourceUrl).toString();
 
       const key = `${title}-${fullUrl}`;
-      if (seen.has(key)) continue;
+      if (seen.has(key)) return;
       seen.add(key);
 
       const imgEl = $el.find('img').first();
@@ -263,7 +263,7 @@ function extractListingsFromPage(
 
       const fullUrl = href.startsWith('http') ? href : new URL(href, sourceUrl).toString();
       const key = `${text}-${fullUrl}`;
-      if (seen.has(key)) continue;
+      if (seen.has(key)) return;
       seen.add(key);
 
       listings.push({
