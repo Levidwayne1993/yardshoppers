@@ -1,9 +1,9 @@
 {
 	"id": "zgT8f90m9mbZx6k",
-	"json": "{\"id\":\"zgT8f90m9mbZx6k\",\"url\":\"https://garagesalefinder.com/s/NIhB2/917-densmore-way-folsom-ca-95630\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhB2/917-densmore-way-folsom-ca-95630\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"json": "{\"id\":\"zgT8f90m9mbZx6k\",\"url\":\"https://garagesalefinder.com/s/NIhB2/917-densmore-way-folsom-ca-95630\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIhB2/917-densmore-way-folsom-ca-95630\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhB2/917-densmore-way-folsom-ca-95630\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: Navigation timed out after 20 seconds.\\n    at handleRequestTimeout (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\crawlers\\\\crawler_utils.ts:13:11)\\n    at PlaywrightCrawler._handleNavigationTimeout (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\browser-crawler.ts:695:33)\\n    at PlaywrightCrawler._handleNavigation (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\browser-crawler.ts:658:24)\\n    at async PlaywrightCrawler._runRequestHandler (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\browser-crawler.ts:553:13)\\n    at async PlaywrightCrawler._runRequestHandler (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\playwright-crawler.ts:243:9)\\n    at async wrap (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@apify\\\\src\\\\index.ts:77:27)\"],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:02:04.332Z\"}",
 	"method": "GET",
-	"orderNo": 1776287262007,
-	"retryCount": 0,
+	"orderNo": null,
+	"retryCount": 1,
 	"uniqueKey": "https://garagesalefinder.com/s/NIhB2/917-densmore-way-folsom-ca-95630",
 	"url": "https://garagesalefinder.com/s/NIhB2/917-densmore-way-folsom-ca-95630"
 }

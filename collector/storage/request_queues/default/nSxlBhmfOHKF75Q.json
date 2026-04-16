@@ -1,0 +1,9 @@
+{
+	"id": "nSxlBhmfOHKF75Q",
+	"json": "{\"id\":\"nSxlBhmfOHKF75Q\",\"url\":\"https://yardsales.net/s/7bjCm\",\"uniqueKey\":\"https://yardsales.net/s/7bjCm\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776367401918,
+	"retryCount": 0,
+	"uniqueKey": "https://yardsales.net/s/7bjCm",
+	"url": "https://yardsales.net/s/7bjCm"
+}

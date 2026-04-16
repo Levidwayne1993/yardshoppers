@@ -1,6 +1,6 @@
 {
 	"id": "gAlCNAKn7uBU7xV",
-	"json": "{\"id\":\"gAlCNAKn7uBU7xV\",\"url\":\"https://yardsalesearch.com/garage-sales-sacramento-ca.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-sacramento-ca.html\",\"uniqueKey\":\"https://yardsalesearch.com/garage-sales-sacramento-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-15T21:07:41.952Z\"}",
+	"json": "{\"id\":\"gAlCNAKn7uBU7xV\",\"url\":\"https://yardsalesearch.com/garage-sales-sacramento-ca.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-sacramento-ca.html\",\"uniqueKey\":\"https://yardsalesearch.com/garage-sales-sacramento-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T19:23:22.054Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,

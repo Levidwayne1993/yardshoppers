@@ -1,0 +1,9 @@
+{
+	"id": "lqyN7SrSLp8JSY2",
+	"json": "{\"id\":\"lqyN7SrSLp8JSY2\",\"url\":\"https://www.yardsalesearch.com/garage-sales-colfax-ca.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-colfax-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-colfax-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:08:22.834Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-colfax-ca.html",
+	"url": "https://www.yardsalesearch.com/garage-sales-colfax-ca.html"
+}

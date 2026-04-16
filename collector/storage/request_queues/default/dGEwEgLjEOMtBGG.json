@@ -1,0 +1,9 @@
+{
+	"id": "dGEwEgLjEOMtBGG",
+	"json": "{\"id\":\"dGEwEgLjEOMtBGG\",\"url\":\"https://yardsales.net/sacramento-ca/d:friday/\",\"uniqueKey\":\"https://yardsales.net/sacramento-ca/d:friday\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776367401288,
+	"retryCount": 0,
+	"uniqueKey": "https://yardsales.net/sacramento-ca/d:friday",
+	"url": "https://yardsales.net/sacramento-ca/d:friday/"
+}

@@ -60,16 +60,25 @@ export async function crawlWithScraperAI(
   const errors: string[] = [];
 
   // Group sources by type for specialized handling
-  const craigslistSources = sources.filter((s) => s.category === 'craigslist');
-  const facebookSources = sources.filter((s) => s.category === 'facebook');
+  const craigslistSources = sources.filter(
+    (s) => s.category === 'craigslist'
+  );
+  const facebookSources = sources.filter(
+    (s) => s.category === 'facebook'
+  );
   const estateSalesNetSources = sources.filter(
-    (s) => s.category === 'estate-sale' && s.url.includes('estatesales.net')
+    (s) =>
+      s.category === 'estate-sale' &&
+      s.url.includes('estatesales.net')
   );
   const otherSources = sources.filter(
     (s) =>
       s.category !== 'craigslist' &&
       s.category !== 'facebook' &&
-      !(s.category === 'estate-sale' && s.url.includes('estatesales.net'))
+      !(
+        s.category === 'estate-sale' &&
+        s.url.includes('estatesales.net')
+      )
   );
 
   // 1. Craigslist — use RSS feeds (most reliable)
@@ -79,7 +88,12 @@ export async function crawlWithScraperAI(
       const rssUrl = source.url.includes('?')
         ? source.url + '&format=rss'
         : source.url + '?format=rss';
-      const result = await collectCraigslistRss(rssUrl, source.name, city, state);
+      const result = await collectCraigslistRss(
+        rssUrl,
+        source.name,
+        city,
+        state
+      );
       allListings.push(...result.listings);
       errors.push(...result.errors);
     } catch (err: any) {
@@ -87,23 +101,21 @@ export async function crawlWithScraperAI(
     }
   }
 
-  // 2. Facebook Events — browser automation
+  // 2. Facebook Events — skip (requires login, always returns 0)
   for (const source of facebookSources) {
-    try {
-      await randomDelay(3000, 6000);
-      const result = await scrapeFacebookEvents(source, city, state);
-      allListings.push(...result.listings);
-      errors.push(...result.errors);
-    } catch (err: any) {
-      errors.push(`${source.name}: ${err.message}`);
-    }
+    console.log(`  Skipping ${source.name} (Facebook requires login)`);
+    continue;
   }
 
   // 3. EstateSales.net — JSON-LD + browser fallback
   for (const source of estateSalesNetSources) {
     try {
       await randomDelay(2000, 4000);
-      const result = await scrapeEstateSalesNet(source, city, state);
+      const result = await scrapeEstateSalesNet(
+        source,
+        city,
+        state
+      );
       allListings.push(...result.listings);
       errors.push(...result.errors);
     } catch (err: any) {
@@ -115,7 +127,11 @@ export async function crawlWithScraperAI(
   for (const source of otherSources) {
     try {
       await randomDelay(2000, 4000);
-      const result = await scrapeGenericWithBrowser(source, city, state);
+      const result = await scrapeGenericWithBrowser(
+        source,
+        city,
+        state
+      );
       allListings.push(...result.listings);
       errors.push(...result.errors);
     } catch (err: any) {
@@ -129,7 +145,6 @@ export async function crawlWithScraperAI(
 // ============================================
 // CRAIGSLIST RSS COLLECTOR
 // ============================================
-
 async function collectCraigslistRss(
   rssUrl: string,
   sourceName: string,
@@ -141,10 +156,12 @@ async function collectCraigslistRss(
 
   try {
     console.log(`  Fetching ${sourceName} RSS...`);
+
     const response = await fetch(rssUrl, {
       headers: {
         ...STEALTH_HEADERS,
-        Accept: 'application/rss+xml, application/xml, text/xml, */*',
+        Accept:
+          'application/rss+xml, application/xml, text/xml, */*',
       },
       signal: AbortSignal.timeout(15000),
     });
@@ -161,11 +178,16 @@ async function collectCraigslistRss(
     while ((match = itemRegex.exec(xml)) !== null) {
       try {
         const item = match[1];
-        const title = extractCdata(extractXmlTag(item, 'title'));
+        const title = extractCdata(
+          extractXmlTag(item, 'title')
+        );
         const link = extractXmlTag(item, 'link');
-        const description = extractCdata(extractXmlTag(item, 'description'));
+        const description = extractCdata(
+          extractXmlTag(item, 'description')
+        );
         const dateStr =
-          extractXmlTag(item, 'dc:date') || extractXmlTag(item, 'pubDate');
+          extractXmlTag(item, 'dc:date') ||
+          extractXmlTag(item, 'pubDate');
 
         // Extract image from enclosure
         const encMatch = item.match(
@@ -174,8 +196,12 @@ async function collectCraigslistRss(
         const imageUrl = encMatch ? encMatch[1] : undefined;
 
         // Extract geo coordinates
-        const latMatch = item.match(/<geo:lat>([^<]+)<\/geo:lat>/i);
-        const lngMatch = item.match(/<geo:long>([^<]+)<\/geo:long>/i);
+        const latMatch = item.match(
+          /<geo:lat>([^<]+)<\/geo:lat>/i
+        );
+        const lngMatch = item.match(
+          /<geo:long>([^<]+)<\/geo:long>/i
+        );
 
         if (!title && !description) continue;
 
@@ -185,9 +211,14 @@ async function collectCraigslistRss(
           date: dateStr || undefined,
           city,
           state,
-          latitude: latMatch ? parseFloat(latMatch[1]) : undefined,
-          longitude: lngMatch ? parseFloat(lngMatch[1]) : undefined,
-          address: extractAddress(description || '') || undefined,
+          latitude: latMatch
+            ? parseFloat(latMatch[1])
+            : undefined,
+          longitude: lngMatch
+            ? parseFloat(lngMatch[1])
+            : undefined,
+          address:
+            extractAddress(description || '') || undefined,
           zip: extractZip(description || '') || undefined,
           photos: imageUrl ? [imageUrl] : [],
           sourceUrl: link || rssUrl,
@@ -197,7 +228,9 @@ async function collectCraigslistRss(
       } catch {}
     }
 
-    console.log(`  ${sourceName}: found ${listings.length} items`);
+    console.log(
+      `  ${sourceName}: found ${listings.length} items`
+    );
   } catch (err: any) {
     errors.push(`${sourceName}: ${err.message}`);
   }
@@ -206,119 +239,8 @@ async function collectCraigslistRss(
 }
 
 // ============================================
-// FACEBOOK EVENTS SCRAPER
-// ============================================
-
-async function scrapeFacebookEvents(
-  source: CitySource,
-  city: string,
-  state: string
-): Promise<{ listings: RawListing[]; errors: string[] }> {
-  const listings: RawListing[] = [];
-  const errors: string[] = [];
-
-  try {
-    console.log(`  Scraping ${source.name} (browser)...`);
-
-    const router = createPlaywrightRouter();
-    router.addDefaultHandler(async ({ page, log }) => {
-      try {
-        await page.waitForLoadState('networkidle', { timeout: 15000 });
-        await delay(3000); // Let dynamic content load
-
-        // Scroll down to load more events
-        for (let i = 0; i < 3; i++) {
-          await page.mouse.wheel(0, 1000);
-          await delay(1500);
-        }
-
-        // Extract event cards
-        const events = await page.evaluate(() => {
-          const results: any[] = [];
-          // Facebook events use various selectors
-          const cards = document.querySelectorAll(
-            '[data-testid="event-card"], [role="article"], .x1yztbdb'
-          );
-          cards.forEach((card) => {
-            const titleEl =
-              card.querySelector('h2, h3, [role="heading"]') ||
-              card.querySelector('a span');
-            const linkEl = card.querySelector('a[href*="/events/"]');
-            const dateEl = card.querySelector(
-              '[aria-label*="date"], time, .x1lliihq'
-            );
-            const imgEl = card.querySelector('img[src*="scontent"]');
-
-            if (titleEl) {
-              results.push({
-                title: titleEl.textContent?.trim() || '',
-                link: (linkEl as HTMLAnchorElement)?.href || '',
-                date: dateEl?.textContent?.trim() || '',
-                image: (imgEl as HTMLImageElement)?.src || '',
-              });
-            }
-          });
-          return results;
-        });
-
-        for (const event of events) {
-          if (!event.title || event.title.length < 5) continue;
-          // Only include if it looks like a sale
-          const combined = `${event.title} ${event.date}`.toLowerCase();
-          if (!hasPrimaryKeyword(combined)) continue;
-
-          listings.push({
-            title: event.title.slice(0, 200),
-            date: event.date || undefined,
-            city,
-            state,
-            photos: event.image ? [event.image] : [],
-            sourceUrl: event.link || source.url,
-            sourceName: source.name,
-            sourceCategory: 'facebook',
-          });
-        }
-
-        log.info(`${source.name}: found ${listings.length} events`);
-      } catch (err: any) {
-        log.warning(`${source.name}: ${err.message}`);
-        errors.push(`${source.name}: ${err.message}`);
-      }
-    });
-
-    const crawler = new PlaywrightCrawler({
-      requestHandler: router,
-      maxRequestsPerCrawl: 1,
-      headless: true,
-      navigationTimeoutSecs: 30,
-      requestHandlerTimeoutSecs: 45,
-      launchContext: {
-        launchOptions: { args: STEALTH_ARGS },
-      },
-      preNavigationHooks: [
-        async ({ page }) => {
-          await page.setExtraHTTPHeaders(STEALTH_HEADERS);
-          // Mask automation signals
-          await page.addInitScript(() => {
-            Object.defineProperty(navigator, 'webdriver', { get: () => false });
-          });
-        },
-      ],
-    });
-
-    await crawler.run([{ url: source.url }]);
-  } catch (err: any) {
-    errors.push(`${source.name}: ${err.message}`);
-  }
-
-  console.log(`  ${source.name}: found ${listings.length} items`);
-  return { listings, errors };
-}
-
-// ============================================
 // ESTATESALES.NET SCRAPER
 // ============================================
-
 async function scrapeEstateSalesNet(
   source: CitySource,
   city: string,
@@ -366,18 +288,21 @@ async function scrapeEstateSalesNet(
               description: event.description || undefined,
               date: event.startDate || undefined,
               address:
-                event.location?.address?.streetAddress || undefined,
+                event.location?.address?.streetAddress ||
+                undefined,
               city,
               state,
               zip:
-                event.location?.address?.postalCode || undefined,
-              latitude: event.location?.geo?.latitude || undefined,
+                event.location?.address?.postalCode ||
+                undefined,
+              latitude:
+                event.location?.geo?.latitude || undefined,
               longitude:
                 event.location?.geo?.longitude || undefined,
               photos: event.image
-                ? (Array.isArray(event.image)
-                    ? event.image.slice(0, 5)
-                    : [event.image])
+                ? Array.isArray(event.image)
+                  ? event.image.slice(0, 5)
+                  : [event.image]
                 : [],
               sourceUrl: event.url || source.url,
               sourceName: source.name,
@@ -410,7 +335,9 @@ async function scrapeEstateSalesNet(
       }
     }
 
-    console.log(`  ${source.name}: found ${listings.length} items`);
+    console.log(
+      `  ${source.name}: found ${listings.length} items`
+    );
   } catch (err: any) {
     errors.push(`${source.name}: ${err.message}`);
   }
@@ -421,7 +348,6 @@ async function scrapeEstateSalesNet(
 // ============================================
 // GENERIC BROWSER SCRAPER (fallback)
 // ============================================
-
 async function scrapeGenericWithBrowser(
   source: CitySource,
   city: string,
@@ -434,9 +360,12 @@ async function scrapeGenericWithBrowser(
     console.log(`  Scraping ${source.name} (browser)...`);
 
     const router = createPlaywrightRouter();
+
     router.addDefaultHandler(async ({ page, log }) => {
       try {
-        await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
+        await page.waitForLoadState('domcontentloaded', {
+          timeout: 15000,
+        });
         await delay(2000);
 
         const pageText = await page.evaluate(
@@ -445,25 +374,31 @@ async function scrapeGenericWithBrowser(
 
         // Only process if page has relevant content
         if (!hasPrimaryKeyword(pageText)) {
-          log.info(`${source.name}: no relevant content found`);
+          log.info(
+            `${source.name}: no relevant content found`
+          );
           return;
         }
 
         // Extract all links with sale-related text
         const links = await page.evaluate(() => {
           const results: any[] = [];
-          document.querySelectorAll('a[href]').forEach((a) => {
-            const text = a.textContent?.trim() || '';
-            const href = (a as HTMLAnchorElement).href || '';
-            if (text.length >= 5 && text.length <= 200) {
-              results.push({ text, href });
-            }
-          });
+          document
+            .querySelectorAll('a[href]')
+            .forEach((a) => {
+              const text = a.textContent?.trim() || '';
+              const href =
+                (a as HTMLAnchorElement).href || '';
+              if (text.length >= 5 && text.length <= 200) {
+                results.push({ text, href });
+              }
+            });
           return results;
         });
 
         for (const link of links) {
           if (!hasPrimaryKeyword(link.text)) continue;
+
           listings.push({
             title: link.text.slice(0, 200),
             city,
@@ -474,7 +409,9 @@ async function scrapeGenericWithBrowser(
           });
         }
 
-        log.info(`${source.name}: found ${listings.length} items`);
+        log.info(
+          `${source.name}: found ${listings.length} items`
+        );
       } catch (err: any) {
         log.warning(`${source.name}: ${err.message}`);
         errors.push(`${source.name}: ${err.message}`);
@@ -488,7 +425,9 @@ async function scrapeGenericWithBrowser(
       navigationTimeoutSecs: 20,
       requestHandlerTimeoutSecs: 30,
       launchContext: {
-        launchOptions: { args: STEALTH_ARGS },
+        launchOptions: {
+          args: STEALTH_ARGS,
+        },
       },
       preNavigationHooks: [
         async ({ page }) => {
@@ -513,9 +452,11 @@ async function scrapeGenericWithBrowser(
 // ============================================
 // XML HELPERS
 // ============================================
-
 function extractXmlTag(xml: string, tag: string): string {
-  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
+  const regex = new RegExp(
+    `<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`,
+    'i'
+  );
   const match = xml.match(regex);
   return match ? match[1].trim() : '';
 }
@@ -523,5 +464,7 @@ function extractXmlTag(xml: string, tag: string): string {
 function extractCdata(text: string): string {
   const cdataRegex = /<!\[CDATA\[([\s\S]*?)\]\]>/;
   const match = text.match(cdataRegex);
-  return match ? match[1].trim() : text.replace(/<[^>]*>/g, '').trim();
+  return match
+    ? match[1].trim()
+    : text.replace(/<[^>]*>/g, '').trim();
 }

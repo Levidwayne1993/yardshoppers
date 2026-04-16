@@ -1,6 +1,6 @@
 {
 	"id": "1QTNxQhxbBJsxpT",
-	"json": "{\"id\":\"1QTNxQhxbBJsxpT\",\"url\":\"https://yardsales.net/sacramento-ca/\",\"loadedUrl\":\"https://yardsales.net/sacramento-ca/\",\"uniqueKey\":\"https://yardsales.net/sacramento-ca\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-15T21:07:42.531Z\"}",
+	"json": "{\"id\":\"1QTNxQhxbBJsxpT\",\"url\":\"https://yardsales.net/sacramento-ca/\",\"loadedUrl\":\"https://yardsales.net/sacramento-ca/\",\"uniqueKey\":\"https://yardsales.net/sacramento-ca\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T19:23:22.080Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,

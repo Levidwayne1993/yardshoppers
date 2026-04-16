@@ -1,8 +1,8 @@
 {
 	"id": "MlDhyEtdX4OZigX",
-	"json": "{\"id\":\"MlDhyEtdX4OZigX\",\"url\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196157335\",\"uniqueKey\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196157335\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"json": "{\"id\":\"MlDhyEtdX4OZigX\",\"url\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196157335\",\"loadedUrl\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196157335\",\"uniqueKey\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196157335\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:25:43.852Z\"}",
 	"method": "GET",
-	"orderNo": 1776287943658,
+	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196157335",
 	"url": "https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196157335"

@@ -1,8 +1,8 @@
 {
 	"id": "SYWgwXRLGYSpulE",
-	"json": "{\"id\":\"SYWgwXRLGYSpulE\",\"url\":\"https://garagesalefinder.com/s/NIU1P/700-canyon-oak-ln-lincoln-ca-95648\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIU1P/700-canyon-oak-ln-lincoln-ca-95648\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"json": "{\"id\":\"SYWgwXRLGYSpulE\",\"url\":\"https://garagesalefinder.com/s/NIU1P/700-canyon-oak-ln-lincoln-ca-95648\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIU1P/700-canyon-oak-ln-lincoln-ca-95648\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIU1P/700-canyon-oak-ln-lincoln-ca-95648\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:00:53.882Z\"}",
 	"method": "GET",
-	"orderNo": 1776287262067,
+	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "https://garagesalefinder.com/s/NIU1P/700-canyon-oak-ln-lincoln-ca-95648",
 	"url": "https://garagesalefinder.com/s/NIU1P/700-canyon-oak-ln-lincoln-ca-95648"

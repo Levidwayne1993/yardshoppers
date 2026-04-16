@@ -1,9 +1,0 @@
-{
-	"id": "yC7oMpN8lH98PJ2",
-	"json": "{\"id\":\"yC7oMpN8lH98PJ2\",\"url\":\"https://garagesalefinder.com/s/NIh6F/concord-ca-94521/gallery\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIh6F/concord-ca-94521/gallery\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776287943658,
-	"retryCount": 0,
-	"uniqueKey": "https://garagesalefinder.com/s/NIh6F/concord-ca-94521/gallery",
-	"url": "https://garagesalefinder.com/s/NIh6F/concord-ca-94521/gallery"
-}

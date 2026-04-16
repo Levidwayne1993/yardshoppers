@@ -1,4 +1,4 @@
-import { PlaywrightCrawler, Dataset, createPlaywrightRouter } from 'crawlee';
+import { PlaywrightCrawler, Dataset, createPlaywrightRouter, purgeDefaultStorages } from 'crawlee';
 import * as cheerio from 'cheerio';
 import type { CitySource, RawListing } from './types.js';
 import {
@@ -43,8 +43,10 @@ export async function crawlWithCrawlee(
 
   // Process sources in batches of 10 to avoid overwhelming
   const BATCH_SIZE = 10;
+
   for (let i = 0; i < sources.length; i += BATCH_SIZE) {
     const batch = sources.slice(i, i + BATCH_SIZE);
+
     const startUrls = batch.map((s) => ({
       url: s.url,
       userData: {
@@ -70,23 +72,33 @@ export async function crawlWithCrawlee(
         await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
 
         const html = await page.content();
-        const pageText = await page.evaluate(() => document.body?.innerText || '');
+        const pageText = await page.evaluate(
+          () => document.body?.innerText || ''
+        );
         const pageTitle = await page.title();
 
         // Score the page for relevance
         const relevanceScore = scorePage(pageText);
-
         if (relevanceScore < 10 && currentDepth > 0) {
-          log.info(`Skipping low-relevance page (score: ${relevanceScore}): ${request.url}`);
+          log.info(
+            `Skipping low-relevance page (score: ${relevanceScore}): ${request.url}`
+          );
           return;
         }
 
         // Extract listings from the page
         const $ = cheerio.load(html);
-        const pageListings = extractListingsFromPage($, pageText, request.url, userData);
+        const pageListings = extractListingsFromPage(
+          $,
+          pageText,
+          request.url,
+          userData
+        );
 
         if (pageListings.length > 0) {
-          log.info(`Found ${pageListings.length} listings on ${request.url}`);
+          log.info(
+            `Found ${pageListings.length} listings on ${request.url}`
+          );
           allListings.push(...pageListings);
         }
 
@@ -111,10 +123,13 @@ export async function crawlWithCrawlee(
       }
     });
 
+    // Purge cached storage so every batch starts fresh
+    await purgeDefaultStorages();
+
     try {
       const crawler = new PlaywrightCrawler({
         requestHandler: router,
-        maxRequestsPerCrawl: 100,
+        maxRequestsPerCrawl: 500,
         maxConcurrency: 5,
         requestHandlerTimeoutSecs: 30,
         navigationTimeoutSecs: 20,
@@ -166,11 +181,13 @@ function extractListingsFromPage(
     try {
       const data = JSON.parse($(el).html() || '');
       const items = Array.isArray(data) ? data : data['@graph'] || [data];
+
       for (const item of items) {
         const type = item['@type'] || '';
         if (/Event|Sale|Product|Offer|ClassifiedAd/i.test(type)) {
           const title = item.name || item.headline || '';
           if (!title || title.length < 3) continue;
+
           const key = `${title}-${item.url || sourceUrl}`;
           if (seen.has(key)) continue;
           seen.add(key);
@@ -178,18 +195,28 @@ function extractListingsFromPage(
           listings.push({
             title: title.slice(0, 200),
             description: (item.description || '').slice(0, 1000),
-            date: item.startDate || item.datePosted || item.datePublished || undefined,
-            address: item.location?.address?.streetAddress || undefined,
+            date:
+              item.startDate ||
+              item.datePosted ||
+              item.datePublished ||
+              undefined,
+            address:
+              item.location?.address?.streetAddress || undefined,
             city: userData.city,
             state: userData.state,
             zip: item.location?.address?.postalCode || undefined,
             latitude: item.location?.geo?.latitude || undefined,
             longitude: item.location?.geo?.longitude || undefined,
-            photos: item.image ? (Array.isArray(item.image) ? item.image.slice(0, 5) : [item.image]) : [],
+            photos: item.image
+              ? Array.isArray(item.image)
+                ? item.image.slice(0, 5)
+                : [item.image]
+              : [],
             sourceUrl: item.url || sourceUrl,
             sourceName: userData.sourceName,
             sourceCategory: userData.sourceCategory,
-            price: item.offers?.price || item.price || undefined,
+            price:
+              item.offers?.price || item.price || undefined,
           });
         }
       }
@@ -215,6 +242,7 @@ function extractListingsFromPage(
     $(selector).each((_, el) => {
       const $el = $(el);
       const text = $el.text().trim();
+
       if (!hasPrimaryKeyword(text)) return;
 
       const titleEl = $el.find('h1, h2, h3, h4, a[href]').first();
@@ -223,14 +251,17 @@ function extractListingsFromPage(
 
       const linkEl = $el.find('a[href]').first();
       const href = linkEl.attr('href') || '';
-      const fullUrl = href.startsWith('http') ? href : new URL(href, sourceUrl).toString();
+      const fullUrl = href.startsWith('http')
+        ? href
+        : new URL(href, sourceUrl).toString();
 
       const key = `${title}-${fullUrl}`;
       if (seen.has(key)) return;
       seen.add(key);
 
       const imgEl = $el.find('img').first();
-      const imgSrc = imgEl.attr('src') || imgEl.attr('data-src') || '';
+      const imgSrc =
+        imgEl.attr('src') || imgEl.attr('data-src') || '';
 
       listings.push({
         title,
@@ -241,7 +272,13 @@ function extractListingsFromPage(
         city: userData.city,
         state: userData.state,
         zip: extractZip(text) || undefined,
-        photos: imgSrc ? [imgSrc.startsWith('http') ? imgSrc : new URL(imgSrc, sourceUrl).toString()] : [],
+        photos: imgSrc
+          ? [
+              imgSrc.startsWith('http')
+                ? imgSrc
+                : new URL(imgSrc, sourceUrl).toString(),
+            ]
+          : [],
         sourceUrl: fullUrl || sourceUrl,
         sourceName: userData.sourceName,
         sourceCategory: userData.sourceCategory,
@@ -259,9 +296,17 @@ function extractListingsFromPage(
       if (!hasPrimaryKeyword(text) && !hasPrimaryKeyword(href)) return;
       if (text.length < 5 || text.length > 200) return;
       if (/\.(css|js|png|jpg|gif|svg|ico)(\?|$)/i.test(href)) return;
-      if (/login|signup|register|subscribe|account|privacy|terms/i.test(href)) return;
+      if (
+        /login|signup|register|subscribe|account|privacy|terms/i.test(
+          href
+        )
+      )
+        return;
 
-      const fullUrl = href.startsWith('http') ? href : new URL(href, sourceUrl).toString();
+      const fullUrl = href.startsWith('http')
+        ? href
+        : new URL(href, sourceUrl).toString();
+
       const key = `${text}-${fullUrl}`;
       if (seen.has(key)) return;
       seen.add(key);
@@ -306,7 +351,8 @@ export async function collectFromRssFeed(
     const response = await fetch(feedUrl, {
       headers: {
         ...BROWSER_HEADERS,
-        Accept: 'application/rss+xml, application/xml, text/xml, */*',
+        Accept:
+          'application/rss+xml, application/xml, text/xml, */*',
       },
       signal: AbortSignal.timeout(15000),
     });
@@ -325,11 +371,17 @@ export async function collectFromRssFeed(
         const item = match[1];
         const title = extractCdata(extractXmlTag(item, 'title'));
         const link = extractXmlTag(item, 'link');
-        const description = extractCdata(extractXmlTag(item, 'description'));
-        const dateStr = extractXmlTag(item, 'dc:date') || extractXmlTag(item, 'pubDate');
+        const description = extractCdata(
+          extractXmlTag(item, 'description')
+        );
+        const dateStr =
+          extractXmlTag(item, 'dc:date') ||
+          extractXmlTag(item, 'pubDate');
 
         // Extract image from enclosure
-        const encMatch = item.match(/enc:enclosure[^>]*resource="([^"]+)"/i);
+        const encMatch = item.match(
+          /enc:enclosure[^>]*resource="([^"]+)"/i
+        );
         const imageUrl = encMatch ? encMatch[1] : undefined;
 
         if (!title && !description) continue;
@@ -357,9 +409,11 @@ export async function collectFromRssFeed(
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
-
 function extractXmlTag(xml: string, tag: string): string {
-  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
+  const regex = new RegExp(
+    `<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`,
+    'i'
+  );
   const match = xml.match(regex);
   return match ? match[1].trim() : '';
 }
@@ -367,5 +421,7 @@ function extractXmlTag(xml: string, tag: string): string {
 function extractCdata(text: string): string {
   const cdataRegex = /<!\[CDATA\[([\s\S]*?)\]\]>/;
   const match = text.match(cdataRegex);
-  return match ? match[1].trim() : text.replace(/<[^>]*>/g, '').trim();
+  return match
+    ? match[1].trim()
+    : text.replace(/<[^>]*>/g, '').trim();
 }

@@ -86,7 +86,8 @@ export const SKIP_URL_PATTERNS: RegExp[] = [
 // ============================================
 // ADDRESS / DATE / TIME PATTERNS
 // ============================================
-export const ADDRESS_PATTERN = /\d{1,5}\s+[A-Z][a-zA-Z]+\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Ct|Court|Pl|Place|Cir|Circle|Pkwy|Parkway|Ter|Terrace)\b/i;
+export const ADDRESS_PATTERN =
+  /\d{1,5}\s+(?:(?:N|S|E|W|NE|NW|SE|SW|North|South|East|West)\.?\s+)?(?:[A-Za-z0-9]+\s+){1,4}(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Ct|Court|Pl|Place|Cir|Circle|Pkwy|Parkway|Ter|Terrace|Hwy|Highway|Trail|Trl|Loop|Run|Pass|Path|Pike|Sq|Square)\b/i;
 
 export const ZIP_PATTERN = /\b\d{5}(-\d{4})?\b/;
 
@@ -111,7 +112,7 @@ export const TIME_PATTERNS: RegExp[] = [
  */
 export function hasPrimaryKeyword(text: string): boolean {
   const lower = text.toLowerCase();
-  return PRIMARY_KEYWORDS.some(kw => lower.includes(kw));
+  return PRIMARY_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 /**
@@ -119,7 +120,7 @@ export function hasPrimaryKeyword(text: string): boolean {
  */
 export function hasSecondaryKeyword(text: string): boolean {
   const lower = text.toLowerCase();
-  return SECONDARY_KEYWORDS.some(kw => lower.includes(kw));
+  return SECONDARY_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 /**
@@ -133,14 +134,14 @@ export function hasAddress(text: string): boolean {
  * Check if text contains a date pattern
  */
 export function hasDate(text: string): boolean {
-  return DATE_PATTERNS.some(p => p.test(text));
+  return DATE_PATTERNS.some((p) => p.test(text));
 }
 
 /**
  * Check if text contains a time pattern
  */
 export function hasTime(text: string): boolean {
-  return TIME_PATTERNS.some(p => p.test(text));
+  return TIME_PATTERNS.some((p) => p.test(text));
 }
 
 /**
@@ -188,10 +189,11 @@ export function extractTimes(text: string): string[] {
  */
 export function shouldFollowUrl(url: string): boolean {
   // Skip blocked patterns
-  if (SKIP_URL_PATTERNS.some(p => p.test(url))) return false;
+  if (SKIP_URL_PATTERNS.some((p) => p.test(url))) return false;
+
   // Allow if path contains any allowed keyword
   const path = url.toLowerCase();
-  return ALLOWED_URL_PATHS.some(kw => path.includes(kw));
+  return ALLOWED_URL_PATHS.some((kw) => path.includes(kw));
 }
 
 /**

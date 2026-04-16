@@ -1,0 +1,9 @@
+{
+	"id": "heBOcPJSjGM5777",
+	"json": "{\"id\":\"heBOcPJSjGM5777\",\"url\":\"https://yardsales.net/adelanto-ca/\",\"loadedUrl\":\"https://yardsales.net/adelanto-ca/\",\"uniqueKey\":\"https://yardsales.net/adelanto-ca\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:32:34.227Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://yardsales.net/adelanto-ca",
+	"url": "https://yardsales.net/adelanto-ca/"
+}

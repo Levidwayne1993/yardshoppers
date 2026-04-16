@@ -1,6 +1,6 @@
 {
 	"id": "3TMWCXTHBEOKVfZ",
-	"json": "{\"id\":\"3TMWCXTHBEOKVfZ\",\"url\":\"https://www.yardsalesearch.com/garage-sale-guide/\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sale-guide/\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sale-guide\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-15T21:08:53.039Z\"}",
+	"json": "{\"id\":\"3TMWCXTHBEOKVfZ\",\"url\":\"https://www.yardsalesearch.com/garage-sale-guide/\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sale-guide/\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sale-guide\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:23:47.015Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,

@@ -1,0 +1,9 @@
+{
+	"id": "Q2p6tfYIL46GsNW",
+	"json": "{\"id\":\"Q2p6tfYIL46GsNW\",\"url\":\"https://garagesalefinder.com/s/NIUwM/century-way-oakley-ca-94561\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIUwM/century-way-oakley-ca-94561\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIUwM/century-way-oakley-ca-94561\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:05:26.563Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIUwM/century-way-oakley-ca-94561",
+	"url": "https://garagesalefinder.com/s/NIUwM/century-way-oakley-ca-94561"
+}

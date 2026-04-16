@@ -1,0 +1,9 @@
+{
+	"id": "9c9HMm5j8VVydbE",
+	"json": "{\"id\":\"9c9HMm5j8VVydbE\",\"url\":\"https://www.yardsalesearch.com/garage-sales-bay-point-ca.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-bay-point-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-bay-point-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:39:43.041Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-bay-point-ca.html",
+	"url": "https://www.yardsalesearch.com/garage-sales-bay-point-ca.html"
+}

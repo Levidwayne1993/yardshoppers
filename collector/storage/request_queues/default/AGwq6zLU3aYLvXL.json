@@ -1,8 +1,8 @@
 {
 	"id": "AGwq6zLU3aYLvXL",
-	"json": "{\"id\":\"AGwq6zLU3aYLvXL\",\"url\":\"https://garagesalefinder.com/s/NIhRP/7614-denio-way-citrus-heights-ca-95610/gallery\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhRP/7614-denio-way-citrus-heights-ca-95610/gallery\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"json": "{\"id\":\"AGwq6zLU3aYLvXL\",\"url\":\"https://garagesalefinder.com/s/NIhRP/7614-denio-way-citrus-heights-ca-95610/gallery\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIhRP/7614-denio-way-citrus-heights-ca-95610/gallery\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhRP/7614-denio-way-citrus-heights-ca-95610/gallery\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:55:50.016Z\"}",
 	"method": "GET",
-	"orderNo": 1776287261927,
+	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "https://garagesalefinder.com/s/NIhRP/7614-denio-way-citrus-heights-ca-95610/gallery",
 	"url": "https://garagesalefinder.com/s/NIhRP/7614-denio-way-citrus-heights-ca-95610/gallery"

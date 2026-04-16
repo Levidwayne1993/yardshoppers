@@ -1,0 +1,9 @@
+{
+	"id": "Jyix98rTg8Kr8bz",
+	"json": "{\"id\":\"Jyix98rTg8Kr8bz\",\"url\":\"https://garagesalefinder.com/s/NIU4Z/zia-rd-placerville-ca-95667\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIU4Z/zia-rd-placerville-ca-95667\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIU4Z/zia-rd-placerville-ca-95667\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:04:33.717Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIU4Z/zia-rd-placerville-ca-95667",
+	"url": "https://garagesalefinder.com/s/NIU4Z/zia-rd-placerville-ca-95667"
+}

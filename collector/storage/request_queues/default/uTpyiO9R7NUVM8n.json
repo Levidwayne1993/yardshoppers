@@ -1,0 +1,9 @@
+{
+	"id": "uTpyiO9R7NUVM8n",
+	"json": "{\"id\":\"uTpyiO9R7NUVM8n\",\"url\":\"https://garagesalefinder.com/yard-sales/by-location/\",\"loadedUrl\":\"https://garagesalefinder.com/yard-sales/by-location/\",\"uniqueKey\":\"https://garagesalefinder.com/yard-sales/by-location\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:08:18.491Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/yard-sales/by-location",
+	"url": "https://garagesalefinder.com/yard-sales/by-location/"
+}

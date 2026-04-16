@@ -1,0 +1,9 @@
+{
+	"id": "hgnkHgvCvosA1ze",
+	"json": "{\"id\":\"hgnkHgvCvosA1ze\",\"url\":\"https://www.yardsalesearch.com/garage-sales-gridley-ca.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-gridley-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-gridley-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:35:19.140Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-gridley-ca.html",
+	"url": "https://www.yardsalesearch.com/garage-sales-gridley-ca.html"
+}

@@ -1,0 +1,9 @@
+{
+	"id": "x1yLLuv4KwTbcPC",
+	"json": "{\"id\":\"x1yLLuv4KwTbcPC\",\"url\":\"https://garagesalefinder.com/s/NIU3L/calaveras-cir-antioch-ca-94509\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIU3L/calaveras-cir-antioch-ca-94509\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIU3L/calaveras-cir-antioch-ca-94509\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:06:58.493Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIU3L/calaveras-cir-antioch-ca-94509",
+	"url": "https://garagesalefinder.com/s/NIU3L/calaveras-cir-antioch-ca-94509"
+}

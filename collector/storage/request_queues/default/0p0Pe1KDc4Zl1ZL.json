@@ -1,9 +1,0 @@
-{
-	"id": "0p0Pe1KDc4Zl1ZL",
-	"json": "{\"id\":\"0p0Pe1KDc4Zl1ZL\",\"url\":\"https://garagesalefinder.com/s/NItuN/roseville-ca-95747\",\"uniqueKey\":\"https://garagesalefinder.com/s/NItuN/roseville-ca-95747\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776287261989,
-	"retryCount": 0,
-	"uniqueKey": "https://garagesalefinder.com/s/NItuN/roseville-ca-95747",
-	"url": "https://garagesalefinder.com/s/NItuN/roseville-ca-95747"
-}

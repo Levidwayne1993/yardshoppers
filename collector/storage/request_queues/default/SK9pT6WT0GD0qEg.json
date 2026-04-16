@@ -1,6 +1,6 @@
 {
 	"id": "SK9pT6WT0GD0qEg",
-	"json": "{\"id\":\"SK9pT6WT0GD0qEg\",\"url\":\"https://www.yardsalesearch.com/sale/manage\",\"loadedUrl\":\"https://www.yardsalesearch.com/sale/manage/register\",\"uniqueKey\":\"https://www.yardsalesearch.com/sale/manage\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-15T21:07:53.683Z\"}",
+	"json": "{\"id\":\"SK9pT6WT0GD0qEg\",\"url\":\"https://www.yardsalesearch.com/sale/manage\",\"loadedUrl\":\"https://www.yardsalesearch.com/sale/manage/register\",\"uniqueKey\":\"https://www.yardsalesearch.com/sale/manage\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:23:32.859Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,

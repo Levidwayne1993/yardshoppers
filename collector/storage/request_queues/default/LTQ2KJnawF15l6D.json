@@ -1,0 +1,9 @@
+{
+	"id": "LTQ2KJnawF15l6D",
+	"json": "{\"id\":\"LTQ2KJnawF15l6D\",\"url\":\"https://www.yardsalesearch.com/garage-sales-inglewood-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-inglewood-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776367401749,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-inglewood-ca.html",
+	"url": "https://www.yardsalesearch.com/garage-sales-inglewood-ca.html"
+}

@@ -1,9 +1,0 @@
-{
-	"id": "tcW0s0QnHOlFrs2",
-	"json": "{\"id\":\"tcW0s0QnHOlFrs2\",\"url\":\"https://garagesalefinder.com/s/NItvm/auburn-ca-95603\",\"uniqueKey\":\"https://garagesalefinder.com/s/NItvm/auburn-ca-95603\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776287943658,
-	"retryCount": 0,
-	"uniqueKey": "https://garagesalefinder.com/s/NItvm/auburn-ca-95603",
-	"url": "https://garagesalefinder.com/s/NItvm/auburn-ca-95603"
-}

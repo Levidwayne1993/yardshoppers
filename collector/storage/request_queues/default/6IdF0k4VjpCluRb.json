@@ -1,0 +1,9 @@
+{
+	"id": "6IdF0k4VjpCluRb",
+	"json": "{\"id\":\"6IdF0k4VjpCluRb\",\"url\":\"https://garagesalefinder.com/s/NIh8N/651-christine-dr-vacaville-ca-95687\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIh8N/651-christine-dr-vacaville-ca-95687\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIh8N/651-christine-dr-vacaville-ca-95687\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:02:47.416Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIh8N/651-christine-dr-vacaville-ca-95687",
+	"url": "https://garagesalefinder.com/s/NIh8N/651-christine-dr-vacaville-ca-95687"
+}

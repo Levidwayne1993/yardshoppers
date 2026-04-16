@@ -1,0 +1,9 @@
+{
+	"id": "YYKFFDe378wF3JX",
+	"json": "{\"id\":\"YYKFFDe378wF3JX\",\"url\":\"https://www.yardsalesearch.com/garage-sales-hanford-northeast-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-hanford-northeast-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776371905530,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-hanford-northeast-ca.html",
+	"url": "https://www.yardsalesearch.com/garage-sales-hanford-northeast-ca.html"
+}

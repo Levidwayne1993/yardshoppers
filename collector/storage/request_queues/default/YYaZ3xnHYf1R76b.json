@@ -1,6 +1,6 @@
 {
 	"id": "YYaZ3xnHYf1R76b",
-	"json": "{\"id\":\"YYaZ3xnHYf1R76b\",\"url\":\"https://estatesales.org/estate-sales/ca/sacramento\",\"loadedUrl\":\"https://estatesales.org/estate-sales/ca/sacramento\",\"uniqueKey\":\"https://estatesales.org/estate-sales/ca/sacramento\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Sacramento\",\"sourceCategory\":\"estate-sale\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-15T21:07:46.499Z\"}",
+	"json": "{\"id\":\"YYaZ3xnHYf1R76b\",\"url\":\"https://estatesales.org/estate-sales/ca/sacramento\",\"loadedUrl\":\"https://estatesales.org/estate-sales/ca/sacramento\",\"uniqueKey\":\"https://estatesales.org/estate-sales/ca/sacramento\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Sacramento\",\"sourceCategory\":\"estate-sale\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T19:23:25.941Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,

@@ -1,6 +1,6 @@
 {
 	"id": "f860C3DLxZQvpvY",
-	"json": "{\"id\":\"f860C3DLxZQvpvY\",\"url\":\"https://garagesalefinder.com/print/sacramento-ca/\",\"loadedUrl\":\"https://garagesalefinder.com/print/sacramento-ca/\",\"uniqueKey\":\"https://garagesalefinder.com/print/sacramento-ca\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-15T21:09:43.828Z\"}",
+	"json": "{\"id\":\"f860C3DLxZQvpvY\",\"url\":\"https://garagesalefinder.com/print/sacramento-ca/\",\"loadedUrl\":\"https://garagesalefinder.com/print/sacramento-ca/\",\"uniqueKey\":\"https://garagesalefinder.com/print/sacramento-ca\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:46:09.174Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,

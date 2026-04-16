@@ -1,6 +1,6 @@
 {
 	"id": "buhrurJGvnG3R0d",
-	"json": "{\"id\":\"buhrurJGvnG3R0d\",\"url\":\"https://garagesalefinder.com/s/NIUve/7251-galilee-rd-roseville-ca-95678\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIUve/7251-galilee-rd-roseville-ca-95678\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIUve/7251-galilee-rd-roseville-ca-95678\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-15T21:15:27.941Z\"}",
+	"json": "{\"id\":\"buhrurJGvnG3R0d\",\"url\":\"https://garagesalefinder.com/s/NIUve/7251-galilee-rd-roseville-ca-95678\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIUve/7251-galilee-rd-roseville-ca-95678\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIUve/7251-galilee-rd-roseville-ca-95678\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:50:20.769Z\"}",
 	"method": "GET",
 	"orderNo": null,
 	"retryCount": 0,

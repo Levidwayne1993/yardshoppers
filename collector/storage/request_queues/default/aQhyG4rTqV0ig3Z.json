@@ -1,8 +1,8 @@
 {
 	"id": "aQhyG4rTqV0ig3Z",
-	"json": "{\"id\":\"aQhyG4rTqV0ig3Z\",\"url\":\"https://garagesalefinder.com/s/NIhjw/656-hillswick-cir-folsom-ca-95630\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhjw/656-hillswick-cir-folsom-ca-95630\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"json": "{\"id\":\"aQhyG4rTqV0ig3Z\",\"url\":\"https://garagesalefinder.com/s/NIhjw/656-hillswick-cir-folsom-ca-95630\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIhjw/656-hillswick-cir-folsom-ca-95630\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhjw/656-hillswick-cir-folsom-ca-95630\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:00:03.219Z\"}",
 	"method": "GET",
-	"orderNo": 1776287262041,
+	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "https://garagesalefinder.com/s/NIhjw/656-hillswick-cir-folsom-ca-95630",
 	"url": "https://garagesalefinder.com/s/NIhjw/656-hillswick-cir-folsom-ca-95630"

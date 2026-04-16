@@ -1,8 +1,8 @@
 {
 	"id": "zvItbhTIgcwshhg",
-	"json": "{\"id\":\"zvItbhTIgcwshhg\",\"url\":\"https://garagesalefinder.com/s/NIGJJ/4800-auburn-folsom-rd-loomis-ca-95650\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIGJJ/4800-auburn-folsom-rd-loomis-ca-95650\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"json": "{\"id\":\"zvItbhTIgcwshhg\",\"url\":\"https://garagesalefinder.com/s/NIGJJ/4800-auburn-folsom-rd-loomis-ca-95650\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIGJJ/4800-auburn-folsom-rd-loomis-ca-95650\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIGJJ/4800-auburn-folsom-rd-loomis-ca-95650\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:51:17.139Z\"}",
 	"method": "GET",
-	"orderNo": 1776287943658,
+	"orderNo": null,
 	"retryCount": 0,
 	"uniqueKey": "https://garagesalefinder.com/s/NIGJJ/4800-auburn-folsom-rd-loomis-ca-95650",
 	"url": "https://garagesalefinder.com/s/NIGJJ/4800-auburn-folsom-rd-loomis-ca-95650"

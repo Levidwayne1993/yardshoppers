@@ -1,0 +1,9 @@
+{
+	"id": "hKCgflO7d9gbfrg",
+	"json": "{\"id\":\"hKCgflO7d9gbfrg\",\"url\":\"https://garagesalefinder.com/s/NIUyT/1436-bismarck-ln-brentwood-ca-94513/gallery\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIUyT/1436-bismarck-ln-brentwood-ca-94513/gallery\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIUyT/1436-bismarck-ln-brentwood-ca-94513/gallery\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: Navigation timed out after 20 seconds.\\n    at handleRequestTimeout (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\crawlers\\\\crawler_utils.ts:13:11)\\n    at PlaywrightCrawler._handleNavigationTimeout (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\browser-crawler.ts:695:33)\\n    at PlaywrightCrawler._handleNavigation (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\browser-crawler.ts:658:24)\\n    at async PlaywrightCrawler._runRequestHandler (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\browser-crawler.ts:553:13)\\n    at async PlaywrightCrawler._runRequestHandler (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\playwright-crawler.ts:243:9)\\n    at async wrap (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@apify\\\\src\\\\index.ts:77:27)\"],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:08:51.030Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 1,
+	"uniqueKey": "https://garagesalefinder.com/s/NIUyT/1436-bismarck-ln-brentwood-ca-94513/gallery",
+	"url": "https://garagesalefinder.com/s/NIUyT/1436-bismarck-ln-brentwood-ca-94513/gallery"
+}

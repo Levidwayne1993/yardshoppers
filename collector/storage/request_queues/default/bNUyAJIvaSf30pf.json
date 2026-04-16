@@ -1,0 +1,9 @@
+{
+	"id": "bNUyAJIvaSf30pf",
+	"json": "{\"id\":\"bNUyAJIvaSf30pf\",\"url\":\"https://www.yardsalesearch.com/garage-sales-coarsegold-ca.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-coarsegold-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-coarsegold-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:07:55.301Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-coarsegold-ca.html",
+	"url": "https://www.yardsalesearch.com/garage-sales-coarsegold-ca.html"
+}
