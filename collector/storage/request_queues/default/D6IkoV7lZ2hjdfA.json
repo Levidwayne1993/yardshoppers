@@ -1,9 +1,0 @@
-{
-	"id": "D6IkoV7lZ2hjdfA",
-	"json": "{\"id\":\"D6IkoV7lZ2hjdfA\",\"url\":\"https://www.yardsalesearch.com/garage-sales-burney-ca.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-burney-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-burney-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:47:58.040Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-burney-ca.html",
-	"url": "https://www.yardsalesearch.com/garage-sales-burney-ca.html"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "LNllZDz0f2deCXo",
-	"json": "{\"id\":\"LNllZDz0f2deCXo\",\"url\":\"https://www.yardsalesearch.com/garage-sales-sacramento-ca.html?date=2026-04-13\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-sacramento-ca.html?date=2026-04-13\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-sacramento-ca.html?date=2026-04-13\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:23:56.380Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-sacramento-ca.html?date=2026-04-13",
-	"url": "https://www.yardsalesearch.com/garage-sales-sacramento-ca.html?date=2026-04-13"
-}

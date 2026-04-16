@@ -1,9 +1,0 @@
-{
-	"id": "rqQA6pZzS8kJjQw",
-	"json": "{\"id\":\"rqQA6pZzS8kJjQw\",\"url\":\"https://www.reddit.com/r/NorCal/\",\"loadedUrl\":\"https://www.reddit.com/r/norcal/\",\"uniqueKey\":\"https://www.reddit.com/r/NorCal\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Reddit NorCal\",\"sourceCategory\":\"reddit\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T19:23:06.673Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.reddit.com/r/NorCal",
-	"url": "https://www.reddit.com/r/NorCal/"
-}

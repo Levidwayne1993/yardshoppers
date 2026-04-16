@@ -1,9 +1,0 @@
-{
-	"id": "df1JMnpZySRrYgL",
-	"json": "{\"id\":\"df1JMnpZySRrYgL\",\"url\":\"https://garagesalefinder.com/s/NIhZG/350-stinson-ave-vacaville-ca-95688\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIhZG/350-stinson-ave-vacaville-ca-95688\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhZG/350-stinson-ave-vacaville-ca-95688\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:04:04.364Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://garagesalefinder.com/s/NIhZG/350-stinson-ave-vacaville-ca-95688",
-	"url": "https://garagesalefinder.com/s/NIhZG/350-stinson-ave-vacaville-ca-95688"
-}

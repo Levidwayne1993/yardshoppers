@@ -149,7 +149,107 @@ export default function HomePage() {
     async function fetchListings() {
       setLoading(true);
 
-      let query = supabase.from("listings").select("*, listing_photos(*)");
+    async function fetchListings() {
+      setLoading(true);
+
+      // ── Query 1: User-posted listings ──
+      let userQuery = supabase.from("listings").select("*, listing_photos(*)");
+      
+      // ── Query 2: Collected external sales ──
+      let extQuery = supabase.from("external_sales").select("*");
+
+      // Apply search filter to BOTH
+      if (debouncedSearch.trim()) {
+        const term = `%${debouncedSearch.trim()}%`;
+        userQuery = userQuery.or(
+          `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
+        );
+        extQuery = extQuery.or(
+          `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
+        );
+      }
+
+      // Apply category filter to BOTH
+      if (selectedCategories.length > 0) {
+        const orClauses = selectedCategories
+          .map((cat) => `category.eq.${cat},categories.cs.{${cat}}`)
+          .join(",");
+        userQuery = userQuery.or(orClauses);
+        extQuery = extQuery.or(orClauses);
+      }
+
+      // Apply geographic bounding box to BOTH
+      if (distance < 999 && lat && lng) {
+        const deg = milesToDeg(distance);
+        userQuery = userQuery
+          .gte("latitude", lat - deg)
+          .lte("latitude", lat + deg)
+          .gte("longitude", lng - deg)
+          .lte("longitude", lng + deg);
+        extQuery = extQuery
+          .gte("latitude", lat - deg)
+          .lte("latitude", lat + deg)
+          .gte("longitude", lng - deg)
+          .lte("longitude", lng + deg);
+      }
+
+      userQuery = userQuery
+        .order("is_boosted", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: sort === "oldest" });
+
+      extQuery = extQuery
+        .order("collected_at", { ascending: sort === "oldest" })
+        .limit(50);
+
+      userQuery = userQuery.limit(50);
+
+      // Fetch BOTH tables in parallel
+      const [userResult, extResult] = await Promise.all([
+        userQuery,
+        extQuery,
+      ]);
+
+      const userListings = userResult.data || [];
+      
+      // Normalize external_sales to match listings shape
+      const externalListings = (extResult.data || []).map((ext: any) => ({
+        ...ext,
+        listing_photos: ext.photo_urls
+          ? ext.photo_urls.map((url: string) => ({ photo_url: url }))
+          : [],
+        is_boosted: false,
+        is_external: true,
+        created_at: ext.collected_at,
+      }));
+
+      // Merge: boosted user listings first, then everything else
+      let results = [...userListings, ...externalListings];
+
+      // Client-side proximity sort
+      if (sort === "nearest" && lat && lng && results.length > 0) {
+        const boosted = results.filter((l: any) => l.is_boosted);
+        const nonBoosted = results.filter((l: any) => !l.is_boosted);
+
+        const sortByDistance = (a: any, b: any) => {
+          const distA =
+            a.latitude && a.longitude
+              ? getDistanceMiles(lat, lng, a.latitude, a.longitude)
+              : Infinity;
+          const distB =
+            b.latitude && b.longitude
+              ? getDistanceMiles(lat, lng, b.latitude, b.longitude)
+              : Infinity;
+          return distA - distB;
+        };
+
+        boosted.sort(sortByDistance);
+        nonBoosted.sort(sortByDistance);
+        results = [...boosted, ...nonBoosted];
+      }
+
+      setListings(results.slice(0, 12));
+      setLoading(false);
+    }
 
       if (debouncedSearch.trim()) {
         const term = `%${debouncedSearch.trim()}%`;

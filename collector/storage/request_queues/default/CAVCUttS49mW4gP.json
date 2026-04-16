@@ -1,9 +1,0 @@
-{
-	"id": "CAVCUttS49mW4gP",
-	"json": "{\"id\":\"CAVCUttS49mW4gP\",\"url\":\"https://www.reddit.com/r/EarthPorn/search?q=California+&sort=new&restrict_sr=on&t=all\",\"loadedUrl\":\"https://www.reddit.com/r/EarthPorn/search/?q=California+&sort=new&restrict_sr=on&t=all\",\"uniqueKey\":\"https://www.reddit.com/r/EarthPorn/search?q=California+&restrict_sr=on&sort=new&t=all\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Reddit California\",\"sourceCategory\":\"reddit\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:23:29.045Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.reddit.com/r/EarthPorn/search?q=California+&restrict_sr=on&sort=new&t=all",
-	"url": "https://www.reddit.com/r/EarthPorn/search?q=California+&sort=new&restrict_sr=on&t=all"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "xlF0Lnyqgznf8aN",
-	"json": "{\"id\":\"xlF0Lnyqgznf8aN\",\"url\":\"https://garagesalefinder.com/s/NIUSz/6936-verdure-way-elk-grove-ca-95758/gallery\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIUSz/6936-verdure-way-elk-grove-ca-95758/gallery\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIUSz/6936-verdure-way-elk-grove-ca-95758/gallery\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:54:56.408Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://garagesalefinder.com/s/NIUSz/6936-verdure-way-elk-grove-ca-95758/gallery",
-	"url": "https://garagesalefinder.com/s/NIUSz/6936-verdure-way-elk-grove-ca-95758/gallery"
-}

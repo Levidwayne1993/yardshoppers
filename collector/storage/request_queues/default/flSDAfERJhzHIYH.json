@@ -1,9 +1,0 @@
-{
-	"id": "flSDAfERJhzHIYH",
-	"json": "{\"id\":\"flSDAfERJhzHIYH\",\"url\":\"https://yardsales.net/alhambra-ca/\",\"loadedUrl\":\"https://yardsales.net/alhambra-ca/\",\"uniqueKey\":\"https://yardsales.net/alhambra-ca\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:34:26.299Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://yardsales.net/alhambra-ca",
-	"url": "https://yardsales.net/alhambra-ca/"
-}

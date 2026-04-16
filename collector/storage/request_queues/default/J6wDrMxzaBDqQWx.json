@@ -1,9 +1,0 @@
-{
-	"id": "J6wDrMxzaBDqQWx",
-	"json": "{\"id\":\"J6wDrMxzaBDqQWx\",\"url\":\"https://garagesalefinder.com/s/NIhWK/1433-klamath-river-dr-rancho-cordova-ca-95670\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIhWK/1433-klamath-river-dr-rancho-cordova-ca-95670\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIhWK/1433-klamath-river-dr-rancho-cordova-ca-95670\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:55:09.268Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://garagesalefinder.com/s/NIhWK/1433-klamath-river-dr-rancho-cordova-ca-95670",
-	"url": "https://garagesalefinder.com/s/NIhWK/1433-klamath-river-dr-rancho-cordova-ca-95670"
-}

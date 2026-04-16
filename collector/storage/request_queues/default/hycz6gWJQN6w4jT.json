@@ -1,9 +1,0 @@
-{
-	"id": "hycz6gWJQN6w4jT",
-	"json": "{\"id\":\"hycz6gWJQN6w4jT\",\"url\":\"https://yardsales.net/sacramento-ca/collectibles/\",\"loadedUrl\":\"https://yardsales.net/sacramento-ca/collectibles/\",\"uniqueKey\":\"https://yardsales.net/sacramento-ca/collectibles\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:35:32.217Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://yardsales.net/sacramento-ca/collectibles",
-	"url": "https://yardsales.net/sacramento-ca/collectibles/"
-}

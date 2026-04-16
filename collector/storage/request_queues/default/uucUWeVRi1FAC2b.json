@@ -1,9 +1,0 @@
-{
-	"id": "uucUWeVRi1FAC2b",
-	"json": "{\"id\":\"uucUWeVRi1FAC2b\",\"url\":\"https://www.yardsalesearch.com/garage-sales-glen-ellen-ca.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-glen-ellen-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-glen-ellen-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:31:26.475Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-glen-ellen-ca.html",
-	"url": "https://www.yardsalesearch.com/garage-sales-glen-ellen-ca.html"
-}

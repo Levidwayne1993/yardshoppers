@@ -73,6 +73,7 @@ export async function batchUpsert(
       categories: sale.categories,
       photo_urls: sale.photo_urls,
       address: sale.address,
+      zip: sale.zip,
       expires_at: sale.expires_at,
       collected_at: sale.collected_at,
     }));

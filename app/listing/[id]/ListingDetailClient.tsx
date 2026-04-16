@@ -109,7 +109,7 @@ export default function ListingDetailClient({
             address: extData.address || "",
             city: extData.city || "",
             state: extData.state || "",
-            zip_code: "",
+            zip_code: extData.zip || "",
             category: extData.category || "",
             sale_date: extData.sale_date || "",
             start_time: null,
@@ -635,7 +635,7 @@ export default function ListingDetailClient({
               )}
             </div>
 
-            {/* Posted by section — only for internal listings */}
+            {/* Posted by section — internal listings show user name */}
             {!isFromExternal && listing.profiles && (
               <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">
@@ -686,6 +686,29 @@ export default function ListingDetailClient({
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Posted by section — external listings show YardShoppers */}
+            {isFromExternal && (
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Posted by
+                </h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
+                    <i
+                      className="fa-solid fa-store text-ys-700"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">YardShoppers</p>
+                    <p className="text-xs text-gray-500">
+                      Verified by YardShoppers
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 

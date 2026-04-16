@@ -1,9 +1,0 @@
-{
-	"id": "tU1kdah8Sey1iYl",
-	"json": "{\"id\":\"tU1kdah8Sey1iYl\",\"url\":\"https://www.yardsalesearch.com/garage-sales-june-lake-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-june-lake-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776367401953,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-june-lake-ca.html",
-	"url": "https://www.yardsalesearch.com/garage-sales-june-lake-ca.html"
-}

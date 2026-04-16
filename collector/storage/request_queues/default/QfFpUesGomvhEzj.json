@@ -1,9 +1,0 @@
-{
-	"id": "QfFpUesGomvhEzj",
-	"json": "{\"id\":\"QfFpUesGomvhEzj\",\"url\":\"https://yardsales.net/sacramento-ca/toys/\",\"uniqueKey\":\"https://yardsales.net/sacramento-ca/toys\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776371905530,
-	"retryCount": 0,
-	"uniqueKey": "https://yardsales.net/sacramento-ca/toys",
-	"url": "https://yardsales.net/sacramento-ca/toys/"
-}

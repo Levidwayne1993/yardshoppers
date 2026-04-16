@@ -1,9 +1,0 @@
-{
-	"id": "CCbqJkvu7gd6ivq",
-	"json": "{\"id\":\"CCbqJkvu7gd6ivq\",\"url\":\"https://yardsales.net/sacramento-ca/books/\",\"loadedUrl\":\"https://yardsales.net/sacramento-ca/books/\",\"uniqueKey\":\"https://yardsales.net/sacramento-ca/books\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:35:05.175Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://yardsales.net/sacramento-ca/books",
-	"url": "https://yardsales.net/sacramento-ca/books/"
-}

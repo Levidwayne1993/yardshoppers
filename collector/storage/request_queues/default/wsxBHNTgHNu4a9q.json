@@ -1,9 +1,0 @@
-{
-	"id": "wsxBHNTgHNu4a9q",
-	"json": "{\"id\":\"wsxBHNTgHNu4a9q\",\"url\":\"https://www.yardsalesearch.com/garage-sales-carmel+-by+-the+-sea-ca.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-carmel+-by+-the+-sea-ca.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-carmel+-by+-the+-sea-ca.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:55:31.510Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-carmel+-by+-the+-sea-ca.html",
-	"url": "https://www.yardsalesearch.com/garage-sales-carmel+-by+-the+-sea-ca.html"
-}

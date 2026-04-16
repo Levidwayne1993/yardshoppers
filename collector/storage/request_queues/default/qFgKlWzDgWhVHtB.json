@@ -1,9 +1,0 @@
-{
-	"id": "qFgKlWzDgWhVHtB",
-	"json": "{\"id\":\"qFgKlWzDgWhVHtB\",\"url\":\"https://yardsales.net/sacramento-ca/garden/\",\"loadedUrl\":\"https://yardsales.net/sacramento-ca/garden/\",\"uniqueKey\":\"https://yardsales.net/sacramento-ca/garden\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSales.net Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T20:37:26.818Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://yardsales.net/sacramento-ca/garden",
-	"url": "https://yardsales.net/sacramento-ca/garden/"
-}

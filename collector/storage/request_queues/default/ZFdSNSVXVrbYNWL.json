@@ -1,9 +1,0 @@
-{
-	"id": "ZFdSNSVXVrbYNWL",
-	"json": "{\"id\":\"ZFdSNSVXVrbYNWL\",\"url\":\"https://gsalr.com/garage-sales-sacramento-ca/\",\"loadedUrl\":\"https://gsalr.com/garage-sales-sacramento-ca/\",\"uniqueKey\":\"https://gsalr.com/garage-sales-sacramento-ca\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GSALR Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T19:23:13.849Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://gsalr.com/garage-sales-sacramento-ca",
-	"url": "https://gsalr.com/garage-sales-sacramento-ca/"
-}

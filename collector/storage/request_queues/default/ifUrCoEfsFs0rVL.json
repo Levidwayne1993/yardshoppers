@@ -1,9 +1,0 @@
-{
-	"id": "ifUrCoEfsFs0rVL",
-	"json": "{\"id\":\"ifUrCoEfsFs0rVL\",\"url\":\"https://www.reddit.com/r/Sacramento/\",\"loadedUrl\":\"https://www.reddit.com/r/Sacramento/?solution=dcc95aa6a46db4f0dcc95aa6a46db4f0&js_challenge=1&token=bbbe4bf1c9a2b5160829c4be34da5861cadc3b9505c992a7432f132943e71b22\",\"uniqueKey\":\"https://www.reddit.com/r/Sacramento\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Reddit Sacramento\",\"sourceCategory\":\"reddit\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T19:23:03.260Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.reddit.com/r/Sacramento",
-	"url": "https://www.reddit.com/r/Sacramento/"
-}

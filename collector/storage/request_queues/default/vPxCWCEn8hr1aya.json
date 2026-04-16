@@ -1,9 +1,0 @@
-{
-	"id": "vPxCWCEn8hr1aya",
-	"json": "{\"id\":\"vPxCWCEn8hr1aya\",\"url\":\"https://www.yardsalesearch.com/yss_map.jsp?loc=38.5781342,-121.4944209\",\"loadedUrl\":\"https://www.yardsalesearch.com/yss_map.jsp?loc=38.57813,-121.49442&zoom=12\",\"uniqueKey\":\"https://www.yardsalesearch.com/yss_map.jsp?loc=38.5781342%2C-121.4944209\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Sacramento\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T19:24:55.228Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/yss_map.jsp?loc=38.5781342%2C-121.4944209",
-	"url": "https://www.yardsalesearch.com/yss_map.jsp?loc=38.5781342,-121.4944209"
-}
