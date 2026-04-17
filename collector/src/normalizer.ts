@@ -8,6 +8,135 @@ import {
 } from './keywords.js';
 
 // ============================================
+// JUNK / NAVIGATION TITLE FILTER
+// ============================================
+
+/**
+ * Titles that are website navigation elements, not real listings.
+ * Case-insensitive exact match after trimming.
+ */
+const JUNK_TITLES_EXACT = new Set([
+  'find yard sales',
+  'find garage sales',
+  'find estate sales',
+  'find garage sales by map',
+  'find garage sales by city and state',
+  'find garage sales by zip code',
+  'find yard sales by map',
+  'find yard sales by city and state',
+  'find yard sales by zip code',
+  'post a yard sale',
+  'post a garage sale',
+  'post your yard sale',
+  'post your garage sale',
+  'list your garage sale',
+  'list your yard sale',
+  'list your garage sale for free',
+  'list your yard sale for free',
+  'garage sale tips',
+  'yard sale tips',
+  'estate sale tips',
+  'garage sale guide',
+  'yard sale guide',
+  'how to have a garage sale',
+  'how to have a yard sale',
+  'garage sale pricing guide',
+  'yard sale pricing guide',
+  'about us',
+  'contact us',
+  'privacy policy',
+  'terms of service',
+  'terms and conditions',
+  'sign up',
+  'sign in',
+  'log in',
+  'login',
+  'register',
+  'create account',
+  'my account',
+  'my listings',
+  'my sales',
+  'advertise with us',
+  'advertise',
+  'faq',
+  'help',
+  'blog',
+  'home',
+  'search',
+  'alert me about new yard sales in this area!',
+  'alert me about new yard sales in this area',
+  'alert me about new garage sales in this area',
+  'get alerts',
+  'set alerts',
+  'subscribe',
+  'newsletter',
+  'download our app',
+  'get the app',
+  'mobile app',
+]);
+
+/**
+ * Patterns that indicate a navigation/menu item, not a real listing.
+ */
+const JUNK_PATTERNS = [
+  /^find\s+(yard|garage|estate)\s+sales?\b/i,
+  /^post\s+(a|your)\s+(yard|garage|estate)\s+sale/i,
+  /^list\s+your\s+(yard|garage|estate)\s+sale/i,
+  /^(yard|garage|estate)\s+sale\s+(tips|guide|advice|help)/i,
+  /^how\s+to\s+(have|run|organize|host)\s+a/i,
+  /^(about|contact|privacy|terms|faq|help|blog|home|search)$/i,
+  /^(sign|log)\s*(up|in|out)$/i,
+  /^(create|my)\s+(account|listings?|sales?)$/i,
+  /^alert\s+me\b/i,
+  /^subscribe\b/i,
+  /^get\s+(alerts?|the\s+app|started)/i,
+  /^download\b/i,
+  /^advertise\b/i,
+  /^pricing\s+(guide|tips)/i,
+  /^view\s+all\b/i,
+  /^see\s+(all|more)\b/i,
+  /^load\s+more\b/i,
+  /^show\s+more\b/i,
+  /^read\s+more\b/i,
+  /^learn\s+more\b/i,
+  /^click\s+here\b/i,
+  /^more\s+info\b/i,
+  /^back\s+to\b/i,
+  /^go\s+to\b/i,
+  /^next\s+page\b/i,
+  /^previous\s+page\b/i,
+  /^\d+$/,  // Just a number (pagination)
+];
+
+/**
+ * Check if a title is junk (navigation, menu item, etc.)
+ * Returns true if the title should be REJECTED.
+ */
+function isJunkTitle(title: string): boolean {
+  const normalized = title.toLowerCase().trim();
+
+  // Exact match check
+  if (JUNK_TITLES_EXACT.has(normalized)) return true;
+
+  // Pattern match check
+  for (const pattern of JUNK_PATTERNS) {
+    if (pattern.test(normalized)) return true;
+  }
+
+  // Too short after cleanup — probably a button label
+  if (normalized.length < 8) return true;
+
+  // All caps and short — likely a nav button
+  if (title === title.toUpperCase() && normalized.length < 30) {
+    // Check if it's a real listing title in all caps (some people do this)
+    // Real listings usually have addresses or sale-type words WITH detail
+    if (!/\d/.test(title)) return true; // No numbers = probably nav
+  }
+
+  return false;
+}
+
+// ============================================
 // CATEGORY DETECTION
 // ============================================
 
@@ -224,6 +353,9 @@ export function normalizeListing(raw: RawListing): NormalizedSale | null {
     .trim()
     .slice(0, 200);
 
+  // ── JUNK FILTER ── reject navigation elements, menu items, etc.
+  if (isJunkTitle(title)) return null;
+
   const description = raw.description
     ? raw.description.replace(/\s+/g, ' ').trim().slice(0, 2000)
     : null;
@@ -238,6 +370,13 @@ export function normalizeListing(raw: RawListing): NormalizedSale | null {
   // Address extraction (from raw field or parsed from text)
   const address = raw.address || extractAddress(combinedText) || null;
   const zip = raw.zip || extractZip(combinedText) || null;
+
+  // ── ADDRESS REQUIRED ──
+  // Reject listings without a real street address.
+  // A real street address starts with a number (e.g., "2607 114th Ave SW").
+  // Listings with just city/state are useless on our site — users can't
+  // get directions, and there's no seller to contact.
+  if (!address || !/^\d+\s+\S/.test(address.trim())) return null;
 
   // Date parsing
   const rawDates = raw.date
@@ -297,6 +436,7 @@ export function normalizeListing(raw: RawListing): NormalizedSale | null {
     categories,
     photo_urls: photoUrls,
     address,
+    zip,
     expires_at: expiresAt,
     collected_at: collectedAt,
   };

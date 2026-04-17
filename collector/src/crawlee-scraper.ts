@@ -164,6 +164,49 @@ export async function crawlWithCrawlee(
 // ============================================
 
 /**
+ * Try to find an address from dedicated HTML elements on the page/card.
+ * Many sites put addresses in <address>, .address, .location, etc.
+ */
+function extractAddressFromElements(
+  $el: cheerio.Cheerio<any>,
+  $: cheerio.CheerioAPI
+): { address: string | undefined; zip: string | undefined } {
+  // Common selectors where sites put addresses
+  const addressSelectors = [
+    'address',
+    '.address',
+    '.street-address',
+    '.sale-address',
+    '.listing-address',
+    '.event-address',
+    '.event-location',
+    '.location',
+    '.venue',
+    '[itemprop="streetAddress"]',
+    '[itemprop="address"]',
+    '[data-address]',
+    '.details-address',
+    '.info-address',
+    '.sale-location',
+    '.listing-location',
+  ];
+
+  for (const sel of addressSelectors) {
+    const found = $el.find(sel).first();
+    if (found.length > 0) {
+      const text = found.text().trim();
+      if (text.length > 5) {
+        const addr = extractAddress(text) || text;
+        const zip = extractZip(text) || undefined;
+        return { address: addr, zip };
+      }
+    }
+  }
+
+  return { address: undefined, zip: undefined };
+}
+
+/**
  * Extract sale listings from a parsed HTML page.
  * Uses multiple strategies to find listings.
  */
@@ -192,6 +235,13 @@ function extractListingsFromPage(
           if (seen.has(key)) continue;
           seen.add(key);
 
+          // JSON-LD often has well-structured address data
+          const loc = item.location || {};
+          const addr = loc.address || {};
+          const streetAddress =
+            addr.streetAddress ||
+            (typeof addr === 'string' ? addr : undefined);
+
           listings.push({
             title: title.slice(0, 200),
             description: (item.description || '').slice(0, 1000),
@@ -200,13 +250,12 @@ function extractListingsFromPage(
               item.datePosted ||
               item.datePublished ||
               undefined,
-            address:
-              item.location?.address?.streetAddress || undefined,
-            city: userData.city,
-            state: userData.state,
-            zip: item.location?.address?.postalCode || undefined,
-            latitude: item.location?.geo?.latitude || undefined,
-            longitude: item.location?.geo?.longitude || undefined,
+            address: streetAddress || undefined,
+            city: addr.addressLocality || userData.city,
+            state: addr.addressRegion || userData.state,
+            zip: addr.postalCode || undefined,
+            latitude: loc.geo?.latitude || undefined,
+            longitude: loc.geo?.longitude || undefined,
             photos: item.image
               ? Array.isArray(item.image)
                 ? item.image.slice(0, 5)
@@ -263,15 +312,22 @@ function extractListingsFromPage(
       const imgSrc =
         imgEl.attr('src') || imgEl.attr('data-src') || '';
 
+      // ── ADDRESS EXTRACTION (enhanced) ──
+      // First try dedicated address elements inside the card
+      const elemAddr = extractAddressFromElements($el, $);
+      // Then fall back to regex on the full card text
+      const address = elemAddr.address || extractAddress(text) || undefined;
+      const zip = elemAddr.zip || extractZip(text) || undefined;
+
       listings.push({
         title,
         description: text.slice(0, 1000),
         date: extractDates(text)[0] || undefined,
         time: extractTimes(text)[0] || undefined,
-        address: extractAddress(text) || undefined,
+        address,
         city: userData.city,
         state: userData.state,
-        zip: extractZip(text) || undefined,
+        zip,
         photos: imgSrc
           ? [
               imgSrc.startsWith('http')
@@ -287,6 +343,7 @@ function extractListingsFromPage(
   }
 
   // Strategy 3: Links with sale-related text
+  // NOW ALSO extracts address/zip/description from parent context
   if (listings.length === 0) {
     $('a[href]').each((_, el) => {
       const $a = $(el);
@@ -311,11 +368,43 @@ function extractListingsFromPage(
       if (seen.has(key)) return;
       seen.add(key);
 
+      // ── NEW: Get context from parent elements ──
+      // Walk up to the nearest container to find address/description
+      const $parent = $a.closest('li, div, tr, article, section, .listing, .card, .post, .item');
+      const parentText = $parent.length > 0 ? $parent.text().trim() : '';
+      const contextText = parentText.length > text.length ? parentText : text;
+
+      // Try to extract address from the surrounding context
+      const address = extractAddress(contextText) || undefined;
+      const zip = extractZip(contextText) || undefined;
+      const dates = extractDates(contextText);
+      const times = extractTimes(contextText);
+
+      // Get any image near the link
+      const nearImg = $parent.find('img').first();
+      const nearImgSrc = nearImg.attr('src') || nearImg.attr('data-src') || '';
+
+      // Build a description from context (excluding just the title)
+      const desc = contextText.length > text.length + 10
+        ? contextText.slice(0, 1000)
+        : undefined;
+
       listings.push({
         title: text.slice(0, 200),
-        description: undefined,
+        description: desc,
+        date: dates[0] || undefined,
+        time: times[0] || undefined,
+        address,
         city: userData.city,
         state: userData.state,
+        zip,
+        photos: nearImgSrc
+          ? [
+              nearImgSrc.startsWith('http')
+                ? nearImgSrc
+                : new URL(nearImgSrc, sourceUrl).toString(),
+            ]
+          : [],
         sourceUrl: fullUrl,
         sourceName: userData.sourceName,
         sourceCategory: userData.sourceCategory,
@@ -323,8 +412,70 @@ function extractListingsFromPage(
     });
   }
 
-  // Strategy 4: RSS/Atom feed links on the page
-  // (handled separately by the RSS collector if needed)
+  // Strategy 4: Detail page — single listing on a dedicated page
+  // If no cards or links matched, try to extract from the full page
+  // This catches detail pages on yardsales.net, estatesale.com, etc.
+  if (listings.length === 0 && hasPrimaryKeyword(pageText)) {
+    const pageTitle = $('h1').first().text().trim() || $('title').text().trim();
+    if (pageTitle && pageTitle.length >= 5) {
+      const key = `${pageTitle}-${sourceUrl}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+
+        // Try to find address from dedicated elements on the page
+        const bodyEl = $('body');
+        const elemAddr = extractAddressFromElements(bodyEl, $);
+        const address = elemAddr.address || extractAddress(pageText) || undefined;
+        const zip = elemAddr.zip || extractZip(pageText) || undefined;
+
+        // Get the main description
+        const descEl = $('meta[name="description"]').attr('content') ||
+          $('meta[property="og:description"]').attr('content') ||
+          '';
+        const description = descEl || pageText.slice(0, 1000);
+
+        // Get images
+        const ogImage = $('meta[property="og:image"]').attr('content');
+        const photos: string[] = [];
+        if (ogImage) photos.push(ogImage);
+        $('img[src]').each((_, img) => {
+          const src = $(img).attr('src') || '';
+          if (
+            src.length > 10 &&
+            !/(logo|icon|avatar|badge|button|banner|ad)/i.test(src) &&
+            photos.length < 5
+          ) {
+            photos.push(
+              src.startsWith('http') ? src : new URL(src, sourceUrl).toString()
+            );
+          }
+        });
+
+        // Get coordinates from meta or data attributes
+        const latMeta = $('[itemprop="latitude"]').attr('content') ||
+          $('meta[property="place:location:latitude"]').attr('content');
+        const lngMeta = $('[itemprop="longitude"]').attr('content') ||
+          $('meta[property="place:location:longitude"]').attr('content');
+
+        listings.push({
+          title: pageTitle.slice(0, 200),
+          description: description.slice(0, 1000),
+          date: extractDates(pageText)[0] || undefined,
+          time: extractTimes(pageText)[0] || undefined,
+          address,
+          city: userData.city,
+          state: userData.state,
+          zip,
+          latitude: latMeta ? parseFloat(latMeta) : undefined,
+          longitude: lngMeta ? parseFloat(lngMeta) : undefined,
+          photos,
+          sourceUrl,
+          sourceName: userData.sourceName,
+          sourceCategory: userData.sourceCategory,
+        });
+      }
+    }
+  }
 
   return listings;
 }
@@ -386,10 +537,17 @@ export async function collectFromRssFeed(
 
         if (!title && !description) continue;
 
+        // Extract address from description content
+        const combinedText = `${title || ''} ${description || ''}`;
+        const address = extractAddress(combinedText) || undefined;
+        const zip = extractZip(combinedText) || undefined;
+
         listings.push({
           title: title || 'Sale Listing',
           description: description || undefined,
           date: dateStr || undefined,
+          address,
+          zip,
           city,
           state,
           photos: imageUrl ? [imageUrl] : [],

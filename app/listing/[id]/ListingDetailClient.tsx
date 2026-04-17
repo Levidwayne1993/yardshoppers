@@ -37,6 +37,133 @@ interface Listing {
   longitude?: number | null;
 }
 
+// ============================================
+// SCHEMA.ORG JSON-LD BUILDER
+// ============================================
+
+function buildJsonLd(listing: Listing, isExternal: boolean) {
+  const displayAddress = listing.street_address || listing.address || "";
+  const location = [
+    displayAddress,
+    listing.city,
+    listing.state,
+    listing.zip_code,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const photos = listing.listing_photos || [];
+  const imageUrls = photos.map((p) => p.photo_url);
+
+  // Build the GarageSale event schema
+  const garageSale: Record<string, any> = {
+    "@context": "https://schema.org",
+    "@type": "GarageSale",
+    name: listing.title,
+    url: `https://www.yardshoppers.com/listing/${listing.id}`,
+  };
+
+  if (listing.description) {
+    garageSale.description = listing.description.slice(0, 300);
+  }
+
+  if (listing.sale_date) {
+    garageSale.startDate = listing.sale_date;
+  }
+
+  if (imageUrls.length > 0) {
+    garageSale.image = imageUrls.length === 1 ? imageUrls[0] : imageUrls;
+  }
+
+  if (displayAddress || listing.city) {
+    garageSale.location = {
+      "@type": "Place",
+      name: location,
+      address: {
+        "@type": "PostalAddress",
+        ...(displayAddress && { streetAddress: displayAddress }),
+        ...(listing.city && { addressLocality: listing.city }),
+        ...(listing.state && { addressRegion: listing.state }),
+        ...(listing.zip_code && { postalCode: listing.zip_code }),
+        addressCountry: "US",
+      },
+    };
+
+    if (listing.latitude && listing.longitude) {
+      garageSale.location.geo = {
+        "@type": "GeoCoordinates",
+        latitude: listing.latitude,
+        longitude: listing.longitude,
+      };
+    }
+  }
+
+  if (listing.price) {
+    garageSale.offers = {
+      "@type": "Offer",
+      price: listing.price.replace(/[^0-9.]/g, "") || "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+    };
+  }
+
+  garageSale.organizer = {
+    "@type": "Organization",
+    name: isExternal
+      ? "YardShoppers"
+      : listing.profiles?.display_name || "YardShoppers Seller",
+    url: "https://www.yardshoppers.com",
+  };
+
+  // Build the BreadcrumbList schema
+  const breadcrumb: Record<string, any> = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: "https://www.yardshoppers.com",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Browse",
+        item: "https://www.yardshoppers.com/browse",
+      },
+    ],
+  };
+
+  if (listing.category) {
+    breadcrumb.itemListElement.push({
+      "@type": "ListItem",
+      position: 3,
+      name: listing.category,
+      item: `https://www.yardshoppers.com/browse?category=${encodeURIComponent(listing.category)}`,
+    });
+    breadcrumb.itemListElement.push({
+      "@type": "ListItem",
+      position: 4,
+      name: listing.title,
+      item: `https://www.yardshoppers.com/listing/${listing.id}`,
+    });
+  } else {
+    breadcrumb.itemListElement.push({
+      "@type": "ListItem",
+      position: 3,
+      name: listing.title,
+      item: `https://www.yardshoppers.com/listing/${listing.id}`,
+    });
+  }
+
+  return [garageSale, breadcrumb];
+}
+
+// ============================================
+// LISTING DETAIL COMPONENT
+// ============================================
+
 export default function ListingDetailClient({
   listingId,
 }: {
@@ -85,6 +212,7 @@ export default function ListingDetailClient({
           .select("*, listing_photos(*)")
           .eq("id", listingId)
           .single();
+
         if (fallback) {
           data = { ...fallback, profiles: null };
         }
@@ -246,11 +374,14 @@ export default function ListingDetailClient({
   }
 
   const photos = listing.listing_photos || [];
-  const displayAddress = listing.street_address || listing.address || "";
+  const displayAddress =
+    listing.street_address || listing.address || "";
+
   // Prevent address from duplicating the city name
   const showAddress =
     displayAddress &&
     displayAddress.toLowerCase().trim() !== listing.city?.toLowerCase().trim();
+
   const location = [
     showAddress ? displayAddress : "",
     listing.city,
@@ -292,8 +423,11 @@ export default function ListingDetailClient({
   const rawEnd = listing.end_time || listing.sale_time_end;
   const formattedStart = formatTime(rawStart);
   const formattedEnd = formatTime(rawEnd);
+  const isOwner =
+    user && listing.user_id && listing.user_id === user.id;
 
-  const isOwner = user && listing.user_id && listing.user_id === user.id;
+  // Build JSON-LD structured data
+  const jsonLdItems = buildJsonLd(listing, isFromExternal);
 
   return (
     <article
@@ -301,6 +435,15 @@ export default function ListingDetailClient({
       itemScope
       itemType="https://schema.org/Product"
     >
+      {/* ── JSON-LD STRUCTURED DATA ── */}
+      {jsonLdItems.map((item, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
+        />
+      ))}
+
       <nav
         aria-label="Breadcrumb"
         className="flex items-center gap-2 text-sm text-gray-500 mb-6"
@@ -357,7 +500,8 @@ export default function ListingDetailClient({
                   className="fa-solid fa-camera text-5xl text-ys-300 mb-3"
                   aria-hidden="true"
                 />
-                <p className="text-sm text-ys-400">No photos available</p>
+                {/* CONTRAST FIX: was text-ys-400, now text-ys-600 */}
+                <p className="text-sm text-ys-600">No photos available</p>
               </div>
             )}
 
@@ -410,28 +554,30 @@ export default function ListingDetailClient({
               role="tablist"
               aria-label="Listing photos"
             >
-              {photos.map((photo: { id: string; photo_url: string }, i: number) => (
-                <button
-                  key={photo.id}
-                  onClick={() => setActivePhoto(i)}
-                  role="tab"
-                  aria-selected={i === activePhoto}
-                  aria-label={`View photo ${i + 1} of ${photos.length}`}
-                  className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                    i === activePhoto
-                      ? "border-ys-600 shadow-md"
-                      : "border-transparent opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <Image
-                    src={photo.photo_url}
-                    alt={`${listing.title} — thumbnail ${i + 1}`}
-                    fill
-                    className="object-cover"
-                    sizes="80px"
-                  />
-                </button>
-              ))}
+              {photos.map(
+                (photo: { id: string; photo_url: string }, i: number) => (
+                  <button
+                    key={photo.id}
+                    onClick={() => setActivePhoto(i)}
+                    role="tab"
+                    aria-selected={i === activePhoto}
+                    aria-label={`View photo ${i + 1} of ${photos.length}`}
+                    className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                      i === activePhoto
+                        ? "border-ys-600 shadow-md"
+                        : "border-transparent opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <Image
+                      src={photo.photo_url}
+                      alt={`${listing.title} — thumbnail ${i + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  </button>
+                )
+              )}
             </div>
           )}
 
@@ -452,6 +598,7 @@ export default function ListingDetailClient({
           {!isFromExternal && (
             <RatingSection listingId={listing.id} hostId={listing.user_id} />
           )}
+
           <CommentsSection listingId={listing.id} />
         </div>
 
@@ -482,7 +629,9 @@ export default function ListingDetailClient({
                       : "bg-gray-50 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"
                   }`}
                   aria-label={
-                    saved ? "Unsave this listing" : "Save this listing"
+                    saved
+                      ? "Unsave this listing"
+                      : "Save this listing"
                   }
                 >
                   <i
@@ -672,7 +821,6 @@ export default function ListingDetailClient({
                     </div>
                   </div>
                 </div>
-
                 {!user && (
                   <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
                     <p className="text-xs text-amber-800">
@@ -721,7 +869,8 @@ export default function ListingDetailClient({
                   }
                   setShowReportModal(true);
                 }}
-                className="text-xs text-gray-400 hover:text-red-500 transition"
+                /* CONTRAST FIX: was text-gray-400, now text-gray-500 */
+                className="text-xs text-gray-500 hover:text-red-500 transition"
               >
                 <i
                   className="fa-regular fa-flag mr-1"
@@ -760,7 +909,10 @@ export default function ListingDetailClient({
         />
       )}
 
-      <RouteFloatingBar listingId={listing.id} listingTitle={listing.title} />
+      <RouteFloatingBar
+        listingId={listing.id}
+        listingTitle={listing.title}
+      />
     </article>
   );
 }

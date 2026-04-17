@@ -1,9 +1,0 @@
-{
-	"id": "S8qsSPu0RkQl2mp",
-	"json": "{\"id\":\"S8qsSPu0RkQl2mp\",\"url\":\"https://www.saclibrary.org/Events\",\"uniqueKey\":\"https://www.saclibrary.org/Events\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Sacramento Library Events\",\"sourceCategory\":\"hyperlocal\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2}}",
-	"method": "GET",
-	"orderNo": 1776374576513,
-	"retryCount": 0,
-	"uniqueKey": "https://www.saclibrary.org/Events",
-	"url": "https://www.saclibrary.org/Events"
-}

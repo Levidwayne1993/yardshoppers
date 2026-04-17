@@ -1,9 +1,0 @@
-{
-	"id": "0wBzvU2xPsHd534",
-	"json": "{\"id\":\"0wBzvU2xPsHd534\",\"url\":\"https://www.downtownsac.org/events/\",\"uniqueKey\":\"https://www.downtownsac.org/events\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Downtown Sacramento Events\",\"sourceCategory\":\"hyperlocal\",\"city\":\"Sacramento\",\"state\":\"CA\",\"depth\":0,\"maxDepth\":2}}",
-	"method": "GET",
-	"orderNo": 1776374576651,
-	"retryCount": 0,
-	"uniqueKey": "https://www.downtownsac.org/events",
-	"url": "https://www.downtownsac.org/events/"
-}

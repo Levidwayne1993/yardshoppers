@@ -12,7 +12,12 @@ interface LocationState {
 }
 
 const CACHE_KEY = "ys_location";
-const CACHE_TTL = 30 * 60 * 1000; // 30 min
+const CACHE_TTL = 30 * 60 * 1000;
+
+function clean(val: string | null | undefined): string | null {
+  if (!val || val.toLowerCase() === "unknown") return null;
+  return val;
+}
 
 function getCached(): LocationState | null {
   try {
@@ -28,30 +33,18 @@ function getCached(): LocationState | null {
 
 function setCache(state: LocationState) {
   try {
-    localStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({ ...state, ts: Date.now() })
-    );
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...state, ts: Date.now() }));
   } catch {}
 }
 
 export function useLocation() {
   const [location, setLocation] = useState<LocationState>({
-    city: null,
-    region: null,
-    lat: null,
-    lng: null,
-    loading: true,
-    precise: false,
+    city: null, region: null, lat: null, lng: null, loading: true, precise: false,
   });
 
-  // Step 1: On mount, use cached or IP-based location (no prompt)
   useEffect(() => {
     const cached = getCached();
-    if (cached) {
-      setLocation(cached);
-      return;
-    }
+    if (cached) { setLocation(cached); return; }
 
     async function fetchIPLocation() {
       try {
@@ -59,8 +52,8 @@ export function useLocation() {
         if (!res.ok) throw new Error("Location API failed");
         const data = await res.json();
         const state: LocationState = {
-          city: data.city || null,
-          region: data.region || null,
+          city: clean(data.city),
+          region: clean(data.region),
           lat: data.lat ?? null,
           lng: data.lng ?? null,
           loading: false,
@@ -72,50 +65,32 @@ export function useLocation() {
         setLocation((prev) => ({ ...prev, loading: false }));
       }
     }
-
     fetchIPLocation();
   }, []);
 
-  // Step 2: Call this to upgrade to GPS (triggers browser prompt)
   const requestPreciseLocation = useCallback(() => {
     if (!navigator.geolocation) return;
-
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         let city: string | null = null;
         let region: string | null = null;
-
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-            {
-              headers: {
-                "User-Agent": "YardShoppers/1.0 (https://yardshoppers.com)",
-              },
-            }
+            { headers: { "User-Agent": "YardShoppers/1.0 (https://yardshoppers.com)" } }
           );
           if (res.ok) {
             const data = await res.json();
-            city = data.address?.city || data.address?.town || null;
+            city = data.address?.city || data.address?.town || data.address?.village || null;
             region = data.address?.state || null;
           }
         } catch {}
-
-        const state: LocationState = {
-          city,
-          region,
-          lat: latitude,
-          lng: longitude,
-          loading: false,
-          precise: true,
-        };
+        const state: LocationState = { city, region, lat: latitude, lng: longitude, loading: false, precise: true };
         setLocation(state);
         setCache(state);
       },
-      () => {
-        // User denied — keep IP-based location, no error
-      },
+      () => {},
       { enableHighAccuracy: false, timeout: 8000 }
     );
   }, []);

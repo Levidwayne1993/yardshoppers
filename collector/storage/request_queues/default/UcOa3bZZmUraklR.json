@@ -1,0 +1,9 @@
+{
+	"id": "UcOa3bZZmUraklR",
+	"json": "{\"id\":\"UcOa3bZZmUraklR\",\"url\":\"https://www.yardsalesearch.com/garage-sales-blountsville-al.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-blountsville-al.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-blountsville-al.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T23:18:51.735Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-blountsville-al.html",
+	"url": "https://www.yardsalesearch.com/garage-sales-blountsville-al.html"
+}

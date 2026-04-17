@@ -1,9 +1,11 @@
 // FILE: collector/src/main.ts
 // Main orchestrator — replaces the old collect.mjs logic
 // Runs: load configs → crawl → normalize → deduplicate → insert
+// NOW SUPPORTS: --state AL, --states AL,WA,CA, --states ALL
 
 import 'dotenv/config';
 import { CITY_CONFIGS } from './city-config.js';
+import { STATE_CONFIGS, getStateConfig, getStateConfigs, VALID_STATE_CODES } from './state-config.js';
 import { crawlWithCrawlee } from './crawlee-scraper.js';
 import { crawlWithScraperAI } from './scraperai-scraper.js';
 import { normalizeAll } from './normalizer.js';
@@ -28,6 +30,7 @@ interface CliOptions {
   crawleeOnly: boolean;
   scraperaiOnly: boolean;
   cityFilter: string | null;
+  stateFilter: string[] | null;
   dryRun: boolean;
   verbose: boolean;
   skipCleanup: boolean;
@@ -39,6 +42,7 @@ function parseArgs(): CliOptions {
     crawleeOnly: false,
     scraperaiOnly: false,
     cityFilter: null,
+    stateFilter: null,
     dryRun: false,
     verbose: false,
     skipCleanup: false,
@@ -55,6 +59,19 @@ function parseArgs(): CliOptions {
       case '--city':
         options.cityFilter = args[++i] || null;
         break;
+      case '--state':
+      case '--states': {
+        const val = args[++i] || '';
+        if (val.toUpperCase() === 'ALL') {
+          options.stateFilter = VALID_STATE_CODES;
+        } else {
+          options.stateFilter = val
+            .split(',')
+            .map((s) => s.trim().toUpperCase())
+            .filter(Boolean);
+        }
+        break;
+      }
       case '--dry-run':
         options.dryRun = true;
         break;
@@ -81,19 +98,26 @@ Usage:
   npx tsx src/main.ts [options]
 
 Options:
-  --crawlee-only      Run only Crawlee-assigned sources (skip ScraperAI)
-  --scraperai-only    Run only ScraperAI-assigned sources (skip Crawlee)
-  --city <name>       Run only a specific city (e.g., --city seattle)
-  --dry-run           Crawl and normalize but don't insert into DB
-  --verbose           Show detailed logging
-  --skip-cleanup      Skip expired listing cleanup
-  --help              Show this help message
+  --crawlee-only          Run only Crawlee-assigned sources (skip ScraperAI)
+  --scraperai-only        Run only ScraperAI-assigned sources (skip Crawlee)
+  --city <name>           Run only a specific city (e.g., --city seattle)
+  --state <CODE>          Run state-level directories for one state (e.g., --state WA)
+  --states <CODES|ALL>    Run state-level directories for multiple states
+                          Comma-separated (e.g., --states AL,WA,CA,FL,TX)
+                          Or use ALL for all 50 states
+  --dry-run               Crawl and normalize but don't insert into DB
+  --verbose               Show detailed logging
+  --skip-cleanup          Skip expired listing cleanup
+  --help                  Show this help message
 
 Examples:
-  npx tsx src/main.ts                          # Full run, all cities
-  npx tsx src/main.ts --city seattle           # Only Seattle
-  npx tsx src/main.ts --crawlee-only           # Only Crawlee sources
-  npx tsx src/main.ts --dry-run --city denver  # Test Denver without DB writes
+  npx tsx src/main.ts                              # Full city run, all 28 cities
+  npx tsx src/main.ts --city seattle               # Only Seattle (city config)
+  npx tsx src/main.ts --crawlee-only               # Only Crawlee sources
+  npx tsx src/main.ts --state WA                   # Washington state directories
+  npx tsx src/main.ts --states AL,WA,CA,FL,TX      # 5 states at once
+  npx tsx src/main.ts --states ALL --crawlee-only   # All 50 states, directories only
+  npx tsx src/main.ts --dry-run --state OR          # Test Oregon without DB writes
 `);
 }
 
@@ -154,7 +178,7 @@ function deduplicateListings(listings: NormalizedSale[]): NormalizedSale[] {
 }
 
 // ============================================
-// PROCESS A SINGLE CITY
+// PROCESS A SINGLE CITY/STATE CONFIG
 // ============================================
 
 async function processCity(
@@ -271,45 +295,71 @@ async function main(): Promise<void> {
     console.log(' ** SCRAPERAI ONLY MODE **');
   }
 
-  // 1. Select cities to process
-  let citiesToProcess: CityConfig[] = CITY_CONFIGS;
+  // 1. Select configs to process
+  let configsToProcess: CityConfig[] = [];
 
-  if (options.cityFilter) {
+  // --- STATE MODE ---
+  if (options.stateFilter && options.stateFilter.length > 0) {
+    // Validate state codes
+    const invalid = options.stateFilter.filter(
+      (code) => !VALID_STATE_CODES.includes(code)
+    );
+    if (invalid.length > 0) {
+      console.error(`\n Invalid state code(s): ${invalid.join(', ')}`);
+      console.log(' Valid codes: ' + VALID_STATE_CODES.join(', '));
+      process.exit(1);
+    }
+
+    configsToProcess = getStateConfigs(options.stateFilter);
+
+    console.log(`\n ** STATE MODE — ${configsToProcess.length} state(s) **`);
+    console.log(
+      ` States: ${configsToProcess.map((c) => c.state).join(', ')}`
+    );
+  }
+  // --- CITY MODE ---
+  else if (options.cityFilter) {
     const filterLower = options.cityFilter.toLowerCase();
-    citiesToProcess = CITY_CONFIGS.filter(
+    configsToProcess = CITY_CONFIGS.filter(
       (c) =>
         c.city.toLowerCase() === filterLower ||
         c.city.toLowerCase().includes(filterLower)
     );
 
-    if (citiesToProcess.length === 0) {
+    if (configsToProcess.length === 0) {
       console.error(`\n No city found matching: "${options.cityFilter}"`);
       console.log(' Available cities:');
       CITY_CONFIGS.forEach((c) => console.log(`   - ${c.city}, ${c.state}`));
       process.exit(1);
     }
 
-    console.log(`\n Filtering to: ${citiesToProcess.map((c) => c.city).join(', ')}`);
+    console.log(
+      `\n Filtering to: ${configsToProcess.map((c) => c.city).join(', ')}`
+    );
+  }
+  // --- DEFAULT: ALL CITIES ---
+  else {
+    configsToProcess = CITY_CONFIGS;
   }
 
   // Count total sources
-  stats.totalSources = citiesToProcess.reduce(
+  stats.totalSources = configsToProcess.reduce(
     (sum, c) => sum + c.sources.length,
     0
   );
 
-  console.log(`\n Cities: ${citiesToProcess.length}`);
+  console.log(`\n Configs: ${configsToProcess.length}`);
   console.log(` Total sources: ${stats.totalSources}`);
 
-  // 2. Process each city
+  // 2. Process each config
   const allListings: NormalizedSale[] = [];
 
-  for (const cityConfig of citiesToProcess) {
+  for (const config of configsToProcess) {
     try {
-      const cityListings = await processCity(cityConfig, options, stats);
-      allListings.push(...cityListings);
+      const listings = await processCity(config, options, stats);
+      allListings.push(...listings);
     } catch (err: any) {
-      const errMsg = `Fatal error processing ${cityConfig.city}: ${err.message}`;
+      const errMsg = `Fatal error processing ${config.city}, ${config.state}: ${err.message}`;
       console.error(`\n ${errMsg}`);
       stats.errors.push(errMsg);
     }
@@ -352,7 +402,9 @@ async function main(): Promise<void> {
       stats.errors.push(errMsg);
     }
   } else if (options.dryRun) {
-    console.log(`\n [DRY RUN] Would have inserted ${finalDeduped.length} listings`);
+    console.log(
+      `\n [DRY RUN] Would have inserted ${finalDeduped.length} listings`
+    );
   }
 
   // 5. Cleanup expired listings
@@ -384,12 +436,19 @@ async function main(): Promise<void> {
       console.log(`\n Total listings in DB: ${totalCount}`);
 
       const countResults = await getCountsByCity();
-      const countsArray = Array.isArray(countResults) ? countResults : Object.entries(countResults).map(([city, count]) => ({ city, count }));
+      const countsArray = Array.isArray(countResults)
+        ? countResults
+        : Object.entries(countResults).map(([city, count]) => ({
+            city,
+            count,
+          }));
       if (countsArray.length > 0) {
         console.log('\n Listings by city:');
         for (const row of countsArray) {
           const rowData = row as Record<string, any>;
-          console.log(`   ${rowData.city ?? 'Unknown'}, ${rowData.state ?? '??'}: ${rowData.count ?? 0}`);
+          console.log(
+            `   ${rowData.city ?? 'Unknown'}, ${rowData.state ?? '??'}: ${rowData.count ?? 0}`
+          );
         }
       }
     } catch (err: any) {
@@ -415,7 +474,9 @@ async function main(): Promise<void> {
   console.log(` Inserted to DB:        ${stats.insertedToDb}`);
   console.log(` Expired cleaned:       ${stats.expiredCleaned}`);
   console.log(` Errors:                ${stats.errors.length}`);
-  console.log(` Duration:              ${(stats.durationMs / 1000).toFixed(1)}s`);
+  console.log(
+    ` Duration:              ${(stats.durationMs / 1000).toFixed(1)}s`
+  );
   console.log('================================================\n');
 
   // Exit with error code if there were failures
@@ -428,7 +489,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log(` Done! All ${stats.citiesProcessed.length} cities processed successfully.`);
+  console.log(
+    ` Done! All ${stats.citiesProcessed.length} configs processed successfully.`
+  );
   process.exit(0);
 }
 

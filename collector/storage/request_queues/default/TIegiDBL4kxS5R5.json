@@ -1,0 +1,9 @@
+{
+	"id": "TIegiDBL4kxS5R5",
+	"json": "{\"id\":\"TIegiDBL4kxS5R5\",\"url\":\"https://garagesalefinder.com/s/NIStG/2211-rocky-branch-rd-dothan-al-36303/gallery\",\"loadedUrl\":\"https://garagesalefinder.com/s/NIStG/2211-rocky-branch-rd-dothan-al-36303/gallery\",\"uniqueKey\":\"https://garagesalefinder.com/s/NIStG/2211-rocky-branch-rd-dothan-al-36303/gallery\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T23:09:52.487Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/s/NIStG/2211-rocky-branch-rd-dothan-al-36303/gallery",
+	"url": "https://garagesalefinder.com/s/NIStG/2211-rocky-branch-rd-dothan-al-36303/gallery"
+}

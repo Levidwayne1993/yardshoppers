@@ -2,46 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   try {
-    const city = req.headers.get("x-vercel-ip-city");
+    const rawCity = req.headers.get("x-vercel-ip-city");
     const region = req.headers.get("x-vercel-ip-country-region");
     const lat = req.headers.get("x-vercel-ip-latitude");
     const lng = req.headers.get("x-vercel-ip-longitude");
 
     if (lat && lng) {
+      const city = rawCity ? decodeURIComponent(rawCity) : null;
       return NextResponse.json({
-        city: city ? decodeURIComponent(city) : "Unknown",
-        region: region || "Unknown",
+        city,
+        region: region || null,
         lat: parseFloat(lat),
         lng: parseFloat(lng),
       });
     }
 
-    // Fallback — free ip-api only works over HTTP, so use limited fields
-    const res = await fetch(
-      "http://ip-api.com/json/?fields=city,regionName,lat,lon",
-      { next: { revalidate: 300 } }
-    );
+    // Fallback — ipapi.co over HTTPS (free 1,000 req/day)
+    const res = await fetch("https://ipapi.co/json/", {
+      headers: { "User-Agent": "YardShoppers/1.0 (https://yardshoppers.com)" },
+      next: { revalidate: 300 },
+    });
 
     if (!res.ok) {
-      return NextResponse.json(
-        { error: "Could not determine location" },
-        { status: 502 }
-      );
+      return NextResponse.json({ city: null, region: null, lat: null, lng: null });
     }
 
     const data = await res.json();
-
     return NextResponse.json({
-      city: data.city || "Unknown",
-      region: data.regionName || "Unknown",
-      lat: data.lat,
-      lng: data.lon,
+      city: data.city || null,
+      region: data.region || null,
+      lat: data.latitude ?? null,
+      lng: data.longitude ?? null,
     });
   } catch (err) {
     console.error("Location API error:", err);
-    return NextResponse.json(
-      { error: "Failed to detect location" },
-      { status: 500 }
-    );
+    return NextResponse.json({ city: null, region: null, lat: null, lng: null });
   }
 }
