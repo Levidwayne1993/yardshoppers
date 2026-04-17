@@ -1,0 +1,9 @@
+{
+	"id": "noebCKqS9mWA5qX",
+	"json": "{\"id\":\"noebCKqS9mWA5qX\",\"url\":\"https://garagesalefinder.com/yard-sales/austin-tx/\",\"uniqueKey\":\"https://garagesalefinder.com/yard-sales/austin-tx\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":2,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776380971437,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/yard-sales/austin-tx",
+	"url": "https://garagesalefinder.com/yard-sales/austin-tx/"
+}

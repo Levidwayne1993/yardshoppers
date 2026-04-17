@@ -19,15 +19,22 @@ export default function DistanceSelector({
   onChange,
 }: DistanceSelectorProps) {
   return (
-    <div className="flex items-center gap-1.5 flex-wrap">
+    <div
+      className="flex items-center gap-1.5 flex-wrap min-h-[32px]"
+      role="radiogroup"
+      aria-label="Search radius"
+    >
       <span className="text-xs text-gray-500 font-medium mr-1">
-        <i className="fa-solid fa-sliders text-ys-600 mr-1" />
+        <i className="fa-solid fa-sliders text-ys-600 mr-1" aria-hidden="true" />
         Radius:
       </span>
       {DISTANCES.map((d) => (
         <button
           key={d.value}
           onClick={() => onChange(d.value)}
+          role="radio"
+          aria-checked={value === d.value}
+          aria-label={d.value === 999 ? "Any distance" : `${d.value} miles`}
           className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
             value === d.value
               ? "bg-ys-700 text-white shadow-sm"

@@ -1,0 +1,9 @@
+{
+	"id": "KzVTK2OErEMs8Li",
+	"json": "{\"id\":\"KzVTK2OErEMs8Li\",\"url\":\"https://www.estatesale.com/cities/view/292/Estate-Sales-Compton-CA.html\",\"uniqueKey\":\"https://www.estatesale.com/cities/view/292/Estate-Sales-Compton-CA.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSale.com Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776380953372,
+	"retryCount": 0,
+	"uniqueKey": "https://www.estatesale.com/cities/view/292/Estate-Sales-Compton-CA.html",
+	"url": "https://www.estatesale.com/cities/view/292/Estate-Sales-Compton-CA.html"
+}

@@ -1,0 +1,25 @@
+==========================================
+Collection started at 2026-04-13 00:26:28
+Dev server started (PID: 18820) on port 3099
+ERROR: Dev server failed to start within 60 seconds
+SCRIPT ERROR: Dev server failed to start
+Collection finished at 2026-04-13 00:29:00
+==========================================
+==========================================
+Collection started at 2026-04-13 00:29:01
+Dev server started (PID: 15240) on port 3099
+ERROR: Dev server failed to start within 60 seconds
+SCRIPT ERROR: Dev server failed to start
+Dev server stopped
+Collection finished at 2026-04-13 00:31:33
+==========================================
+==========================================
+Collection started at 2026-04-13 00:31:34
+Dev server started (PID: 19960) on port 3099
+==========================================
+Collection started at 2026-04-13 00:34:20
+Dev server started (PID: 19340) on port 3099
+ERROR: Dev server failed to start within 60 seconds
+SCRIPT ERROR: Dev server failed to start
+Collection finished at 2026-04-13 00:36:52
+==========================================

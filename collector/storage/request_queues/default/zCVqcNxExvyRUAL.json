@@ -1,0 +1,9 @@
+{
+	"id": "zCVqcNxExvyRUAL",
+	"json": "{\"id\":\"zCVqcNxExvyRUAL\",\"url\":\"https://garagesalefinder.com/yard-sales/charlotte-nc/\",\"uniqueKey\":\"https://garagesalefinder.com/yard-sales/charlotte-nc\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":2,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776380971452,
+	"retryCount": 0,
+	"uniqueKey": "https://garagesalefinder.com/yard-sales/charlotte-nc",
+	"url": "https://garagesalefinder.com/yard-sales/charlotte-nc/"
+}

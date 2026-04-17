@@ -3,8 +3,11 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yardshoppers.com";
 
   if (code) {
     const cookieStore = await cookies();
@@ -28,5 +31,5 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(origin);
+  return NextResponse.redirect(siteUrl);
 }

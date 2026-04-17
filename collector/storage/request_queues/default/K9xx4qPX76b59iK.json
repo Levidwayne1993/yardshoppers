@@ -1,0 +1,9 @@
+{
+	"id": "K9xx4qPX76b59iK",
+	"json": "{\"id\":\"K9xx4qPX76b59iK\",\"url\":\"https://www.yardsalesearch.com/garage-sales-fayette-al.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-fayette-al.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"page.goto: net::ERR_ABORTED at https://www.yardsalesearch.com/garage-sales-fayette-al.html\\nCall log:\\n\\u001b[2m  - navigating to \\\"https://www.yardsalesearch.com/garage-sales-fayette-al.html\\\", waiting until \\\"load\\\"\\u001b[22m\\n\\n    at gotoExtended (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\utils\\\\playwright-utils.ts:240:17)\\n    at PlaywrightCrawler._navigationHandler (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\playwright-crawler.ts:250:28)\\n    at PlaywrightCrawler._handleNavigation (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\browser-crawler.ts:656:52)\\n    at async PlaywrightCrawler._runRequestHandler (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\browser-crawler.ts:553:13)\\n    at async PlaywrightCrawler._runRequestHandler (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\internals\\\\playwright-crawler.ts:243:9)\\n    at async wrap (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@apify\\\\src\\\\index.ts:77:27)\"],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":5}}}",
+	"method": "GET",
+	"orderNo": 1776382007214,
+	"retryCount": 1,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-fayette-al.html",
+	"url": "https://www.yardsalesearch.com/garage-sales-fayette-al.html"
+}

@@ -1,0 +1,9 @@
+{
+	"id": "SUHIima7w0B3fgN",
+	"json": "{\"id\":\"SUHIima7w0B3fgN\",\"url\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196162051&gallery=1\",\"loadedUrl\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196162051&gallery=1\",\"uniqueKey\":\"https://www.yardsalesearch.com/yss-garage-sale.jsp?gallery=1&id=196162051\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T23:14:57.581Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/yss-garage-sale.jsp?gallery=1&id=196162051",
+	"url": "https://www.yardsalesearch.com/yss-garage-sale.jsp?id=196162051&gallery=1"
+}

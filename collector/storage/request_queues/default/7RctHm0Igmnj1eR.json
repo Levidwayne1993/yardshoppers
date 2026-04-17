@@ -1,0 +1,9 @@
+{
+	"id": "7RctHm0Igmnj1eR",
+	"json": "{\"id\":\"7RctHm0Igmnj1eR\",\"url\":\"https://www.yardsalesearch.com/garage-sales-decatur-al.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-decatur-al.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-decatur-al.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T23:24:48.339Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-decatur-al.html",
+	"url": "https://www.yardsalesearch.com/garage-sales-decatur-al.html"
+}

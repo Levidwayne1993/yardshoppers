@@ -1,0 +1,9 @@
+{
+	"id": "7UQl3hi9X8Oy37W",
+	"json": "{\"id\":\"7UQl3hi9X8Oy37W\",\"url\":\"https://estatesales.org/estate-sales/md/college-park/20740/vintage-hubcap-auctions-all-items-2432073\",\"uniqueKey\":\"https://estatesales.org/estate-sales/md/college-park/20740/vintage-hubcap-auctions-all-items-2432073\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
+	"method": "GET",
+	"orderNo": 1776380938536,
+	"retryCount": 0,
+	"uniqueKey": "https://estatesales.org/estate-sales/md/college-park/20740/vintage-hubcap-auctions-all-items-2432073",
+	"url": "https://estatesales.org/estate-sales/md/college-park/20740/vintage-hubcap-auctions-all-items-2432073"
+}

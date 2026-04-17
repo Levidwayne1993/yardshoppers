@@ -4,25 +4,165 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
+import BoostModal from "@/components/BoostModal";
+import ReportModal from "@/components/ReportModal";
+import CommentsSection from "@/components/CommentsSection";
+import RatingSection from "@/components/RatingSection";
+import MessageModal from "@/components/MessageModal";
+import RouteFloatingBar from "@/components/RouteFloatingBar";
+import { trackView } from "@/lib/seo-signals";
 
 interface Listing {
   id: string;
   title: string;
   description: string;
   price: string;
-  address: string;
+  street_address?: string;
+  address?: string;
   city: string;
   state: string;
   zip_code: string;
   category: string;
   sale_date: string;
-  sale_time_start: string;
-  sale_time_end: string;
+  start_time?: string;
+  end_time?: string;
+  sale_time_start?: string;
+  sale_time_end?: string;
   created_at: string;
   user_id: string;
-  profiles?: { display_name?: string };
+  is_boosted?: boolean;
+  profiles?: { display_name?: string } | null;
   listing_photos?: { id: string; photo_url: string }[];
+  latitude?: number | null;
+  longitude?: number | null;
 }
+
+// ============================================
+// SCHEMA.ORG JSON-LD BUILDER
+// ============================================
+
+function buildJsonLd(listing: Listing, isExternal: boolean) {
+  const displayAddress = listing.street_address || listing.address || "";
+  const location = [
+    displayAddress,
+    listing.city,
+    listing.state,
+    listing.zip_code,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const photos = listing.listing_photos || [];
+  const imageUrls = photos.map((p) => p.photo_url);
+
+  // Build the GarageSale event schema
+  const garageSale: Record<string, any> = {
+    "@context": "https://schema.org",
+    "@type": "GarageSale",
+    name: listing.title,
+    url: `https://www.yardshoppers.com/listing/${listing.id}`,
+  };
+
+  if (listing.description) {
+    garageSale.description = listing.description.slice(0, 300);
+  }
+
+  if (listing.sale_date) {
+    garageSale.startDate = listing.sale_date;
+  }
+
+  if (imageUrls.length > 0) {
+    garageSale.image = imageUrls.length === 1 ? imageUrls[0] : imageUrls;
+  }
+
+  if (displayAddress || listing.city) {
+    garageSale.location = {
+      "@type": "Place",
+      name: location,
+      address: {
+        "@type": "PostalAddress",
+        ...(displayAddress && { streetAddress: displayAddress }),
+        ...(listing.city && { addressLocality: listing.city }),
+        ...(listing.state && { addressRegion: listing.state }),
+        ...(listing.zip_code && { postalCode: listing.zip_code }),
+        addressCountry: "US",
+      },
+    };
+
+    if (listing.latitude && listing.longitude) {
+      garageSale.location.geo = {
+        "@type": "GeoCoordinates",
+        latitude: listing.latitude,
+        longitude: listing.longitude,
+      };
+    }
+  }
+
+  if (listing.price) {
+    garageSale.offers = {
+      "@type": "Offer",
+      price: listing.price.replace(/[^0-9.]/g, "") || "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+    };
+  }
+
+  garageSale.organizer = {
+    "@type": "Organization",
+    name: isExternal
+      ? "YardShoppers"
+      : listing.profiles?.display_name || "YardShoppers Seller",
+    url: "https://www.yardshoppers.com",
+  };
+
+  // Build the BreadcrumbList schema
+  const breadcrumb: Record<string, any> = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: "https://www.yardshoppers.com",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Browse",
+        item: "https://www.yardshoppers.com/browse",
+      },
+    ],
+  };
+
+  if (listing.category) {
+    breadcrumb.itemListElement.push({
+      "@type": "ListItem",
+      position: 3,
+      name: listing.category,
+      item: `https://www.yardshoppers.com/browse?category=${encodeURIComponent(listing.category)}`,
+    });
+    breadcrumb.itemListElement.push({
+      "@type": "ListItem",
+      position: 4,
+      name: listing.title,
+      item: `https://www.yardshoppers.com/listing/${listing.id}`,
+    });
+  } else {
+    breadcrumb.itemListElement.push({
+      "@type": "ListItem",
+      position: 3,
+      name: listing.title,
+      item: `https://www.yardshoppers.com/listing/${listing.id}`,
+    });
+  }
+
+  return [garageSale, breadcrumb];
+}
+
+// ============================================
+// LISTING DETAIL COMPONENT
+// ============================================
 
 export default function ListingDetailClient({
   listingId,
@@ -36,25 +176,108 @@ export default function ListingDetailClient({
   const [saved, setSaved] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const [showBoostModal, setShowBoostModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [hostAvgRating, setHostAvgRating] = useState<number | null>(null);
+  const [hostTotalRatings, setHostTotalRatings] = useState<number>(0);
+  const [isFromExternal, setIsFromExternal] = useState(false);
 
   useEffect(() => {
     async function load() {
-      /* Current user */
       const {
         data: { user: u },
       } = await supabase.auth.getUser();
       setUser(u);
 
-      /* Listing + photos + seller */
-      const { data } = await supabase
-        .from("listings")
-        .select("*, listing_photos(*), profiles(display_name)")
-        .eq("id", listingId)
-        .single();
+      let data: any = null;
 
-      if (data) setListing(data);
+      // Try internal listings table first (with profiles join)
+      {
+        const { data: d, error } = await supabase
+          .from("listings")
+          .select("*, listing_photos(*), profiles(display_name)")
+          .eq("id", listingId)
+          .single();
 
-      /* Check if saved */
+        if (!error && d) {
+          data = d;
+        }
+      }
+
+      // If profiles join fails, retry without it
+      if (!data) {
+        const { data: fallback } = await supabase
+          .from("listings")
+          .select("*, listing_photos(*)")
+          .eq("id", listingId)
+          .single();
+
+        if (fallback) {
+          data = { ...fallback, profiles: null };
+        }
+      }
+
+      // If still not found, try external_sales table
+      if (!data) {
+        const { data: extData } = await supabase
+          .from("external_sales")
+          .select("*")
+          .eq("id", listingId)
+          .single();
+
+        if (extData) {
+          setIsFromExternal(true);
+          data = {
+            id: extData.id,
+            title: extData.title || "Classified Listing",
+            description: extData.description || "",
+            price: extData.price || "",
+            street_address: extData.address || "",
+            address: extData.address || "",
+            city: extData.city || "",
+            state: extData.state || "",
+            zip_code: extData.zip || "",
+            category: extData.category || "",
+            sale_date: extData.sale_date || "",
+            start_time: null,
+            end_time: null,
+            sale_time_start: extData.sale_time_start || null,
+            sale_time_end: extData.sale_time_end || null,
+            created_at: extData.collected_at || extData.created_at || "",
+            user_id: "",
+            is_boosted: false,
+            profiles: null,
+            listing_photos: (extData.photo_urls || []).map(
+              (url: string, i: number) => ({
+                id: `ext-photo-${i}`,
+                photo_url: url,
+              })
+            ),
+            latitude: extData.latitude ?? null,
+            longitude: extData.longitude ?? null,
+          };
+        }
+      }
+
+      if (data) {
+        setListing(data);
+
+        // Fetch host rating summary (only for internal listings with a user_id)
+        if (data.user_id) {
+          const { data: ratingData } = await supabase
+            .from("host_ratings")
+            .select("avg_rating, total_ratings")
+            .eq("host_id", data.user_id)
+            .maybeSingle();
+
+          if (ratingData) {
+            setHostAvgRating(ratingData.avg_rating);
+            setHostTotalRatings(ratingData.total_ratings);
+          }
+        }
+      }
+
       if (u) {
         const { data: s } = await supabase
           .from("saved_listings")
@@ -70,7 +293,10 @@ export default function ListingDetailClient({
     load();
   }, [listingId]);
 
-  /* ── Save / Unsave toggle ────────────────── */
+  useEffect(() => {
+    trackView(listingId);
+  }, [listingId]);
+
   async function toggleSave() {
     if (!user) return;
     if (saved) {
@@ -88,13 +314,12 @@ export default function ListingDetailClient({
     }
   }
 
-  /* ── Share ───────────────────────────────── */
   async function handleShare() {
     const url = window.location.href;
     if (navigator.share) {
       await navigator.share({
         title: listing?.title,
-        text: `Check out this yard sale on YardShoppers!`,
+        text: "Check out this yard sale on YardShoppers!",
         url,
       });
     } else {
@@ -104,7 +329,6 @@ export default function ListingDetailClient({
     }
   }
 
-  /* ── Loading ─────────────────────────────── */
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
@@ -124,12 +348,14 @@ export default function ListingDetailClient({
     );
   }
 
-  /* ── Not Found ───────────────────────────── */
   if (!listing) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-5">
-          <i className="fa-solid fa-ghost text-3xl text-gray-300" />
+          <i
+            className="fa-solid fa-ghost text-3xl text-gray-300"
+            aria-hidden="true"
+          />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           Listing Not Found
@@ -148,10 +374,28 @@ export default function ListingDetailClient({
   }
 
   const photos = listing.listing_photos || [];
-  const location = [listing.address, listing.city, listing.state, listing.zip_code]
+  const displayAddress =
+    listing.street_address || listing.address || "";
+
+  // Prevent address from duplicating the city name
+  const showAddress =
+    displayAddress &&
+    displayAddress.toLowerCase().trim() !== listing.city?.toLowerCase().trim();
+
+  const location = [
+    showAddress ? displayAddress : "",
+    listing.city,
+    listing.state,
+    listing.zip_code,
+  ]
     .filter(Boolean)
     .join(", ");
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+
+  // Build maps URL — prefer lat/lng if available, otherwise use text address
+  const mapsUrl =
+    listing.latitude && listing.longitude
+      ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 
   const saleDay = listing.sale_date
     ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString("en-US", {
@@ -162,20 +406,64 @@ export default function ListingDetailClient({
       })
     : null;
 
+  function formatTime(timeStr: string | null | undefined): string | null {
+    if (!timeStr) return null;
+    try {
+      const [hours, minutes] = timeStr.split(":");
+      const h = parseInt(hours, 10);
+      const ampm = h >= 12 ? "PM" : "AM";
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${h12}:${minutes} ${ampm}`;
+    } catch {
+      return timeStr;
+    }
+  }
+
+  const rawStart = listing.start_time || listing.sale_time_start;
+  const rawEnd = listing.end_time || listing.sale_time_end;
+  const formattedStart = formatTime(rawStart);
+  const formattedEnd = formatTime(rawEnd);
+  const isOwner =
+    user && listing.user_id && listing.user_id === user.id;
+
+  // Build JSON-LD structured data
+  const jsonLdItems = buildJsonLd(listing, isFromExternal);
+
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      {/* ── Breadcrumb ─────────────────────── */}
-      <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+    <article
+      className="max-w-6xl mx-auto px-4 sm:px-6 py-8"
+      itemScope
+      itemType="https://schema.org/Product"
+    >
+      {/* ── JSON-LD STRUCTURED DATA ── */}
+      {jsonLdItems.map((item, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
+        />
+      ))}
+
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-2 text-sm text-gray-500 mb-6"
+      >
         <Link href="/" className="hover:text-ys-800 transition">
           Home
         </Link>
-        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
+        <i
+          className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+          aria-hidden="true"
+        />
         <Link href="/browse" className="hover:text-ys-800 transition">
           Browse
         </Link>
         {listing.category && (
           <>
-            <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
+            <i
+              className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+              aria-hidden="true"
+            />
             <Link
               href={`/browse?category=${encodeURIComponent(listing.category)}`}
               className="hover:text-ys-800 transition"
@@ -184,42 +472,48 @@ export default function ListingDetailClient({
             </Link>
           </>
         )}
-        <i className="fa-solid fa-chevron-right text-[10px] text-gray-300" />
+        <i
+          className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+          aria-hidden="true"
+        />
         <span className="text-gray-900 font-medium truncate max-w-[200px]">
           {listing.title}
         </span>
       </nav>
 
-      {/* ── Main Layout ────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* ── Photos (left, 3 cols) ────────── */}
         <div className="lg:col-span-3">
-          {/* Main Photo */}
           <div className="relative aspect-[4/3] bg-gray-100 rounded-2xl overflow-hidden">
             {photos.length > 0 ? (
               <Image
                 src={photos[activePhoto].photo_url}
-                alt={listing.title}
+                alt={`${listing.title} — photo ${activePhoto + 1} of ${photos.length}${listing.city ? `, ${listing.city}` : ""}`}
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 60vw"
                 priority
+                itemProp="image"
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full bg-ys-50">
-                <i className="fa-solid fa-camera text-5xl text-ys-300 mb-3" />
-                <p className="text-sm text-ys-400">No photos available</p>
+                <i
+                  className="fa-solid fa-camera text-5xl text-ys-300 mb-3"
+                  aria-hidden="true"
+                />
+                {/* CONTRAST FIX: was text-ys-400, now text-ys-600 */}
+                <p className="text-sm text-ys-600">No photos available</p>
               </div>
             )}
 
-            {/* Photo counter */}
             {photos.length > 1 && (
-              <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm">
+              <div
+                className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm"
+                aria-live="polite"
+              >
                 {activePhoto + 1} / {photos.length}
               </div>
             )}
 
-            {/* Prev / Next arrows */}
             {photos.length > 1 && (
               <>
                 <button
@@ -228,9 +522,13 @@ export default function ListingDetailClient({
                       p === 0 ? photos.length - 1 : p - 1
                     )
                   }
+                  aria-label="Previous photo"
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
-                  <i className="fa-solid fa-chevron-left text-sm text-gray-700" />
+                  <i
+                    className="fa-solid fa-chevron-left text-sm text-gray-700"
+                    aria-hidden="true"
+                  />
                 </button>
                 <button
                   onClick={() =>
@@ -238,58 +536,75 @@ export default function ListingDetailClient({
                       p === photos.length - 1 ? 0 : p + 1
                     )
                   }
+                  aria-label="Next photo"
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
                 >
-                  <i className="fa-solid fa-chevron-right text-sm text-gray-700" />
+                  <i
+                    className="fa-solid fa-chevron-right text-sm text-gray-700"
+                    aria-hidden="true"
+                  />
                 </button>
               </>
             )}
           </div>
 
-          {/* Thumbnails */}
           {photos.length > 1 && (
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-              {photos.map((photo, i) => (
-                <button
-                  key={photo.id}
-                  onClick={() => setActivePhoto(i)}
-                  className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                    i === activePhoto
-                      ? "border-ys-600 shadow-md"
-                      : "border-transparent opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <Image
-                    src={photo.photo_url}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="80px"
-                  />
-                </button>
-              ))}
+            <div
+              className="flex gap-2 mt-3 overflow-x-auto pb-1"
+              role="tablist"
+              aria-label="Listing photos"
+            >
+              {photos.map(
+                (photo: { id: string; photo_url: string }, i: number) => (
+                  <button
+                    key={photo.id}
+                    onClick={() => setActivePhoto(i)}
+                    role="tab"
+                    aria-selected={i === activePhoto}
+                    aria-label={`View photo ${i + 1} of ${photos.length}`}
+                    className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                      i === activePhoto
+                        ? "border-ys-600 shadow-md"
+                        : "border-transparent opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <Image
+                      src={photo.photo_url}
+                      alt={`${listing.title} — thumbnail ${i + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  </button>
+                )
+              )}
             </div>
           )}
 
-          {/* ── Description (under photos) ── */}
           {listing.description && (
-            <div className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
+            <section className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-3">
                 About This Sale
               </h2>
-              <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+              <p
+                className="text-gray-600 leading-relaxed whitespace-pre-line"
+                itemProp="description"
+              >
                 {listing.description}
               </p>
-            </div>
+            </section>
           )}
+
+          {!isFromExternal && (
+            <RatingSection listingId={listing.id} hostId={listing.user_id} />
+          )}
+
+          <CommentsSection listingId={listing.id} />
         </div>
 
-        {/* ── Info Panel (right, 2 cols) ──── */}
         <div className="lg:col-span-2">
           <div className="lg:sticky lg:top-24 space-y-5">
-            {/* Main Info Card */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-              {/* Category */}
               {listing.category && (
                 <Link
                   href={`/browse?category=${encodeURIComponent(listing.category)}`}
@@ -299,9 +614,11 @@ export default function ListingDetailClient({
                 </Link>
               )}
 
-              {/* Title + Save */}
               <div className="flex items-start justify-between gap-3">
-                <h1 className="text-xl font-bold text-gray-900 leading-tight">
+                <h1
+                  className="text-xl font-bold text-gray-900 leading-tight"
+                  itemProp="name"
+                >
                   {listing.title}
                 </h1>
                 <button
@@ -311,27 +628,43 @@ export default function ListingDetailClient({
                       ? "bg-red-50 border-red-200 text-red-500"
                       : "bg-gray-50 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"
                   }`}
-                  title={saved ? "Unsave" : "Save"}
+                  aria-label={
+                    saved
+                      ? "Unsave this listing"
+                      : "Save this listing"
+                  }
                 >
                   <i
                     className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`}
+                    aria-hidden="true"
                   />
                 </button>
               </div>
 
-              {/* Price */}
               {listing.price && (
-                <p className="text-2xl font-extrabold text-ys-800 mt-2">
-                  {listing.price}
+                <p
+                  className="text-2xl font-extrabold text-ys-800 mt-2"
+                  itemProp="offers"
+                  itemScope
+                  itemType="https://schema.org/Offer"
+                >
+                  <span itemProp="price">{listing.price}</span>
+                  <meta itemProp="priceCurrency" content="USD" />
+                  <meta
+                    itemProp="availability"
+                    content="https://schema.org/InStock"
+                  />
                 </p>
               )}
 
-              {/* Details Grid */}
               <div className="mt-5 space-y-3">
                 {location && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      <i className="fa-solid fa-location-dot text-sm text-ys-700" />
+                      <i
+                        className="fa-solid fa-location-dot text-sm text-ys-700"
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
@@ -345,34 +678,42 @@ export default function ListingDetailClient({
                 {saleDay && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      <i className="fa-regular fa-calendar text-sm text-ys-700" />
+                      <i
+                        className="fa-regular fa-calendar text-sm text-ys-700"
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">Date</p>
-                      <p className="text-sm text-gray-500">{saleDay}</p>
+                      <time
+                        className="text-sm text-gray-500"
+                        dateTime={listing.sale_date}
+                      >
+                        {saleDay}
+                      </time>
                     </div>
                   </div>
                 )}
 
-                {(listing.sale_time_start || listing.sale_time_end) && (
+                {(formattedStart || formattedEnd) && (
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                      <i className="fa-regular fa-clock text-sm text-ys-700" />
+                      <i
+                        className="fa-regular fa-clock text-sm text-ys-700"
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">Time</p>
                       <p className="text-sm text-gray-500">
-                        {listing.sale_time_start}
-                        {listing.sale_time_end
-                          ? ` – ${listing.sale_time_end}`
-                          : ""}
+                        {formattedStart}
+                        {formattedEnd ? ` – ${formattedEnd}` : ""}
                       </p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Action Buttons */}
               <div className="mt-6 flex gap-3">
                 <a
                   href={mapsUrl}
@@ -380,7 +721,10 @@ export default function ListingDetailClient({
                   rel="noopener noreferrer"
                   className="flex-1 flex items-center justify-center gap-2 bg-ys-800 hover:bg-ys-900 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
                 >
-                  <i className="fa-solid fa-diamond-turn-right text-sm" />
+                  <i
+                    className="fa-solid fa-diamond-turn-right text-sm"
+                    aria-hidden="true"
+                  />
                   Directions
                 </a>
                 <button
@@ -389,36 +733,94 @@ export default function ListingDetailClient({
                 >
                   <i
                     className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`}
+                    aria-hidden="true"
                   />
                   {copied ? "Copied!" : "Share"}
                 </button>
               </div>
+
+              {/* Message Seller — only for internal listings with a real seller */}
+              {!isFromExternal && !isOwner && (
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      window.location.href = "/login";
+                      return;
+                    }
+                    setShowMessageModal(true);
+                  }}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-green-800 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
+                >
+                  <i
+                    className="fa-solid fa-envelope text-sm"
+                    aria-hidden="true"
+                  />
+                  Message Seller
+                </button>
+              )}
+
+              {/* Boost controls — only for internal listings owned by the user */}
+              {!isFromExternal && isOwner && !listing.is_boosted && (
+                <button
+                  onClick={() => setShowBoostModal(true)}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-3 rounded-xl font-bold transition-all hover:shadow-md"
+                >
+                  <i
+                    className="fa-solid fa-rocket text-sm"
+                    aria-hidden="true"
+                  />
+                  Boost This Listing
+                </button>
+              )}
+
+              {!isFromExternal && isOwner && listing.is_boosted && (
+                <div className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-3 rounded-xl font-semibold">
+                  <i
+                    className="fa-solid fa-check-circle text-sm"
+                    aria-hidden="true"
+                  />
+                  This listing is boosted
+                </div>
+              )}
             </div>
 
-            {/* Seller Card */}
-            {listing.profiles && (
+            {/* Posted by section — internal listings show user name */}
+            {!isFromExternal && listing.profiles && (
               <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">
                   Posted by
                 </h3>
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
-                    <i className="fa-solid fa-user text-ys-700" />
+                    <i
+                      className="fa-solid fa-user text-ys-700"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">
                       {listing.profiles.display_name || "YardShoppers Seller"}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      Joined{" "}
-                      {new Date(listing.created_at).toLocaleDateString(
-                        "en-US",
-                        { month: "long", year: "numeric" }
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-500">
+                        Joined{" "}
+                        {new Date(listing.created_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "long",
+                            year: "numeric",
+                          }
+                        )}
+                      </p>
+                      {hostAvgRating !== null && (
+                        <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full">
+                          <i className="fa-solid fa-star text-yellow-400 text-[10px]" />
+                          {hostAvgRating} ({hostTotalRatings})
+                        </span>
                       )}
-                    </p>
+                    </div>
                   </div>
                 </div>
-
                 {!user && (
                   <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
                     <p className="text-xs text-amber-800">
@@ -435,16 +837,82 @@ export default function ListingDetailClient({
               </div>
             )}
 
-            {/* Report */}
+            {/* Posted by section — external listings show YardShoppers */}
+            {isFromExternal && (
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Posted by
+                </h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
+                    <i
+                      className="fa-solid fa-store text-ys-700"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">YardShoppers</p>
+                    <p className="text-xs text-gray-500">
+                      Verified by YardShoppers
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <p className="text-center">
-              <button className="text-xs text-gray-400 hover:text-red-500 transition">
-                <i className="fa-regular fa-flag mr-1" />
+              <button
+                onClick={() => {
+                  if (!user) {
+                    window.location.href = "/login";
+                    return;
+                  }
+                  setShowReportModal(true);
+                }}
+                /* CONTRAST FIX: was text-gray-400, now text-gray-500 */
+                className="text-xs text-gray-500 hover:text-red-500 transition"
+              >
+                <i
+                  className="fa-regular fa-flag mr-1"
+                  aria-hidden="true"
+                />
                 Report this listing
               </button>
             </p>
           </div>
         </div>
       </div>
-    </div>
+
+      {showBoostModal && listing && (
+        <BoostModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowBoostModal(false)}
+        />
+      )}
+
+      {showReportModal && listing && (
+        <ReportModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowReportModal(false)}
+        />
+      )}
+
+      {showMessageModal && listing && !isFromExternal && (
+        <MessageModal
+          receiverId={listing.user_id}
+          receiverName={listing.profiles?.display_name || "Seller"}
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowMessageModal(false)}
+        />
+      )}
+
+      <RouteFloatingBar
+        listingId={listing.id}
+        listingTitle={listing.title}
+      />
+    </article>
   );
 }

@@ -1,53 +1,104 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import Stripe from "stripe";
+import { BOOST_TIERS, type BoostTierKey } from "@/lib/boost-config";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(req: Request) {
-  const body = await req.text();
-  const sig = req.headers.get("stripe-signature")!;
-
-  let event: Stripe.Event;
-
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch (err: any) {
-    console.error("Webhook signature verification failed:", err.message);
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-  }
+    const cookieStore = await cookies();
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const listingId = session.metadata?.listing_id;
-
-    if (listingId) {
-      const { error } = await supabase
-        .from("listings")
-        .update({
-          is_boosted: true,
-          boosted_at: new Date().toISOString(),
-        })
-        .eq("id", listingId);
-
-      if (error) {
-        console.error("Failed to boost listing:", error);
-        return NextResponse.json(
-          { error: "Database update failed" },
-          { status: 500 }
-        );
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
       }
-    }
-  }
+    );
 
-  return NextResponse.json({ received: true });
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { listing_id, listing_title, boost_tier } = body;
+
+    // ── Input validation ──────────────────────────────────
+    if (typeof listing_id !== "string" || listing_id.length < 10) {
+      return NextResponse.json({ error: "Invalid listing ID" }, { status: 400 });
+    }
+
+    if (
+      typeof listing_title !== "string" ||
+      listing_title.length === 0 ||
+      listing_title.length > 200
+    ) {
+      return NextResponse.json(
+        { error: "Invalid listing title" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof boost_tier !== "string") {
+      return NextResponse.json(
+        { error: "Invalid boost tier" },
+        { status: 400 }
+      );
+    }
+    // ── End validation ────────────────────────────────────
+
+    const tier = BOOST_TIERS[boost_tier as BoostTierKey];
+    if (!tier) {
+      return NextResponse.json({ error: "Invalid boost tier" }, { status: 400 });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: Math.round(tier.price * 100),
+            product_data: {
+              name: `${tier.name} Boost — ${listing_title}`,
+              description: `${tier.durationDays}-day boost: ${tier.tagline}`,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        listing_id,
+        boost_tier,
+        user_id: user.id,
+        duration_days: tier.durationDays.toString(),
+      },
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/listing/${listing_id}?boosted=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/listing/${listing_id}`,
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (err: any) {
+    console.error("Checkout error:", err);
+    return NextResponse.json(
+      { error: err.message || "Failed to create checkout session" },
+      { status: 500 }
+    );
+  }
 }

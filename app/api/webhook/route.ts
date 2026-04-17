@@ -32,11 +32,24 @@ export async function POST(req: Request) {
     const listingId = session.metadata?.listing_id;
 
     if (listingId) {
+      // Read boost details from Stripe metadata (set during checkout)
+      const durationDays = parseInt(
+        session.metadata?.duration_days || "3",
+        10
+      );
+      const boostTier = session.metadata?.boost_tier || "basic";
+
+      // Calculate expiration date
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + durationDays);
+
       const { error } = await supabase
         .from("listings")
         .update({
           is_boosted: true,
           boosted_at: new Date().toISOString(),
+          boost_tier: boostTier,
+          boost_expires_at: expiresAt.toISOString(),
         })
         .eq("id", listingId);
 
@@ -47,6 +60,10 @@ export async function POST(req: Request) {
           { status: 500 }
         );
       }
+
+      console.log(
+        `Listing ${listingId} boosted: tier=${boostTier}, expires=${expiresAt.toISOString()}`
+      );
     }
   }
 
