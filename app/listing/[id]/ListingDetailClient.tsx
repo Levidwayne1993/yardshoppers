@@ -1,3 +1,16 @@
+// ============================================================
+// PASTE INTO: app/listing/[id]/ListingDetailClient.tsx (yardshoppers project)
+//
+// CHANGES FROM ORIGINAL:
+// - External listings now show "YardShoppers Seller" as poster
+//   instead of "YardShoppers / Verified by YardShoppers"
+// - RatingSection and CommentsSection shown for ALL listings
+// - "Message Seller" hidden for external (no real seller to msg)
+// - Boost controls hidden for external (no owner)
+// - No mention of "external", "Craigslist", or any source name
+// - Schema organizer always shows seller name or "YardShoppers Seller"
+// ============================================================
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -41,7 +54,7 @@ interface Listing {
 // SCHEMA.ORG JSON-LD BUILDER
 // ============================================
 
-function buildJsonLd(listing: Listing, isExternal: boolean) {
+function buildJsonLd(listing: Listing, hasRealSeller: boolean) {
   const displayAddress = listing.street_address || listing.address || "";
   const location = [
     displayAddress,
@@ -55,7 +68,6 @@ function buildJsonLd(listing: Listing, isExternal: boolean) {
   const photos = listing.listing_photos || [];
   const imageUrls = photos.map((p) => p.photo_url);
 
-  // Build the GarageSale event schema
   const garageSale: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "GarageSale",
@@ -109,13 +121,12 @@ function buildJsonLd(listing: Listing, isExternal: boolean) {
 
   garageSale.organizer = {
     "@type": "Organization",
-    name: isExternal
-      ? "YardShoppers"
-      : listing.profiles?.display_name || "YardShoppers Seller",
+    name: hasRealSeller
+      ? listing.profiles?.display_name || "YardShoppers Seller"
+      : "YardShoppers Seller",
     url: "https://www.yardshoppers.com",
   };
 
-  // Build the BreadcrumbList schema
   const breadcrumb: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -181,7 +192,9 @@ export default function ListingDetailClient({
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [hostAvgRating, setHostAvgRating] = useState<number | null>(null);
   const [hostTotalRatings, setHostTotalRatings] = useState<number>(0);
-  const [isFromExternal, setIsFromExternal] = useState(false);
+
+  // Track whether this listing has a real user-seller (for Message Seller, Boost, etc.)
+  const [hasRealSeller, setHasRealSeller] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -202,6 +215,7 @@ export default function ListingDetailClient({
 
         if (!error && d) {
           data = d;
+          setHasRealSeller(true);
         }
       }
 
@@ -215,6 +229,7 @@ export default function ListingDetailClient({
 
         if (fallback) {
           data = { ...fallback, profiles: null };
+          setHasRealSeller(true);
         }
       }
 
@@ -227,10 +242,10 @@ export default function ListingDetailClient({
           .single();
 
         if (extData) {
-          setIsFromExternal(true);
+          setHasRealSeller(false);
           data = {
             id: extData.id,
-            title: extData.title || "Classified Listing",
+            title: extData.title || "Yard Sale",
             description: extData.description || "",
             price: extData.price || "",
             street_address: extData.address || "",
@@ -377,7 +392,6 @@ export default function ListingDetailClient({
   const displayAddress =
     listing.street_address || listing.address || "";
 
-  // Prevent address from duplicating the city name
   const showAddress =
     displayAddress &&
     displayAddress.toLowerCase().trim() !== listing.city?.toLowerCase().trim();
@@ -391,7 +405,6 @@ export default function ListingDetailClient({
     .filter(Boolean)
     .join(", ");
 
-  // Build maps URL — prefer lat/lng if available, otherwise use text address
   const mapsUrl =
     listing.latitude && listing.longitude
       ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
@@ -426,8 +439,7 @@ export default function ListingDetailClient({
   const isOwner =
     user && listing.user_id && listing.user_id === user.id;
 
-  // Build JSON-LD structured data
-  const jsonLdItems = buildJsonLd(listing, isFromExternal);
+  const jsonLdItems = buildJsonLd(listing, hasRealSeller);
 
   return (
     <article
@@ -435,7 +447,6 @@ export default function ListingDetailClient({
       itemScope
       itemType="https://schema.org/Product"
     >
-      {/* ── JSON-LD STRUCTURED DATA ── */}
       {jsonLdItems.map((item, i) => (
         <script
           key={i}
@@ -500,7 +511,6 @@ export default function ListingDetailClient({
                   className="fa-solid fa-camera text-5xl text-ys-300 mb-3"
                   aria-hidden="true"
                 />
-                {/* CONTRAST FIX: was text-ys-400, now text-ys-600 */}
                 <p className="text-sm text-ys-600">No photos available</p>
               </div>
             )}
@@ -595,8 +605,11 @@ export default function ListingDetailClient({
             </section>
           )}
 
-          {!isFromExternal && (
+          {/* Ratings — shown for ALL listings */}
+          {listing.user_id ? (
             <RatingSection listingId={listing.id} hostId={listing.user_id} />
+          ) : (
+            <RatingSection listingId={listing.id} hostId="" />
           )}
 
           <CommentsSection listingId={listing.id} />
@@ -739,8 +752,8 @@ export default function ListingDetailClient({
                 </button>
               </div>
 
-              {/* Message Seller — only for internal listings with a real seller */}
-              {!isFromExternal && !isOwner && (
+              {/* Message Seller — only for listings with a real seller */}
+              {hasRealSeller && !isOwner && (
                 <button
                   onClick={() => {
                     if (!user) {
@@ -759,8 +772,8 @@ export default function ListingDetailClient({
                 </button>
               )}
 
-              {/* Boost controls — only for internal listings owned by the user */}
-              {!isFromExternal && isOwner && !listing.is_boosted && (
+              {/* Boost controls — only for listings owned by the user */}
+              {hasRealSeller && isOwner && !listing.is_boosted && (
                 <button
                   onClick={() => setShowBoostModal(true)}
                   className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-3 rounded-xl font-bold transition-all hover:shadow-md"
@@ -773,7 +786,7 @@ export default function ListingDetailClient({
                 </button>
               )}
 
-              {!isFromExternal && isOwner && listing.is_boosted && (
+              {hasRealSeller && isOwner && listing.is_boosted && (
                 <div className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-3 rounded-xl font-semibold">
                   <i
                     className="fa-solid fa-check-circle text-sm"
@@ -784,81 +797,56 @@ export default function ListingDetailClient({
               )}
             </div>
 
-            {/* Posted by section — internal listings show user name */}
-            {!isFromExternal && listing.profiles && (
-              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                  Posted by
-                </h3>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
-                    <i
-                      className="fa-solid fa-user text-ys-700"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      {listing.profiles.display_name || "YardShoppers Seller"}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs text-gray-500">
-                        Joined{" "}
-                        {new Date(listing.created_at).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "long",
-                            year: "numeric",
-                          }
-                        )}
-                      </p>
-                      {hostAvgRating !== null && (
-                        <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full">
-                          <i className="fa-solid fa-star text-yellow-400 text-[10px]" />
-                          {hostAvgRating} ({hostTotalRatings})
-                        </span>
-                      )}
-                    </div>
-                  </div>
+            {/* Posted by section — same look for ALL listings */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                Posted by
+              </h3>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
+                  <i
+                    className="fa-solid fa-user text-ys-700"
+                    aria-hidden="true"
+                  />
                 </div>
-                {!user && (
-                  <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                    <p className="text-xs text-amber-800">
-                      <Link
-                        href="/login"
-                        className="font-semibold underline hover:no-underline"
-                      >
-                        Log in
-                      </Link>{" "}
-                      to contact the seller or save this listing.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Posted by section — external listings show YardShoppers */}
-            {isFromExternal && (
-              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                  Posted by
-                </h3>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
-                    <i
-                      className="fa-solid fa-store text-ys-700"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">YardShoppers</p>
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {listing.profiles?.display_name || "YardShoppers Seller"}
+                  </p>
+                  <div className="flex items-center gap-2">
                     <p className="text-xs text-gray-500">
-                      Verified by YardShoppers
+                      Joined{" "}
+                      {new Date(listing.created_at).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "long",
+                          year: "numeric",
+                        }
+                      )}
                     </p>
+                    {hostAvgRating !== null && (
+                      <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full">
+                        <i className="fa-solid fa-star text-yellow-400 text-[10px]" />
+                        {hostAvgRating} ({hostTotalRatings})
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
-            )}
+              {!user && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                  <p className="text-xs text-amber-800">
+                    <Link
+                      href="/login"
+                      className="font-semibold underline hover:no-underline"
+                    >
+                      Log in
+                    </Link>{" "}
+                    to contact the seller or save this listing.
+                  </p>
+                </div>
+              )}
+            </div>
 
             <p className="text-center">
               <button
@@ -869,7 +857,6 @@ export default function ListingDetailClient({
                   }
                   setShowReportModal(true);
                 }}
-                /* CONTRAST FIX: was text-gray-400, now text-gray-500 */
                 className="text-xs text-gray-500 hover:text-red-500 transition"
               >
                 <i
@@ -899,7 +886,7 @@ export default function ListingDetailClient({
         />
       )}
 
-      {showMessageModal && listing && !isFromExternal && (
+      {showMessageModal && listing && hasRealSeller && (
         <MessageModal
           receiverId={listing.user_id}
           receiverName={listing.profiles?.display_name || "Seller"}

@@ -1,560 +1,905 @@
+// ============================================================
+// PASTE INTO: app/listing/[id]/ListingDetailClient.tsx (yardshoppers project)
+//
+// CHANGES FROM ORIGINAL:
+// - External listings now show "YardShoppers Seller" as poster
+//   instead of "YardShoppers / Verified by YardShoppers"
+// - RatingSection and CommentsSection shown for ALL listings
+// - "Message Seller" hidden for external (no real seller to msg)
+// - Boost controls hidden for external (no owner)
+// - No mention of "external", "Craigslist", or any source name
+// - Schema organizer always shows seller name or "YardShoppers Seller"
+// ============================================================
+
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
-import { useLocation } from "@/lib/useLocation";
-import RoutePanel from "@/components/route-planner/RoutePanel";
-import { RouteStop, optimizeRoute } from "@/lib/routeOptimizer";
+import BoostModal from "@/components/BoostModal";
+import ReportModal from "@/components/ReportModal";
+import CommentsSection from "@/components/CommentsSection";
+import RatingSection from "@/components/RatingSection";
+import MessageModal from "@/components/MessageModal";
+import RouteFloatingBar from "@/components/RouteFloatingBar";
+import { trackView } from "@/lib/seo-signals";
 
-const RouteMapClient = dynamic(
-  () => import("@/components/route-planner/RouteMapClient"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full bg-gray-100 animate-pulse flex items-center justify-center">
-        <i className="fa-solid fa-map text-4xl text-gray-300"></i>
-      </div>
-    ),
+interface Listing {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  street_address?: string;
+  address?: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  category: string;
+  sale_date: string;
+  start_time?: string;
+  end_time?: string;
+  sale_time_start?: string;
+  sale_time_end?: string;
+  created_at: string;
+  user_id: string;
+  is_boosted?: boolean;
+  profiles?: { display_name?: string } | null;
+  listing_photos?: { id: string; photo_url: string }[];
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+// ============================================
+// SCHEMA.ORG JSON-LD BUILDER
+// ============================================
+
+function buildJsonLd(listing: Listing, hasRealSeller: boolean) {
+  const displayAddress = listing.street_address || listing.address || "";
+  const location = [
+    displayAddress,
+    listing.city,
+    listing.state,
+    listing.zip_code,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const photos = listing.listing_photos || [];
+  const imageUrls = photos.map((p) => p.photo_url);
+
+  const garageSale: Record<string, any> = {
+    "@context": "https://schema.org",
+    "@type": "GarageSale",
+    name: listing.title,
+    url: `https://www.yardshoppers.com/listing/${listing.id}`,
+  };
+
+  if (listing.description) {
+    garageSale.description = listing.description.slice(0, 300);
   }
-);
 
-type ViewMode = "all" | "saved";
+  if (listing.sale_date) {
+    garageSale.startDate = listing.sale_date;
+  }
 
-export default function RoutePlannerPage() {
-  const supabase = createClient();
-  const { lat, lng } = useLocation();
+  if (imageUrls.length > 0) {
+    garageSale.image = imageUrls.length === 1 ? imageUrls[0] : imageUrls;
+  }
 
-  const [selectedDate, setSelectedDate] = useState(
-    () => new Date().toISOString().split("T")[0]
-  );
-  const [viewMode, setViewMode] = useState<ViewMode>("all");
-  const [listings, setListings] = useState<RouteStop[]>([]);
-  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [savedCount, setSavedCount] = useState<number>(0);
+  if (displayAddress || listing.city) {
+    garageSale.location = {
+      "@type": "Place",
+      name: location,
+      address: {
+        "@type": "PostalAddress",
+        ...(displayAddress && { streetAddress: displayAddress }),
+        ...(listing.city && { addressLocality: listing.city }),
+        ...(listing.state && { addressRegion: listing.state }),
+        ...(listing.zip_code && { postalCode: listing.zip_code }),
+        addressCountry: "US",
+      },
+    };
 
-  /* ── City/State Search ── */
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [searchCenter, setSearchCenter] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
-  const [searchLabel, setSearchLabel] = useState<string | null>(null);
+    if (listing.latitude && listing.longitude) {
+      garageSale.location.geo = {
+        "@type": "GeoCoordinates",
+        latitude: listing.latitude,
+        longitude: listing.longitude,
+      };
+    }
+  }
 
-  /* ── Selected Listing (pin click → right panel preview) ── */
-  const [selectedListing, setSelectedListing] = useState<RouteStop | null>(null);
+  if (listing.price) {
+    garageSale.offers = {
+      "@type": "Offer",
+      price: listing.price.replace(/[^0-9.]/g, "") || "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+    };
+  }
 
-  /* ── Get user on mount ── */
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id || null);
+  garageSale.organizer = {
+    "@type": "Organization",
+    name: hasRealSeller
+      ? listing.profiles?.display_name || "YardShoppers Seller"
+      : "YardShoppers Seller",
+    url: "https://www.yardshoppers.com",
+  };
+
+  const breadcrumb: Record<string, any> = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: "https://www.yardshoppers.com",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Browse",
+        item: "https://www.yardshoppers.com/browse",
+      },
+    ],
+  };
+
+  if (listing.category) {
+    breadcrumb.itemListElement.push({
+      "@type": "ListItem",
+      position: 3,
+      name: listing.category,
+      item: `https://www.yardshoppers.com/browse?category=${encodeURIComponent(listing.category)}`,
     });
-  }, []);
+    breadcrumb.itemListElement.push({
+      "@type": "ListItem",
+      position: 4,
+      name: listing.title,
+      item: `https://www.yardshoppers.com/listing/${listing.id}`,
+    });
+  } else {
+    breadcrumb.itemListElement.push({
+      "@type": "ListItem",
+      position: 3,
+      name: listing.title,
+      item: `https://www.yardshoppers.com/listing/${listing.id}`,
+    });
+  }
 
-  /* ── Fetch listings based on date + view mode ── */
+  return [garageSale, breadcrumb];
+}
+
+// ============================================
+// LISTING DETAIL COMPONENT
+// ============================================
+
+export default function ListingDetailClient({
+  listingId,
+}: {
+  listingId: string;
+}) {
+  const supabase = createClient();
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activePhoto, setActivePhoto] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
+  const [showBoostModal, setShowBoostModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [hostAvgRating, setHostAvgRating] = useState<number | null>(null);
+  const [hostTotalRatings, setHostTotalRatings] = useState<number>(0);
+
+  // Track whether this listing has a real user-seller (for Message Seller, Boost, etc.)
+  const [hasRealSeller, setHasRealSeller] = useState(false);
+
   useEffect(() => {
-    async function fetchListings() {
-      setLoading(true);
+    async function load() {
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      setUser(u);
 
-      if (viewMode === "saved" && !userId) {
-        setListings([]);
-        setLoading(false);
-        return;
-      }
+      let data: any = null;
 
-      let data: any[] = [];
-
-      if (viewMode === "all") {
-        const { data: allData, error } = await supabase
+      // Try internal listings table first (with profiles join)
+      {
+        const { data: d, error } = await supabase
           .from("listings")
-          .select("*, listing_photos(photo_url)")
-          .eq("sale_date", selectedDate)
-          .not("latitude", "is", null)
-          .not("longitude", "is", null);
+          .select("*, listing_photos(*), profiles(display_name)")
+          .eq("id", listingId)
+          .single();
 
-        if (allData && !error) data = allData;
-      } else {
-        const { data: savedData, error } = await supabase
-          .from("saved_listings")
-          .select("listing_id, listings(*, listing_photos(photo_url))")
-          .eq("user_id", userId!);
-
-        if (savedData && !error) {
-          data = savedData
-            .map((s: any) => s.listings)
-            .filter(
-              (l: any) =>
-                l &&
-                l.sale_date === selectedDate &&
-                l.latitude !== null &&
-                l.longitude !== null
-            );
+        if (!error && d) {
+          data = d;
+          setHasRealSeller(true);
         }
       }
 
-      const mapped = data.map((l: any) => ({
-        id: l.id,
-        title: l.title,
-        address: l.address || "",
-        city: l.city || "",
-        state: l.state || "",
-        latitude: parseFloat(l.latitude),
-        longitude: parseFloat(l.longitude),
-        sale_date: l.sale_date,
-        sale_time_start: l.sale_time_start || "",
-        sale_time_end: l.sale_time_end || "",
-        price: l.price || "",
-        category: l.category || "",
-        categories: l.categories || [],
-        is_boosted: l.is_boosted || false,
-        photo_url: l.listing_photos?.[0]?.photo_url || null,
-      }));
+      // If profiles join fails, retry without it
+      if (!data) {
+        const { data: fallback } = await supabase
+          .from("listings")
+          .select("*, listing_photos(*)")
+          .eq("id", listingId)
+          .single();
 
-      setListings(mapped);
+        if (fallback) {
+          data = { ...fallback, profiles: null };
+          setHasRealSeller(true);
+        }
+      }
+
+      // If still not found, try external_sales table
+      if (!data) {
+        const { data: extData } = await supabase
+          .from("external_sales")
+          .select("*")
+          .eq("id", listingId)
+          .single();
+
+        if (extData) {
+          setHasRealSeller(false);
+          data = {
+            id: extData.id,
+            title: extData.title || "Yard Sale",
+            description: extData.description || "",
+            price: extData.price || "",
+            street_address: extData.address || "",
+            address: extData.address || "",
+            city: extData.city || "",
+            state: extData.state || "",
+            zip_code: extData.zip || "",
+            category: extData.category || "",
+            sale_date: extData.sale_date || "",
+            start_time: null,
+            end_time: null,
+            sale_time_start: extData.sale_time_start || null,
+            sale_time_end: extData.sale_time_end || null,
+            created_at: extData.collected_at || extData.created_at || "",
+            user_id: "",
+            is_boosted: false,
+            profiles: null,
+            listing_photos: (extData.photo_urls || []).map(
+              (url: string, i: number) => ({
+                id: `ext-photo-${i}`,
+                photo_url: url,
+              })
+            ),
+            latitude: extData.latitude ?? null,
+            longitude: extData.longitude ?? null,
+          };
+        }
+      }
+
+      if (data) {
+        setListing(data);
+
+        // Fetch host rating summary (only for internal listings with a user_id)
+        if (data.user_id) {
+          const { data: ratingData } = await supabase
+            .from("host_ratings")
+            .select("avg_rating, total_ratings")
+            .eq("host_id", data.user_id)
+            .maybeSingle();
+
+          if (ratingData) {
+            setHostAvgRating(ratingData.avg_rating);
+            setHostTotalRatings(ratingData.total_ratings);
+          }
+        }
+      }
+
+      if (u) {
+        const { data: s } = await supabase
+          .from("saved_listings")
+          .select("id")
+          .eq("user_id", u.id)
+          .eq("listing_id", listingId)
+          .maybeSingle();
+        setSaved(!!s);
+      }
+
       setLoading(false);
     }
+    load();
+  }, [listingId]);
 
-    fetchListings();
-  }, [selectedDate, viewMode, userId]);
-
-  /* ── Fetch total saved count for badge ── */
   useEffect(() => {
-    async function fetchSavedCount() {
-      if (!userId) {
-        setSavedCount(0);
-        return;
-      }
-      const { count } = await supabase
+    trackView(listingId);
+  }, [listingId]);
+
+  async function toggleSave() {
+    if (!user) return;
+    if (saved) {
+      await supabase
         .from("saved_listings")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId);
-
-      setSavedCount(count || 0);
+        .delete()
+        .eq("user_id", user.id)
+        .eq("listing_id", listingId);
+      setSaved(false);
+    } else {
+      await supabase
+        .from("saved_listings")
+        .insert({ user_id: user.id, listing_id: listingId });
+      setSaved(true);
     }
-    fetchSavedCount();
-  }, [userId]);
+  }
 
-  /* ── Route actions ── */
-  const addToRoute = useCallback((stop: RouteStop) => {
-    setRouteStops((prev) => {
-      if (prev.find((s) => s.id === stop.id)) return prev;
-      return [...prev, stop];
-    });
-    setSelectedListing(null);
-    setPanelOpen(true);
-  }, []);
-
-  const removeFromRoute = useCallback((stopId: string) => {
-    setRouteStops((prev) => prev.filter((s) => s.id !== stopId));
-  }, []);
-
-  const reorderStops = useCallback((from: number, to: number) => {
-    setRouteStops((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
-  }, []);
-
-  const optimizeStops = useCallback(() => {
-    if (!lat || !lng) return;
-    setRouteStops((prev) => optimizeRoute(prev, lat, lng));
-  }, [lat, lng]);
-
-  const clearRoute = useCallback(() => setRouteStops([]), []);
-
-  /* ── Pin click → show in panel ── */
-  const handleSelectListing = useCallback((listing: RouteStop) => {
-    setSelectedListing(listing);
-    setPanelOpen(true);
-  }, []);
-
-  const handleDismissSelection = useCallback(() => {
-    setSelectedListing(null);
-  }, []);
-
-  /* ── Auto-add listing when returning from detail page ── */
-  useEffect(() => {
-    const checkPendingRoute = async () => {
-      const pendingId = sessionStorage.getItem("ys-pending-route-add");
-      if (!pendingId) return;
-      sessionStorage.removeItem("ys-pending-route-add");
-
-      const { data } = await supabase
-        .from("listings")
-        .select("*, listing_photos(photo_url)")
-        .eq("id", pendingId)
-        .single();
-
-      if (data && data.latitude && data.longitude) {
-        addToRoute({
-          id: data.id,
-          title: data.title,
-          address: data.address || "",
-          city: data.city || "",
-          state: data.state || "",
-          latitude: parseFloat(data.latitude),
-          longitude: parseFloat(data.longitude),
-          sale_date: data.sale_date,
-          sale_time_start: data.sale_time_start || "",
-          sale_time_end: data.sale_time_end || "",
-          price: data.price || "",
-          category: data.category || "",
-          categories: data.categories || [],
-          is_boosted: data.is_boosted || false,
-          photo_url: data.listing_photos?.[0]?.photo_url || null,
-        });
-        setPanelOpen(true);
-      }
-    };
-
-    checkPendingRoute();
-    window.addEventListener("pageshow", checkPendingRoute);
-    window.addEventListener("focus", checkPendingRoute);
-
-    return () => {
-      window.removeEventListener("pageshow", checkPendingRoute);
-      window.removeEventListener("focus", checkPendingRoute);
-    };
-  }, [addToRoute]);
-
-  /* ── City/State Search Handler ── */
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setSearching(true);
-
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-          searchQuery.trim()
-        )}&format=json&countrycodes=us&limit=1`,
-        {
-          headers: { "User-Agent": "YardShoppers/1.0" },
-        }
-      );
-      const results = await res.json();
-
-      if (results && results.length > 0) {
-        const { lat: rLat, lon: rLng, display_name } = results[0];
-        setSearchCenter({ lat: parseFloat(rLat), lng: parseFloat(rLng) });
-        const parts = display_name.split(",").map((s: string) => s.trim());
-        setSearchLabel(parts.length >= 2 ? `${parts[0]}, ${parts[1]}` : parts[0]);
-      } else {
-        setSearchLabel("Location not found");
-        setTimeout(() => setSearchLabel(null), 3000);
-      }
-    } catch {
-      setSearchLabel("Search failed");
-      setTimeout(() => setSearchLabel(null), 3000);
+  async function handleShare() {
+    const url = window.location.href;
+    if (navigator.share) {
+      await navigator.share({
+        title: listing?.title,
+        text: "Check out this yard sale on YardShoppers!",
+        url,
+      });
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
+  }
 
-    setSearching(false);
-  };
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSearch();
-    }
-  };
-
-  const clearSearch = () => {
-    setSearchQuery("");
-    setSearchCenter(null);
-    setSearchLabel(null);
-  };
-
-  /* ── Date helpers ── */
-  const fmt = (d: Date) => d.toISOString().split("T")[0];
-  const todayStr = fmt(new Date());
-  const tomorrowStr = fmt(new Date(Date.now() + 86400000));
-
-  const getNextDay = (dow: number) => {
-    const d = new Date();
-    const diff = (dow - d.getDay() + 7) % 7;
-    d.setDate(d.getDate() + (diff === 0 ? 0 : diff));
-    return fmt(d);
-  };
-  const satStr = getNextDay(6);
-  const sunStr = getNextDay(0);
-
-  const quickDates = [
-    { label: "Today", value: todayStr },
-    { label: "Tomorrow", value: tomorrowStr },
-    ...(satStr !== todayStr && satStr !== tomorrowStr
-      ? [{ label: "Sat", value: satStr }]
-      : []),
-    ...(sunStr !== todayStr && sunStr !== tomorrowStr
-      ? [{ label: "Sun", value: sunStr }]
-      : []),
-  ];
-
-  const handleDateChange = (newDate: string) => {
-    setSelectedDate(newDate);
-    setRouteStops([]);
-    setSelectedListing(null);
-  };
-
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
-    setRouteStops([]);
-    setSelectedListing(null);
-  };
-
-  return (
-    <div className="h-[calc(100vh-64px)] flex flex-col">
-      {/* ── Top Bar: Date, View Toggle, Search ── */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-col gap-3 z-10">
-        {/* Row 1: Date picker + quick picks */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <i className="fa-solid fa-calendar-day text-ys-600"></i>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => handleDateChange(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-ys-500 focus:border-ys-500 outline-none"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            {quickDates.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => handleDateChange(opt.value)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                  selectedDate === opt.value
-                    ? "bg-ys-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Stats + mobile toggle */}
-          <div className="ml-auto flex items-center gap-2 text-sm text-gray-500">
-            <span className="hidden sm:inline">
-              {listings.length} sale{listings.length !== 1 ? "s" : ""} found
-            </span>
-            {routeStops.length > 0 && (
-              <span className="bg-ys-100 text-ys-700 px-2 py-0.5 rounded-full font-semibold">
-                {routeStops.length} in route
-              </span>
-            )}
-            <button
-              onClick={() => setPanelOpen(!panelOpen)}
-              className="lg:hidden w-10 h-10 rounded-full bg-ys-600 text-white flex items-center justify-center shadow-lg relative"
-            >
-              <i className="fa-solid fa-route"></i>
-              {routeStops.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                  {routeStops.length}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: All / Saved Toggle + City/State Search */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="inline-flex bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => handleViewModeChange("all")}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-semibold transition ${
-                viewMode === "all"
-                  ? "bg-white text-[#2E7D32] shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <i className="fa-solid fa-globe text-xs" aria-hidden="true" />
-              All Sales
-            </button>
-            <button
-              onClick={() => handleViewModeChange("saved")}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-semibold transition relative ${
-                viewMode === "saved"
-                  ? "bg-white text-[#2E7D32] shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <i className="fa-solid fa-heart text-xs" aria-hidden="true" />
-              Saved Sales
-              {savedCount > 0 && (
-                <span className="bg-[#FF6B35] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-                  {savedCount > 99 ? "99+" : savedCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* City / State Search */}
-          <div className="flex-1 flex items-center gap-2 min-w-[200px]">
-            <div className="relative flex-1 max-w-sm">
-              <i className="fa-solid fa-magnifying-glass-location absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Search city or state..."
-                className="w-full pl-9 pr-9 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ys-300 focus:border-ys-400 transition"
-              />
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
-                >
-                  <i className="fa-solid fa-xmark text-sm"></i>
-                </button>
-              )}
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        <div className="animate-pulse space-y-6">
+          <div className="h-4 w-40 bg-gray-200 rounded" />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <div className="lg:col-span-3 aspect-[4/3] bg-gray-200 rounded-2xl" />
+            <div className="lg:col-span-2 space-y-4">
+              <div className="h-6 bg-gray-200 rounded w-3/4" />
+              <div className="h-8 bg-gray-200 rounded w-1/3" />
+              <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="h-4 bg-gray-200 rounded w-2/3" />
             </div>
-            <button
-              onClick={handleSearch}
-              disabled={searching || !searchQuery.trim()}
-              className="px-4 py-1.5 bg-[#2E7D32] text-white rounded-lg text-sm font-semibold hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-            >
-              {searching ? (
-                <i className="fa-solid fa-spinner fa-spin" aria-hidden="true" />
-              ) : (
-                <>
-                  <i className="fa-solid fa-search mr-1.5 hidden sm:inline" aria-hidden="true" />
-                  Go
-                </>
-              )}
-            </button>
           </div>
-
-          {/* Search result label */}
-          {searchLabel && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="bg-ys-50 text-ys-700 px-3 py-1 rounded-full font-medium">
-                <i className="fa-solid fa-location-dot mr-1.5" aria-hidden="true" />
-                {searchLabel}
-              </span>
-              <button
-                onClick={clearSearch}
-                className="text-gray-400 hover:text-gray-600"
-                title="Clear search"
-              >
-                <i className="fa-solid fa-xmark text-xs"></i>
-              </button>
-            </div>
-          )}
-
-          {viewMode === "saved" && !userId && (
-            <a
-              href="/login"
-              className="text-sm text-[#2E7D32] font-semibold hover:underline ml-2"
-            >
-              Sign in to see saved sales
-            </a>
-          )}
-
-          {viewMode === "saved" && userId && listings.length === 0 && !loading && (
-            <span className="text-xs text-gray-400 ml-2">
-              No saved sales on this date
-            </span>
-          )}
         </div>
       </div>
+    );
+  }
 
-      {/* ── Main Content ── */}
-      <div className="flex-1 flex relative overflow-hidden">
-        {/* Map */}
-        <div className="flex-1 relative">
-          {loading ? (
-            <div className="w-full h-full bg-gray-100 animate-pulse flex items-center justify-center">
-              <div className="text-center">
-                <i className="fa-solid fa-spinner fa-spin text-3xl text-ys-600 mb-2 block"></i>
-                <p className="text-gray-400 text-sm">Loading sales...</p>
-              </div>
-            </div>
-          ) : (
-            <RouteMapClient
-              listings={listings}
-              routeStops={routeStops}
-              userLat={lat || undefined}
-              userLng={lng || undefined}
-              searchCenter={searchCenter || undefined}
-              onAddToRoute={addToRoute}
-              onRemoveFromRoute={removeFromRoute}
-              onSelectListing={handleSelectListing}
-            />
-          )}
-
-          {/* Empty state overlay */}
-          {!loading && listings.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[500]">
-              <div className="bg-white/90 backdrop-blur rounded-2xl shadow-lg p-8 text-center max-w-sm pointer-events-auto">
-                <div className="w-14 h-14 bg-ys-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <i
-                    className={`fa-solid ${
-                      viewMode === "saved" ? "fa-heart" : "fa-map-pin"
-                    } text-2xl text-ys-600`}
-                  ></i>
-                </div>
-                <h3 className="font-bold text-gray-800 text-lg mb-2">
-                  {viewMode === "saved"
-                    ? "No saved sales on this day"
-                    : "No sales on this day"}
-                </h3>
-                <p className="text-gray-500 text-sm">
-                  {viewMode === "saved"
-                    ? "Save yard sales from the browse page, then come back here to plan your route!"
-                    : "Try picking a different date — weekends usually have the most yard sales!"}
-                </p>
-                {viewMode === "saved" && (
-                  <a
-                    href="/browse"
-                    className="inline-block mt-4 px-5 py-2 bg-[#2E7D32] text-white rounded-lg text-sm font-semibold hover:bg-green-800 transition"
-                  >
-                    <i className="fa-solid fa-magnifying-glass mr-1.5" aria-hidden="true" />
-                    Browse Sales
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Route Panel — sidebar on desktop, slide-over on mobile */}
-        <div
-          className={`
-            absolute lg:relative right-0 top-0 h-full z-[600]
-            w-full sm:w-96 lg:w-[380px]
-            bg-white border-l border-gray-200 shadow-xl lg:shadow-none
-            transition-transform duration-300 ease-in-out
-            ${panelOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
-          `}
-        >
-          <button
-            onClick={() => setPanelOpen(false)}
-            className="lg:hidden absolute top-3 left-3 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 z-10"
-          >
-            <i className="fa-solid fa-xmark"></i>
-          </button>
-
-          <RoutePanel
-            routeStops={routeStops}
-            userLat={lat || undefined}
-            userLng={lng || undefined}
-            onRemove={removeFromRoute}
-            onReorder={reorderStops}
-            onOptimize={optimizeStops}
-            onClear={clearRoute}
-            selectedListing={selectedListing}
-            onAddToRoute={addToRoute}
-            onDismissSelection={handleDismissSelection}
+  if (!listing) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-5">
+          <i
+            className="fa-solid fa-ghost text-3xl text-gray-300"
+            aria-hidden="true"
           />
         </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          Listing Not Found
+        </h1>
+        <p className="text-gray-500 mb-6">
+          This listing may have been removed or doesn&apos;t exist.
+        </p>
+        <Link
+          href="/browse"
+          className="px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
+        >
+          Browse Sales
+        </Link>
       </div>
-    </div>
+    );
+  }
+
+  const photos = listing.listing_photos || [];
+  const displayAddress =
+    listing.street_address || listing.address || "";
+
+  const showAddress =
+    displayAddress &&
+    displayAddress.toLowerCase().trim() !== listing.city?.toLowerCase().trim();
+
+  const location = [
+    showAddress ? displayAddress : "",
+    listing.city,
+    listing.state,
+    listing.zip_code,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const mapsUrl =
+    listing.latitude && listing.longitude
+      ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+
+  const saleDay = listing.sale_date
+    ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
+
+  function formatTime(timeStr: string | null | undefined): string | null {
+    if (!timeStr) return null;
+    try {
+      const [hours, minutes] = timeStr.split(":");
+      const h = parseInt(hours, 10);
+      const ampm = h >= 12 ? "PM" : "AM";
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${h12}:${minutes} ${ampm}`;
+    } catch {
+      return timeStr;
+    }
+  }
+
+  const rawStart = listing.start_time || listing.sale_time_start;
+  const rawEnd = listing.end_time || listing.sale_time_end;
+  const formattedStart = formatTime(rawStart);
+  const formattedEnd = formatTime(rawEnd);
+  const isOwner =
+    user && listing.user_id && listing.user_id === user.id;
+
+  const jsonLdItems = buildJsonLd(listing, hasRealSeller);
+
+  return (
+    <article
+      className="max-w-6xl mx-auto px-4 sm:px-6 py-8"
+      itemScope
+      itemType="https://schema.org/Product"
+    >
+      {jsonLdItems.map((item, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
+        />
+      ))}
+
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-2 text-sm text-gray-500 mb-6"
+      >
+        <Link href="/" className="hover:text-ys-800 transition">
+          Home
+        </Link>
+        <i
+          className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+          aria-hidden="true"
+        />
+        <Link href="/browse" className="hover:text-ys-800 transition">
+          Browse
+        </Link>
+        {listing.category && (
+          <>
+            <i
+              className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+              aria-hidden="true"
+            />
+            <Link
+              href={`/browse?category=${encodeURIComponent(listing.category)}`}
+              className="hover:text-ys-800 transition"
+            >
+              {listing.category}
+            </Link>
+          </>
+        )}
+        <i
+          className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+          aria-hidden="true"
+        />
+        <span className="text-gray-900 font-medium truncate max-w-[200px]">
+          {listing.title}
+        </span>
+      </nav>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div className="lg:col-span-3">
+          <div className="relative aspect-[4/3] bg-gray-100 rounded-2xl overflow-hidden">
+            {photos.length > 0 ? (
+              <Image
+                src={photos[activePhoto].photo_url}
+                alt={`${listing.title} — photo ${activePhoto + 1} of ${photos.length}${listing.city ? `, ${listing.city}` : ""}`}
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 60vw"
+                priority
+                itemProp="image"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full bg-ys-50">
+                <i
+                  className="fa-solid fa-camera text-5xl text-ys-300 mb-3"
+                  aria-hidden="true"
+                />
+                <p className="text-sm text-ys-600">No photos available</p>
+              </div>
+            )}
+
+            {photos.length > 1 && (
+              <div
+                className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm"
+                aria-live="polite"
+              >
+                {activePhoto + 1} / {photos.length}
+              </div>
+            )}
+
+            {photos.length > 1 && (
+              <>
+                <button
+                  onClick={() =>
+                    setActivePhoto((p) =>
+                      p === 0 ? photos.length - 1 : p - 1
+                    )
+                  }
+                  aria-label="Previous photo"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
+                >
+                  <i
+                    className="fa-solid fa-chevron-left text-sm text-gray-700"
+                    aria-hidden="true"
+                  />
+                </button>
+                <button
+                  onClick={() =>
+                    setActivePhoto((p) =>
+                      p === photos.length - 1 ? 0 : p + 1
+                    )
+                  }
+                  aria-label="Next photo"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition"
+                >
+                  <i
+                    className="fa-solid fa-chevron-right text-sm text-gray-700"
+                    aria-hidden="true"
+                  />
+                </button>
+              </>
+            )}
+          </div>
+
+          {photos.length > 1 && (
+            <div
+              className="flex gap-2 mt-3 overflow-x-auto pb-1"
+              role="tablist"
+              aria-label="Listing photos"
+            >
+              {photos.map(
+                (photo: { id: string; photo_url: string }, i: number) => (
+                  <button
+                    key={photo.id}
+                    onClick={() => setActivePhoto(i)}
+                    role="tab"
+                    aria-selected={i === activePhoto}
+                    aria-label={`View photo ${i + 1} of ${photos.length}`}
+                    className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                      i === activePhoto
+                        ? "border-ys-600 shadow-md"
+                        : "border-transparent opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <Image
+                      src={photo.photo_url}
+                      alt={`${listing.title} — thumbnail ${i + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  </button>
+                )
+              )}
+            </div>
+          )}
+
+          {listing.description && (
+            <section className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">
+                About This Sale
+              </h2>
+              <p
+                className="text-gray-600 leading-relaxed whitespace-pre-line"
+                itemProp="description"
+              >
+                {listing.description}
+              </p>
+            </section>
+          )}
+
+          {/* Ratings — shown for ALL listings */}
+          {listing.user_id ? (
+            <RatingSection listingId={listing.id} hostId={listing.user_id} />
+          ) : (
+            <RatingSection listingId={listing.id} hostId="" />
+          )}
+
+          <CommentsSection listingId={listing.id} />
+        </div>
+
+        <div className="lg:col-span-2">
+          <div className="lg:sticky lg:top-24 space-y-5">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              {listing.category && (
+                <Link
+                  href={`/browse?category=${encodeURIComponent(listing.category)}`}
+                  className="inline-block text-xs font-semibold text-ys-800 bg-ys-100 px-3 py-1 rounded-full hover:bg-ys-200 transition mb-3"
+                >
+                  {listing.category}
+                </Link>
+              )}
+
+              <div className="flex items-start justify-between gap-3">
+                <h1
+                  className="text-xl font-bold text-gray-900 leading-tight"
+                  itemProp="name"
+                >
+                  {listing.title}
+                </h1>
+                <button
+                  onClick={toggleSave}
+                  className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center border transition-all ${
+                    saved
+                      ? "bg-red-50 border-red-200 text-red-500"
+                      : "bg-gray-50 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"
+                  }`}
+                  aria-label={
+                    saved
+                      ? "Unsave this listing"
+                      : "Save this listing"
+                  }
+                >
+                  <i
+                    className={`${saved ? "fa-solid" : "fa-regular"} fa-heart`}
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+
+              {listing.price && (
+                <p
+                  className="text-2xl font-extrabold text-ys-800 mt-2"
+                  itemProp="offers"
+                  itemScope
+                  itemType="https://schema.org/Offer"
+                >
+                  <span itemProp="price">{listing.price}</span>
+                  <meta itemProp="priceCurrency" content="USD" />
+                  <meta
+                    itemProp="availability"
+                    content="https://schema.org/InStock"
+                  />
+                </p>
+              )}
+
+              <div className="mt-5 space-y-3">
+                {location && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                      <i
+                        className="fa-solid fa-location-dot text-sm text-ys-700"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Location
+                      </p>
+                      <p className="text-sm text-gray-500">{location}</p>
+                    </div>
+                  </div>
+                )}
+
+                {saleDay && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                      <i
+                        className="fa-regular fa-calendar text-sm text-ys-700"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Date</p>
+                      <time
+                        className="text-sm text-gray-500"
+                        dateTime={listing.sale_date}
+                      >
+                        {saleDay}
+                      </time>
+                    </div>
+                  </div>
+                )}
+
+                {(formattedStart || formattedEnd) && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-ys-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                      <i
+                        className="fa-regular fa-clock text-sm text-ys-700"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Time</p>
+                      <p className="text-sm text-gray-500">
+                        {formattedStart}
+                        {formattedEnd ? ` – ${formattedEnd}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 bg-ys-800 hover:bg-ys-900 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
+                >
+                  <i
+                    className="fa-solid fa-diamond-turn-right text-sm"
+                    aria-hidden="true"
+                  />
+                  Directions
+                </a>
+                <button
+                  onClick={handleShare}
+                  className="flex items-center justify-center gap-2 px-5 py-3 border border-gray-200 rounded-xl text-gray-700 hover:border-ys-600 hover:text-ys-800 transition-all"
+                >
+                  <i
+                    className={`fa-solid ${copied ? "fa-check" : "fa-share-nodes"} text-sm`}
+                    aria-hidden="true"
+                  />
+                  {copied ? "Copied!" : "Share"}
+                </button>
+              </div>
+
+              {/* Message Seller — only for listings with a real seller */}
+              {hasRealSeller && !isOwner && (
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      window.location.href = "/login";
+                      return;
+                    }
+                    setShowMessageModal(true);
+                  }}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-[#2E7D32] hover:bg-green-800 text-white py-3 rounded-xl font-semibold transition-all hover:shadow-lg"
+                >
+                  <i
+                    className="fa-solid fa-envelope text-sm"
+                    aria-hidden="true"
+                  />
+                  Message Seller
+                </button>
+              )}
+
+              {/* Boost controls — only for listings owned by the user */}
+              {hasRealSeller && isOwner && !listing.is_boosted && (
+                <button
+                  onClick={() => setShowBoostModal(true)}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-3 rounded-xl font-bold transition-all hover:shadow-md"
+                >
+                  <i
+                    className="fa-solid fa-rocket text-sm"
+                    aria-hidden="true"
+                  />
+                  Boost This Listing
+                </button>
+              )}
+
+              {hasRealSeller && isOwner && listing.is_boosted && (
+                <div className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-3 rounded-xl font-semibold">
+                  <i
+                    className="fa-solid fa-check-circle text-sm"
+                    aria-hidden="true"
+                  />
+                  This listing is boosted
+                </div>
+              )}
+            </div>
+
+            {/* Posted by section — same look for ALL listings */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                Posted by
+              </h3>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 bg-ys-100 rounded-full flex items-center justify-center">
+                  <i
+                    className="fa-solid fa-user text-ys-700"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {listing.profiles?.display_name || "YardShoppers Seller"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-gray-500">
+                      Joined{" "}
+                      {new Date(listing.created_at).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "long",
+                          year: "numeric",
+                        }
+                      )}
+                    </p>
+                    {hostAvgRating !== null && (
+                      <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full">
+                        <i className="fa-solid fa-star text-yellow-400 text-[10px]" />
+                        {hostAvgRating} ({hostTotalRatings})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {!user && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                  <p className="text-xs text-amber-800">
+                    <Link
+                      href="/login"
+                      className="font-semibold underline hover:no-underline"
+                    >
+                      Log in
+                    </Link>{" "}
+                    to contact the seller or save this listing.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <p className="text-center">
+              <button
+                onClick={() => {
+                  if (!user) {
+                    window.location.href = "/login";
+                    return;
+                  }
+                  setShowReportModal(true);
+                }}
+                className="text-xs text-gray-500 hover:text-red-500 transition"
+              >
+                <i
+                  className="fa-regular fa-flag mr-1"
+                  aria-hidden="true"
+                />
+                Report this listing
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {showBoostModal && listing && (
+        <BoostModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowBoostModal(false)}
+        />
+      )}
+
+      {showReportModal && listing && (
+        <ReportModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowReportModal(false)}
+        />
+      )}
+
+      {showMessageModal && listing && hasRealSeller && (
+        <MessageModal
+          receiverId={listing.user_id}
+          receiverName={listing.profiles?.display_name || "Seller"}
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setShowMessageModal(false)}
+        />
+      )}
+
+      <RouteFloatingBar
+        listingId={listing.id}
+        listingTitle={listing.title}
+      />
+    </article>
   );
 }
