@@ -1,9 +1,0 @@
-{
-	"id": "IzSnWRf2BhJbcgo",
-	"json": "{\"id\":\"IzSnWRf2BhJbcgo\",\"url\":\"https://garagesalefinder.com/tips/2049/garage-sale-finder-iapp-contest/\",\"uniqueKey\":\"https://garagesalefinder.com/tips/2049/garage-sale-finder-iapp-contest\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":2,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380991477,
-	"retryCount": 0,
-	"uniqueKey": "https://garagesalefinder.com/tips/2049/garage-sale-finder-iapp-contest",
-	"url": "https://garagesalefinder.com/tips/2049/garage-sale-finder-iapp-contest/"
-}

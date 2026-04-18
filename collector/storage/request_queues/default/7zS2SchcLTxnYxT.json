@@ -1,9 +1,0 @@
-{
-	"id": "7zS2SchcLTxnYxT",
-	"json": "{\"id\":\"7zS2SchcLTxnYxT\",\"url\":\"https://gsalr.com/list-garage-sale\",\"uniqueKey\":\"https://gsalr.com/list-garage-sale\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GSALR Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380957259,
-	"retryCount": 0,
-	"uniqueKey": "https://gsalr.com/list-garage-sale",
-	"url": "https://gsalr.com/list-garage-sale"
-}

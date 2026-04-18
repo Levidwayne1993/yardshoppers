@@ -1,9 +1,0 @@
-{
-	"id": "CuTsfgys1bc5cKT",
-	"json": "{\"id\":\"CuTsfgys1bc5cKT\",\"url\":\"https://estatesales.org/estate-sales/al/dothan\",\"loadedUrl\":\"https://estatesales.org/estate-sales/al/dothan\",\"uniqueKey\":\"https://estatesales.org/estate-sales/al/dothan\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T23:08:58.703Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://estatesales.org/estate-sales/al/dothan",
-	"url": "https://estatesales.org/estate-sales/al/dothan"
-}

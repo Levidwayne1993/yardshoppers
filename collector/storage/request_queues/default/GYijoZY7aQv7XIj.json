@@ -1,9 +1,0 @@
-{
-	"id": "GYijoZY7aQv7XIj",
-	"json": "{\"id\":\"GYijoZY7aQv7XIj\",\"url\":\"https://www.estatesale.com/cities/view/267/Estate-Sales-Bell-CA.html\",\"uniqueKey\":\"https://www.estatesale.com/cities/view/267/Estate-Sales-Bell-CA.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSale.com Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380953362,
-	"retryCount": 0,
-	"uniqueKey": "https://www.estatesale.com/cities/view/267/Estate-Sales-Bell-CA.html",
-	"url": "https://www.estatesale.com/cities/view/267/Estate-Sales-Bell-CA.html"
-}

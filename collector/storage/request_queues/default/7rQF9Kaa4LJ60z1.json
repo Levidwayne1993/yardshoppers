@@ -1,9 +1,0 @@
-{
-	"id": "7rQF9Kaa4LJ60z1",
-	"json": "{\"id\":\"7rQF9Kaa4LJ60z1\",\"url\":\"https://www.yardsalesearch.com/garage-sales-orange-beach-al.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-orange-beach-al.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380931041,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-orange-beach-al.html",
-	"url": "https://www.yardsalesearch.com/garage-sales-orange-beach-al.html"
-}

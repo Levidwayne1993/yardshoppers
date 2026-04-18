@@ -1,9 +1,0 @@
-{
-	"id": "rYtRPux0f2aeM2p",
-	"json": "{\"id\":\"rYtRPux0f2aeM2p\",\"url\":\"https://garagesalefinder.com/yard-sales/kansas-city-mo/\",\"uniqueKey\":\"https://garagesalefinder.com/yard-sales/kansas-city-mo\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":2,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380971504,
-	"retryCount": 0,
-	"uniqueKey": "https://garagesalefinder.com/yard-sales/kansas-city-mo",
-	"url": "https://garagesalefinder.com/yard-sales/kansas-city-mo/"
-}

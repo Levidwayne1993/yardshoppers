@@ -1,9 +1,0 @@
-{
-	"id": "IRDSfit0cHMxF2X",
-	"json": "{\"id\":\"IRDSfit0cHMxF2X\",\"url\":\"https://estatesales.org/estate-sales/wa/seattle/98125\",\"uniqueKey\":\"https://estatesales.org/estate-sales/wa/seattle/98125\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380938532,
-	"retryCount": 0,
-	"uniqueKey": "https://estatesales.org/estate-sales/wa/seattle/98125",
-	"url": "https://estatesales.org/estate-sales/wa/seattle/98125"
-}

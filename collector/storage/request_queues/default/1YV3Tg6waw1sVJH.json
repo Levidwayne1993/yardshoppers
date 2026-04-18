@@ -1,9 +1,0 @@
-{
-	"id": "1YV3Tg6waw1sVJH",
-	"json": "{\"id\":\"1YV3Tg6waw1sVJH\",\"url\":\"https://www.reddit.com/r/Alabama/?f=flair_name%3A%22News%22\",\"loadedUrl\":\"https://www.reddit.com/r/Alabama/?solution=1d1ec937bb8b1e4d1d1ec937bb8b1e4d&js_challenge=1&token=bbbe4bf1c9a2b5160829c4be34da586123e441da31a203f690603b6aa214582d&f=flair_name%3A%22News%22\",\"uniqueKey\":\"https://www.reddit.com/r/Alabama?f=flair_name%3A%22News%22\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Reddit Alabama\",\"sourceCategory\":\"reddit\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T23:09:27.026Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.reddit.com/r/Alabama?f=flair_name%3A%22News%22",
-	"url": "https://www.reddit.com/r/Alabama/?f=flair_name%3A%22News%22"
-}

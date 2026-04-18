@@ -1,9 +1,0 @@
-{
-	"id": "8djZQCFUJ8YzMMP",
-	"json": "{\"id\":\"8djZQCFUJ8YzMMP\",\"url\":\"https://www.estatesale.com/sales/view/860979.html\",\"uniqueKey\":\"https://www.estatesale.com/sales/view/860979.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSale.com Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380953589,
-	"retryCount": 0,
-	"uniqueKey": "https://www.estatesale.com/sales/view/860979.html",
-	"url": "https://www.estatesale.com/sales/view/860979.html"
-}

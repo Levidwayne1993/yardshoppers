@@ -1,9 +1,0 @@
-{
-	"id": "ZTKoQ11qaW3fkPs",
-	"json": "{\"id\":\"ZTKoQ11qaW3fkPs\",\"url\":\"https://estatesales.org/estate-sales/tx/houston/77043\",\"uniqueKey\":\"https://estatesales.org/estate-sales/tx/houston/77043\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380938513,
-	"retryCount": 0,
-	"uniqueKey": "https://estatesales.org/estate-sales/tx/houston/77043",
-	"url": "https://estatesales.org/estate-sales/tx/houston/77043"
-}

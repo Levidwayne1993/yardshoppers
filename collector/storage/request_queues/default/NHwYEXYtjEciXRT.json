@@ -1,9 +1,0 @@
-{
-	"id": "NHwYEXYtjEciXRT",
-	"json": "{\"id\":\"NHwYEXYtjEciXRT\",\"url\":\"https://www.yardsalesearch.com/garage-sales-flomaton-al.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-flomaton-al.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: browserController.newPage() failed: 9-0Bse9SNkaS5TEH8C5AS\\nCause:browserContext.newPage: Target page, context or browser has been closed.\\n    at BrowserPool._createPageForBrowser (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\browser-pool.ts:595:19)\\n    at async <anonymous> (C:\\\\yardshoppers\\\\collector\\\\node_modules\\\\@crawlee\\\\src\\\\browser-pool.ts:456:20)\"],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":5}}}",
-	"method": "GET",
-	"orderNo": 1776382007321,
-	"retryCount": 1,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-flomaton-al.html",
-	"url": "https://www.yardsalesearch.com/garage-sales-flomaton-al.html"
-}

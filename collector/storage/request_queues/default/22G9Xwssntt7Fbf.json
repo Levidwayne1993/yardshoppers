@@ -1,9 +1,0 @@
-{
-	"id": "22G9Xwssntt7Fbf",
-	"json": "{\"id\":\"22G9Xwssntt7Fbf\",\"url\":\"https://www.reddit.com/r/alabama/\",\"loadedUrl\":\"https://www.reddit.com/r/Alabama/\",\"uniqueKey\":\"https://www.reddit.com/r/alabama\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"Reddit Alabama\",\"sourceCategory\":\"reddit\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T23:08:30.048Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.reddit.com/r/alabama",
-	"url": "https://www.reddit.com/r/alabama/"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "IqD1x1WlszzU5Sz",
-	"json": "{\"id\":\"IqD1x1WlszzU5Sz\",\"url\":\"https://estatesales.org/estate-sales/tn/knoxville/37923/west-knox-dream-sale-2019-2433406\",\"uniqueKey\":\"https://estatesales.org/estate-sales/tn/knoxville/37923/west-knox-dream-sale-2019-2433406\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380938556,
-	"retryCount": 0,
-	"uniqueKey": "https://estatesales.org/estate-sales/tn/knoxville/37923/west-knox-dream-sale-2019-2433406",
-	"url": "https://estatesales.org/estate-sales/tn/knoxville/37923/west-knox-dream-sale-2019-2433406"
-}

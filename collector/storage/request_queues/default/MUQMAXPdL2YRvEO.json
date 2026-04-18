@@ -1,9 +1,0 @@
-{
-	"id": "MUQMAXPdL2YRvEO",
-	"json": "{\"id\":\"MUQMAXPdL2YRvEO\",\"url\":\"https://www.yardsalesearch.com/yss_map.jsp?loc=31.2233594,-85.389326\",\"loadedUrl\":\"https://www.yardsalesearch.com/yss_map.jsp?loc=31.22336,-85.38933&zoom=12\",\"uniqueKey\":\"https://www.yardsalesearch.com/yss_map.jsp?loc=31.2233594%2C-85.389326\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T23:12:23.389Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/yss_map.jsp?loc=31.2233594%2C-85.389326",
-	"url": "https://www.yardsalesearch.com/yss_map.jsp?loc=31.2233594,-85.389326"
-}

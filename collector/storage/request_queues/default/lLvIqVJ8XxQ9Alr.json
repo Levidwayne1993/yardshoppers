@@ -1,9 +1,0 @@
-{
-	"id": "lLvIqVJ8XxQ9Alr",
-	"json": "{\"id\":\"lLvIqVJ8XxQ9Alr\",\"url\":\"https://www.estatesale.com/add-your-company\",\"uniqueKey\":\"https://www.estatesale.com/add-your-company\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSale.com Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380953358,
-	"retryCount": 0,
-	"uniqueKey": "https://www.estatesale.com/add-your-company",
-	"url": "https://www.estatesale.com/add-your-company"
-}

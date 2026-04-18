@@ -1,9 +1,0 @@
-{
-	"id": "2pwGPTDwhK56ikq",
-	"json": "{\"id\":\"2pwGPTDwhK56ikq\",\"url\":\"https://yardsalesearch.com/garage-sales-dothan-al.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-dothan-al.html\",\"uniqueKey\":\"https://yardsalesearch.com/garage-sales-dothan-al.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T23:08:51.649Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://yardsalesearch.com/garage-sales-dothan-al.html",
-	"url": "https://yardsalesearch.com/garage-sales-dothan-al.html"
-}

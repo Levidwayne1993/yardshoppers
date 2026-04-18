@@ -1,9 +1,0 @@
-{
-	"id": "GT6vjXaBC3mKl3m",
-	"json": "{\"id\":\"GT6vjXaBC3mKl3m\",\"url\":\"https://www.yardsalesearch.com/garage-sales-ohatchee-al.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-ohatchee-al.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380930991,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-ohatchee-al.html",
-	"url": "https://www.yardsalesearch.com/garage-sales-ohatchee-al.html"
-}

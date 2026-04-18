@@ -1,9 +1,0 @@
-{
-	"id": "gp4tgmWHOH2LQkw",
-	"json": "{\"id\":\"gp4tgmWHOH2LQkw\",\"url\":\"https://estatesales.org/estate-sale-companies/randy-kincaid-auction-5185\",\"uniqueKey\":\"https://estatesales.org/estate-sale-companies/randy-kincaid-auction-5185\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380938622,
-	"retryCount": 0,
-	"uniqueKey": "https://estatesales.org/estate-sale-companies/randy-kincaid-auction-5185",
-	"url": "https://estatesales.org/estate-sale-companies/randy-kincaid-auction-5185"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "kejdboSzJu6lM5j",
-	"json": "{\"id\":\"kejdboSzJu6lM5j\",\"url\":\"https://offerup.com/explore/sck/dothan-al/garage-sale/\",\"loadedUrl\":\"https://offerup.com/explore/sck/dothan-al/garage-sale\",\"uniqueKey\":\"https://offerup.com/explore/sck/dothan-al/garage-sale\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"OfferUp Dothan\",\"sourceCategory\":\"marketplace\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T23:08:28.301Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://offerup.com/explore/sck/dothan-al/garage-sale",
-	"url": "https://offerup.com/explore/sck/dothan-al/garage-sale/"
-}

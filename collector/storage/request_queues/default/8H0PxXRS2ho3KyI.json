@@ -1,9 +1,0 @@
-{
-	"id": "8H0PxXRS2ho3KyI",
-	"json": "{\"id\":\"8H0PxXRS2ho3KyI\",\"url\":\"https://www.yardsalesearch.com/garage-sales-elkmont-al.html\",\"loadedUrl\":\"https://www.yardsalesearch.com/garage-sales-elkmont-al.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-elkmont-al.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\",\"state\":4}},\"handledAt\":\"2026-04-16T23:25:45.410Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-elkmont-al.html",
-	"url": "https://www.yardsalesearch.com/garage-sales-elkmont-al.html"
-}

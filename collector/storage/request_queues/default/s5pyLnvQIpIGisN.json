@@ -1,9 +1,0 @@
-{
-	"id": "s5pyLnvQIpIGisN",
-	"json": "{\"id\":\"s5pyLnvQIpIGisN\",\"url\":\"https://www.yardsalesearch.com/garage-sales-mccalla-al.html\",\"uniqueKey\":\"https://www.yardsalesearch.com/garage-sales-mccalla-al.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"YardSaleSearch Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380930516,
-	"retryCount": 0,
-	"uniqueKey": "https://www.yardsalesearch.com/garage-sales-mccalla-al.html",
-	"url": "https://www.yardsalesearch.com/garage-sales-mccalla-al.html"
-}

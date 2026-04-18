@@ -1,9 +1,0 @@
-{
-	"id": "UcVnghzoGx5WPgb",
-	"json": "{\"id\":\"UcVnghzoGx5WPgb\",\"url\":\"https://www.estatesale.com/cities/view/6/Dothan-Alabama.html\",\"loadedUrl\":\"https://www.estatesale.com/cities/view/6/Dothan-Alabama.html\",\"uniqueKey\":\"https://www.estatesale.com/cities/view/6/Dothan-Alabama.html\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSale.com Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":0,\"maxDepth\":2,\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-04-16T23:09:13.608Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.estatesale.com/cities/view/6/Dothan-Alabama.html",
-	"url": "https://www.estatesale.com/cities/view/6/Dothan-Alabama.html"
-}

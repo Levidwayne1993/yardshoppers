@@ -1,9 +1,0 @@
-{
-	"id": "Ei1GDFfcQEYacr9",
-	"json": "{\"id\":\"Ei1GDFfcQEYacr9\",\"url\":\"https://estatesales.org/estate-sale-companies/caring-transitions-of-benicia-vallejo-25405\",\"uniqueKey\":\"https://estatesales.org/estate-sale-companies/caring-transitions-of-benicia-vallejo-25405\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380938427,
-	"retryCount": 0,
-	"uniqueKey": "https://estatesales.org/estate-sale-companies/caring-transitions-of-benicia-vallejo-25405",
-	"url": "https://estatesales.org/estate-sale-companies/caring-transitions-of-benicia-vallejo-25405"
-}

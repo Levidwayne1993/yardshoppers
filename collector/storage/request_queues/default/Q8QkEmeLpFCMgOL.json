@@ -1,9 +1,0 @@
-{
-	"id": "Q8QkEmeLpFCMgOL",
-	"json": "{\"id\":\"Q8QkEmeLpFCMgOL\",\"url\":\"https://garagesalefinder.com/yard-sales/indianapolis-in/\",\"uniqueKey\":\"https://garagesalefinder.com/yard-sales/indianapolis-in\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"GarageSaleFinder Dothan\",\"sourceCategory\":\"yardsale-directory\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":2,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380971494,
-	"retryCount": 0,
-	"uniqueKey": "https://garagesalefinder.com/yard-sales/indianapolis-in",
-	"url": "https://garagesalefinder.com/yard-sales/indianapolis-in/"
-}

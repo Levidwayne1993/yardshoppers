@@ -1,9 +1,0 @@
-{
-	"id": "ru7b7MO0RB7T1T8",
-	"json": "{\"id\":\"ru7b7MO0RB7T1T8\",\"url\":\"https://estatesales.org/estate-sales/wa/seattle/98125/wools-whisks-and-art-enthusiasts-2434163/gallery\",\"uniqueKey\":\"https://estatesales.org/estate-sales/wa/seattle/98125/wools-whisks-and-art-enthusiasts-2434163/gallery\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380938526,
-	"retryCount": 0,
-	"uniqueKey": "https://estatesales.org/estate-sales/wa/seattle/98125/wools-whisks-and-art-enthusiasts-2434163/gallery",
-	"url": "https://estatesales.org/estate-sales/wa/seattle/98125/wools-whisks-and-art-enthusiasts-2434163/gallery"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "KciG6yHM6LG4psh",
-	"json": "{\"id\":\"KciG6yHM6LG4psh\",\"url\":\"https://estatesales.org/estate-sales/fl/wellborn/32094/huge-auction-antiquesfarmcollectiblescars-2433171\",\"uniqueKey\":\"https://estatesales.org/estate-sales/fl/wellborn/32094/huge-auction-antiquesfarmcollectiblescars-2433171\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380938632,
-	"retryCount": 0,
-	"uniqueKey": "https://estatesales.org/estate-sales/fl/wellborn/32094/huge-auction-antiquesfarmcollectiblescars-2433171",
-	"url": "https://estatesales.org/estate-sales/fl/wellborn/32094/huge-auction-antiquesfarmcollectiblescars-2433171"
-}

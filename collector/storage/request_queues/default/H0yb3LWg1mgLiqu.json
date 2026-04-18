@@ -1,9 +1,0 @@
-{
-	"id": "H0yb3LWg1mgLiqu",
-	"json": "{\"id\":\"H0yb3LWg1mgLiqu\",\"url\":\"https://estatesales.org/estate-sales/va/arlington/22207\",\"uniqueKey\":\"https://estatesales.org/estate-sales/va/arlington/22207\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"sourceName\":\"EstateSales.org Dothan\",\"sourceCategory\":\"estate-sale\",\"city\":\"Dothan\",\"state\":\"AL\",\"depth\":1,\"maxDepth\":2,\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-domain\"}}}",
-	"method": "GET",
-	"orderNo": 1776380938396,
-	"retryCount": 0,
-	"uniqueKey": "https://estatesales.org/estate-sales/va/arlington/22207",
-	"url": "https://estatesales.org/estate-sales/va/arlington/22207"
-}
