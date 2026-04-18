@@ -697,7 +697,7 @@ export default function ListingDetailClient({
                       />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Date</p>
+                      <p className="text-sm font-medium text-gray-900">Sale Date</p>
                       <time
                         className="text-sm text-gray-500"
                         dateTime={listing.sale_date}
