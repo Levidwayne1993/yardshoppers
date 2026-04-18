@@ -1,4 +1,4 @@
-﻿import type { RawExternalListing, CollectorResult } from "@/types/external";
+import type { RawExternalListing, CollectorResult } from "@/types/external";
 
 // ──────────────────────────────────────────────
 // SHARED CONSTANTS & HELPERS
@@ -480,7 +480,7 @@ function fsfItemToListing(item: NextdoorFSFItem): RawExternalListing {
     expires_at: new Date(
       Date.now() + 7 * 24 * 60 * 60 * 1000
     ).toISOString(),
-    raw_data: item,
+    raw_data: item as unknown as Record<string, unknown>,
   };
 }
 
@@ -504,7 +504,7 @@ function postToListing(post: NextdoorPost): RawExternalListing {
     expires_at: new Date(
       Date.now() + 7 * 24 * 60 * 60 * 1000
     ).toISOString(),
-    raw_data: post,
+    raw_data: post as unknown as Record<string, unknown>,
   };
 }
 
@@ -537,7 +537,7 @@ function eventToListing(event: NextdoorEvent): RawExternalListing {
     expires_at:
       event.end_date ||
       new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    raw_data: event,
+    raw_data: event as unknown as Record<string, unknown>,
   };
 }
 
