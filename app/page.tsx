@@ -1,3 +1,11 @@
+// ============================================================
+// PASTE INTO: app/page.tsx (yardshoppers project)
+//
+// FIX: Removed duplicate fetchListings function and old dead
+// code referencing undeclared 'query' variable (line 256 error).
+// Now has ONE clean fetchListings that queries BOTH tables.
+// ============================================================
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -54,30 +62,30 @@ function getDistanceMiles(
 const howToSchema = {
   "@context": "https://schema.org",
   "@type": "HowTo",
-  "name": "How to Find Yard Sales on YardShoppers",
-  "description":
+  name: "How to Find Yard Sales on YardShoppers",
+  description:
     "Find amazing deals at yard sales near you in 3 simple steps using YardShoppers.",
-  "step": [
+  step: [
     {
       "@type": "HowToStep",
-      "position": 1,
-      "name": "Search",
-      "text": "Find yard sales near you by location, category, or keyword.",
-      "url": "https://www.yardshoppers.com/#how-it-works",
+      position: 1,
+      name: "Search",
+      text: "Find yard sales near you by location, category, or keyword.",
+      url: "https://www.yardshoppers.com/#how-it-works",
     },
     {
       "@type": "HowToStep",
-      "position": 2,
-      "name": "Save",
-      "text": "Save your favorite listings and plan your yard sale route.",
-      "url": "https://www.yardshoppers.com/#how-it-works",
+      position: 2,
+      name: "Save",
+      text: "Save your favorite listings and plan your yard sale route.",
+      url: "https://www.yardshoppers.com/#how-it-works",
     },
     {
       "@type": "HowToStep",
-      "position": 3,
-      "name": "Visit",
-      "text": "Get directions and head out to find amazing deals!",
-      "url": "https://www.yardshoppers.com/#how-it-works",
+      position: 3,
+      name: "Visit",
+      text: "Get directions and head out to find amazing deals!",
+      url: "https://www.yardshoppers.com/#how-it-works",
     },
   ],
 };
@@ -86,12 +94,12 @@ const howToSchema = {
 const breadcrumbSchema = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
-  "itemListElement": [
+  itemListElement: [
     {
       "@type": "ListItem",
-      "position": 1,
-      "name": "Home",
-      "item": "https://www.yardshoppers.com",
+      position: 1,
+      name: "Home",
+      item: "https://www.yardshoppers.com",
     },
   ],
 };
@@ -149,12 +157,9 @@ export default function HomePage() {
     async function fetchListings() {
       setLoading(true);
 
-    async function fetchListings() {
-      setLoading(true);
-
       // ── Query 1: User-posted listings ──
       let userQuery = supabase.from("listings").select("*, listing_photos(*)");
-      
+
       // ── Query 2: Collected external sales ──
       let extQuery = supabase.from("external_sales").select("*");
 
@@ -210,7 +215,7 @@ export default function HomePage() {
       ]);
 
       const userListings = userResult.data || [];
-      
+
       // Normalize external_sales to match listings shape
       const externalListings = (extResult.data || []).map((ext: any) => ({
         ...ext,
@@ -247,72 +252,6 @@ export default function HomePage() {
         results = [...boosted, ...nonBoosted];
       }
 
-      setListings(results.slice(0, 12));
-      setLoading(false);
-    }
-
-      if (debouncedSearch.trim()) {
-        const term = `%${debouncedSearch.trim()}%`;
-        query = query.or(
-          `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
-        );
-      }
-
-      if (selectedCategories.length > 0) {
-        const orClauses = selectedCategories
-          .map((cat) => `category.eq.${cat},categories.cs.{${cat}}`)
-          .join(",");
-        query = query.or(orClauses);
-      }
-
-      // Apply geographic bounding box filter
-      if (distance < 999 && lat && lng) {
-        const deg = milesToDeg(distance);
-        query = query
-          .gte("latitude", lat - deg)
-          .lte("latitude", lat + deg)
-          .gte("longitude", lng - deg)
-          .lte("longitude", lng + deg);
-      }
-
-      // Always order boosted first, then by created_at from DB
-      query = query
-        .order("is_boosted", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: sort === "oldest" });
-
-      // Fetch more than needed so client-side sort has enough to work with
-      query = query.limit(50);
-
-      const { data } = await query;
-      let results = data || [];
-
-      // Client-side proximity sort when "nearest" is selected and location is available
-      if (sort === "nearest" && lat && lng && results.length > 0) {
-        // Separate boosted and non-boosted listings
-        const boosted = results.filter((l: any) => l.is_boosted);
-        const nonBoosted = results.filter((l: any) => !l.is_boosted);
-
-        // Sort each group by distance
-        const sortByDistance = (a: any, b: any) => {
-          const distA =
-            a.latitude && a.longitude
-              ? getDistanceMiles(lat, lng, a.latitude, a.longitude)
-              : Infinity;
-          const distB =
-            b.latitude && b.longitude
-              ? getDistanceMiles(lat, lng, b.latitude, b.longitude)
-              : Infinity;
-          return distA - distB;
-        };
-
-        boosted.sort(sortByDistance);
-        nonBoosted.sort(sortByDistance);
-
-        // Boosted listings still appear first, but sorted by distance within their group
-        results = [...boosted, ...nonBoosted];
-      }
-
-      // Trim to display limit
       setListings(results.slice(0, 12));
       setLoading(false);
     }
