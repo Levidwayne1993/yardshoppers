@@ -868,7 +868,7 @@ function postToListing(post: NextdoorPost): RawExternalListing {
     categories: post.category ? [post.category] : [],
     collected_at: new Date().toISOString(),
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    raw_data: post,
+    raw_data: post as unknown as Record<string, unknown>,
   };
 }
 
