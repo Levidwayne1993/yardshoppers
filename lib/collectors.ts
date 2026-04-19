@@ -846,7 +846,7 @@ function fsfItemToListing(item: NextdoorFSFItem): RawExternalListing {
     categories: item.category ? [item.category] : [],
     collected_at: new Date().toISOString(),
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    raw_data: item,
+    raw_data: item as unknown as Record<string, unknown>,
   };
 }
 
