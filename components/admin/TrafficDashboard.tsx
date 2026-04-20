@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Activity, Eye, Users, TrendingDown, MapPin, Tag, FileText, RefreshCw,
 } from "lucide-react";
+import ListingVelocity from "./ListingVelocity";
+import UserGrowth from "./UserGrowth";
+import CityHeatmap from "./CityHeatmap";
 
 interface TrafficData {
   liveUsers: number;
@@ -17,12 +20,46 @@ interface TrafficData {
   topPages: { page: string; count: number }[];
 }
 
+interface VelocityData {
+  listingsLastHour: number;
+  listingsLast24h: number;
+  listingsLast7d: number;
+  listingsLast30d: number;
+  dailyListings: { day: string; count: number }[];
+  velocityChange: number;
+  avgPerDay: number;
+  currentPeriodCount: number;
+  prevPeriodCount: number;
+}
+
+interface UserGrowthData {
+  totalUsers: number;
+  newSignups: number;
+  prevSignups: number;
+  signupGrowthPct: number;
+  dailySignups: { day: string; count: number }[];
+  activeSellers: number;
+  activeBuyers: number;
+  returningUsers: number;
+}
+
+interface CityHeatmapData {
+  hottestCities: { city: string; state: string; currentCount: number; previousCount: number; totalListings: number; growthPct: number }[];
+  deadZones: { city: string; state: string; currentCount: number; previousCount: number; totalListings: number; growthPct: number }[];
+  steadyCities: { city: string; state: string; currentCount: number; previousCount: number; totalListings: number; growthPct: number }[];
+  totalCitiesWithListings: number;
+  activeCitiesCount: number;
+}
+
 interface Props {
   days?: number;
 }
 
 export default function TrafficDashboard({ days = 30 }: Props) {
-  const [data, setData] = useState<TrafficData | null>(null);
+  const [trafficData, setTrafficData] = useState<TrafficData | null>(null);
+  const [velocityData, setVelocityData] = useState<VelocityData | null>(null);
+  const [userGrowthData, setUserGrowthData] = useState<UserGrowthData | null>(null);
+  const [cityHeatmapData, setCityHeatmapData] = useState<CityHeatmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDays, setSelectedDays] = useState(days);
@@ -35,7 +72,10 @@ export default function TrafficDashboard({ days = 30 }: Props) {
       const res = await fetch(`/api/admin/analytics?days=${selectedDays}`);
       if (!res.ok) throw new Error("Failed to fetch analytics");
       const json = await res.json();
-      setData(json.traffic);
+      setTrafficData(json.traffic);
+      setVelocityData(json.listingVelocity || null);
+      setUserGrowthData(json.userGrowth || null);
+      setCityHeatmapData(json.cityHeatmap || null);
       setLastRefresh(new Date());
     } catch (err: any) {
       setError(err.message);
@@ -50,7 +90,7 @@ export default function TrafficDashboard({ days = 30 }: Props) {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  if (loading && !data) {
+  if (loading && !trafficData) {
     return (
       <div className="flex items-center justify-center py-20">
         <RefreshCw className="w-6 h-6 animate-spin text-brand-green" />
@@ -70,12 +110,12 @@ export default function TrafficDashboard({ days = 30 }: Props) {
     );
   }
 
-  if (!data) return null;
+  if (!trafficData) return null;
 
-  const maxViews = Math.max(...data.dailyPageviews.map((d) => d.views), 1);
+  const maxViews = Math.max(...trafficData.dailyPageviews.map((d) => d.views), 1);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -112,7 +152,7 @@ export default function TrafficDashboard({ days = 30 }: Props) {
               <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{data.liveUsers}</p>
+          <p className="text-3xl font-bold text-gray-900">{trafficData.liveUsers}</p>
           <p className="text-xs text-gray-400 mt-1">last 30 minutes</p>
         </div>
 
@@ -121,7 +161,7 @@ export default function TrafficDashboard({ days = 30 }: Props) {
             <span className="text-sm font-medium text-gray-500">Pageviews</span>
             <Eye className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{data.pageviews30m}</p>
+          <p className="text-3xl font-bold text-gray-900">{trafficData.pageviews30m}</p>
           <p className="text-xs text-gray-400 mt-1">last 30 minutes</p>
         </div>
 
@@ -130,7 +170,7 @@ export default function TrafficDashboard({ days = 30 }: Props) {
             <span className="text-sm font-medium text-gray-500">Bounce Rate</span>
             <TrendingDown className="w-4 h-4 text-orange-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{data.bounceRate}%</p>
+          <p className="text-3xl font-bold text-gray-900">{trafficData.bounceRate}%</p>
           <p className="text-xs text-gray-400 mt-1">single-page sessions</p>
         </div>
 
@@ -139,19 +179,19 @@ export default function TrafficDashboard({ days = 30 }: Props) {
             <span className="text-sm font-medium text-gray-500">Total Views</span>
             <Users className="w-4 h-4 text-purple-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{data.totalViews.toLocaleString()}</p>
-          <p className="text-xs text-gray-400 mt-1">{data.totalUnique.toLocaleString()} unique sessions</p>
+          <p className="text-3xl font-bold text-gray-900">{trafficData.totalViews.toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-1">{trafficData.totalUnique.toLocaleString()} unique sessions</p>
         </div>
       </div>
 
       {/* Daily Pageviews Chart */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
         <h3 className="text-sm font-semibold text-gray-700 mb-4">Daily Pageviews</h3>
-        {data.dailyPageviews.length === 0 ? (
+        {trafficData.dailyPageviews.length === 0 ? (
           <p className="text-gray-400 text-sm text-center py-8">No data yet. Views will appear as traffic flows in.</p>
         ) : (
           <div className="flex items-end gap-1 h-40 overflow-x-auto">
-            {data.dailyPageviews.map((d) => {
+            {trafficData.dailyPageviews.map((d) => {
               const height = Math.max((d.views / maxViews) * 100, 4);
               return (
                 <div key={d.day} className="group relative flex-1 min-w-[12px]">
@@ -171,10 +211,10 @@ export default function TrafficDashboard({ days = 30 }: Props) {
             })}
           </div>
         )}
-        {data.dailyPageviews.length > 0 && (
+        {trafficData.dailyPageviews.length > 0 && (
           <div className="flex justify-between mt-2 text-xs text-gray-400">
-            <span>{new Date(data.dailyPageviews[0].day + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-            <span>{new Date(data.dailyPageviews[data.dailyPageviews.length - 1].day + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            <span>{new Date(trafficData.dailyPageviews[0].day + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            <span>{new Date(trafficData.dailyPageviews[trafficData.dailyPageviews.length - 1].day + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
           </div>
         )}
       </div>
@@ -185,11 +225,11 @@ export default function TrafficDashboard({ days = 30 }: Props) {
           <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-brand-green" /> Top Cities
           </h3>
-          {data.topCities.length === 0 ? (
+          {trafficData.topCities.length === 0 ? (
             <p className="text-gray-400 text-sm">No city data yet</p>
           ) : (
             <ul className="space-y-2">
-              {data.topCities.map((c, i) => (
+              {trafficData.topCities.map((c, i) => (
                 <li key={c.city} className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <span className="text-xs text-gray-400 w-4 text-right">{i + 1}.</span>
@@ -206,11 +246,11 @@ export default function TrafficDashboard({ days = 30 }: Props) {
           <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
             <Tag className="w-4 h-4 text-brand-orange" /> Top Categories
           </h3>
-          {data.topCategories.length === 0 ? (
+          {trafficData.topCategories.length === 0 ? (
             <p className="text-gray-400 text-sm">No category data yet</p>
           ) : (
             <ul className="space-y-2">
-              {data.topCategories.map((c, i) => (
+              {trafficData.topCategories.map((c, i) => (
                 <li key={c.category} className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <span className="text-xs text-gray-400 w-4 text-right">{i + 1}.</span>
@@ -227,11 +267,11 @@ export default function TrafficDashboard({ days = 30 }: Props) {
           <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
             <FileText className="w-4 h-4 text-purple-500" /> Top Pages
           </h3>
-          {data.topPages.length === 0 ? (
+          {trafficData.topPages.length === 0 ? (
             <p className="text-gray-400 text-sm">No page data yet</p>
           ) : (
             <ul className="space-y-2">
-              {data.topPages.map((p, i) => (
+              {trafficData.topPages.map((p, i) => (
                 <li key={p.page} className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <span className="text-xs text-gray-400 w-4 text-right">{i + 1}.</span>
@@ -244,6 +284,24 @@ export default function TrafficDashboard({ days = 30 }: Props) {
           )}
         </div>
       </div>
+
+      {/* ── DIVIDER ── */}
+      <hr className="border-gray-200" />
+
+      {/* Listing Velocity */}
+      {velocityData && <ListingVelocity data={velocityData} />}
+
+      {/* ── DIVIDER ── */}
+      <hr className="border-gray-200" />
+
+      {/* User Growth */}
+      {userGrowthData && <UserGrowth data={userGrowthData} />}
+
+      {/* ── DIVIDER ── */}
+      <hr className="border-gray-200" />
+
+      {/* City Heatmap */}
+      {cityHeatmapData && <CityHeatmap data={cityHeatmapData} />}
     </div>
   );
 }
