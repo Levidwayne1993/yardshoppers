@@ -20,6 +20,7 @@ import TrafficDashboard from "@/components/admin/TrafficDashboard";
 import BoostDashboard from "@/components/admin/BoostDashboard";
 import ShadowbanDashboard from "@/components/admin/ShadowbanDashboard";
 import CouponDashboard from "@/components/admin/CouponDashboard";
+import AdminNotepad from "@/components/admin/AdminNotepad";
 
 const ADMIN_EMAILS = ["erwin-levi@outlook.com", "gary.w.erwin@gmail.com"];
 
@@ -62,7 +63,7 @@ export default function DashboardPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [boostTarget, setBoostTarget] = useState<Listing | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "analytics" | "boosts" | "listings" | "reports" | "coverage" | "shadowban" | "coupons"
+    "analytics" | "boosts" | "listings" | "reports" | "coverage" | "shadowban" | "coupons" | "notepad"
   >("analytics");
 
   const [selectedState, setSelectedState] = useState<string>("all");
@@ -479,7 +480,7 @@ export default function DashboardPage() {
               </span>
             )}
           </button>
-          {/* NEW: Shadowban tab */}
+          {/* Shadowban tab */}
           <button
             onClick={() => setActiveTab("shadowban")}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
@@ -491,7 +492,7 @@ export default function DashboardPage() {
             <i className="fa-solid fa-ghost mr-2 text-xs" />
             Shadowban
           </button>
-          {/* NEW: Coupons tab */}
+          {/* Coupons tab */}
           <button
             onClick={() => setActiveTab("coupons")}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
@@ -502,6 +503,18 @@ export default function DashboardPage() {
           >
             <i className="fa-solid fa-ticket mr-2 text-xs" />
             Coupons
+          </button>
+          {/* Notepad tab */}
+          <button
+            onClick={() => setActiveTab("notepad")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
+              activeTab === "notepad"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <i className="fa-solid fa-note-sticky mr-2 text-xs" />
+            Notepad
           </button>
         </div>
       )}
@@ -1244,14 +1257,19 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* ===== SHADOWBAN TAB (NEW) ===== */}
+      {/* ===== SHADOWBAN TAB ===== */}
       {activeTab === "shadowban" && isAdmin && (
         <ShadowbanDashboard />
       )}
 
-      {/* ===== COUPONS TAB (NEW) ===== */}
+      {/* ===== COUPONS TAB ===== */}
       {activeTab === "coupons" && isAdmin && (
         <CouponDashboard />
+      )}
+
+      {/* ===== NOTEPAD TAB ===== */}
+      {activeTab === "notepad" && isAdmin && user?.email && (
+        <AdminNotepad userEmail={user.email} />
       )}
 
       {/* DELETE CONFIRMATION MODAL */}
@@ -1297,11 +1315,11 @@ export default function DashboardPage() {
       {/* BOOST MODAL */}
       {boostTarget && (
         <BoostModal
-  listingId={boostTarget.id}
-  listingTitle={boostTarget.title}
-  onClose={() => setBoostTarget(null)}
-  onBoosted={() => setBoostTarget(null)}
-/>
+          listingId={boostTarget.id}
+          listingTitle={boostTarget.title}
+          onClose={() => setBoostTarget(null)}
+          onBoosted={() => setBoostTarget(null)}
+        />
       )}
     </div>
   );
