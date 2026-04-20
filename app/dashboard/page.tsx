@@ -6,6 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import BoostModal from "@/components/BoostModal";
+import TrafficDashboard from "@/components/admin/TrafficDashboard";
+import BoostDashboard from "@/components/admin/BoostDashboard";
 
 const ADMIN_EMAIL = "erwin-levi@outlook.com";
 
@@ -48,8 +50,8 @@ export default function DashboardPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [boostTarget, setBoostTarget] = useState<Listing | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "listings" | "reports" | "coverage"
-  >("listings");
+    "analytics" | "boosts" | "listings" | "reports" | "coverage"
+  >("analytics");
 
   const [selectedState, setSelectedState] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
@@ -400,6 +402,28 @@ export default function DashboardPage() {
       {isAdmin && (
         <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit flex-wrap">
           <button
+            onClick={() => setActiveTab("analytics")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
+              activeTab === "analytics"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <i className="fa-solid fa-chart-line mr-2 text-xs" />
+            Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab("boosts")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
+              activeTab === "boosts"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <i className="fa-solid fa-rocket mr-2 text-xs" />
+            Boosts
+          </button>
+          <button
             onClick={() => setActiveTab("listings")}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
               activeTab === "listings"
@@ -456,6 +480,16 @@ export default function DashboardPage() {
         >
           {deleteResult}
         </div>
+      )}
+
+      {/* ===== ANALYTICS TAB ===== */}
+      {activeTab === "analytics" && isAdmin && (
+        <TrafficDashboard />
+      )}
+
+      {/* ===== BOOSTS TAB ===== */}
+      {activeTab === "boosts" && isAdmin && (
+        <BoostDashboard />
       )}
 
       {/* ===== LISTINGS TAB ===== */}

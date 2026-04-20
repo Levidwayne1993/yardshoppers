@@ -107,8 +107,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from("listings")
       .select("id, created_at, sale_date")
       .order("created_at", { ascending: false })
-      .limit(5000);
-
+      .limit(25000);
     if (listings) {
       listingPages = listings.map((listing) => ({
         url: `${baseUrl}/listing/${listing.id}`,

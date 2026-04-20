@@ -100,8 +100,8 @@ export default function RoutePlannerPage() {
         const { data: extData, error: extErr } = await supabase
           .from("external_sales")
           .select("*")
-          .eq("sale_date", selectedDate)
-          .gt("expires_at", now)
+          .or(`sale_date.eq.${selectedDate},sale_date.is.null`)
+          .or(`expires_at.is.null,expires_at.gt.${now}`)
           .not("latitude", "is", null)
           .not("longitude", "is", null);
 

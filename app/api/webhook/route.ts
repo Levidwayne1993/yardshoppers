@@ -50,6 +50,7 @@ export async function POST(req: Request) {
           boosted_at: new Date().toISOString(),
           boost_tier: boostTier,
           boost_expires_at: expiresAt.toISOString(),
+          boost_started_at: new Date().toISOString(),
         })
         .eq("id", listingId);
 
@@ -61,8 +62,28 @@ export async function POST(req: Request) {
         );
       }
 
+      // Record the boost payment for admin analytics
+      const amountCents = session.amount_total || 0;
+      const userId = session.metadata?.user_id || null;
+
+      const { error: paymentError } = await supabase
+        .from("boost_payments")
+        .insert({
+          listing_id: listingId,
+          user_id: userId,
+          boost_tier: boostTier,
+          amount_cents: amountCents,
+          duration_days: durationDays,
+          stripe_session_id: session.id,
+        });
+
+      if (paymentError) {
+        console.error("Failed to record boost payment:", paymentError);
+        // Non-fatal: the listing is already boosted, we just missed the analytics record
+      }
+
       console.log(
-        `Listing ${listingId} boosted: tier=${boostTier}, expires=${expiresAt.toISOString()}`
+        `Listing ${listingId} boosted: tier=${boostTier}, expires=${expiresAt.toISOString()}, payment recorded`
       );
     }
   }

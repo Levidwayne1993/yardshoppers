@@ -239,7 +239,7 @@ function BrowseContent() {
             nullsFirst: false,
           })
           .order("created_at", { ascending: sort === "oldest" });
-        query = query.limit(500);
+        query = query.limit(25000);
 
         const { data } = await query;
         if (data) {
@@ -278,7 +278,7 @@ function BrowseContent() {
         let extQuery = supabase
           .from("external_sales")
           .select("*")
-          .gt("expires_at", new Date().toISOString());
+          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
 
         if (debouncedSearch.trim()) {
           const term = `%${debouncedSearch.trim()}%`;
@@ -307,8 +307,7 @@ function BrowseContent() {
 
         extQuery = extQuery
           .order("collected_at", { ascending: sort === "oldest" })
-          .limit(500);
-
+          .limit(25000);
         const { data: extData } = await extQuery;
         if (extData) {
           for (const ext of extData) {

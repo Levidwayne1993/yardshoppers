@@ -66,7 +66,7 @@ async function getListingsForCity(cityName: string, stateCode: string) {
       .or(`city.ilike.%${cityName}%,address.ilike.%${cityName}%`)
       .gte("sale_date", today)
       .order("sale_date", { ascending: true })
-      .limit(20);
+      .limit(200);
 
     return listings || [];
   } catch {

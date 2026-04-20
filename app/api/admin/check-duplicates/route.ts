@@ -65,8 +65,7 @@ export async function POST(request: NextRequest) {
       .from('listings')
       .select('id, title, description, address, city, state, zip_code, sale_date')
       .in('city', uniqueVariants)
-      .limit(5000);
-
+      .limit(25000);
     if (error) {
       console.error('Supabase query error:', error);
       return NextResponse.json({ error: 'Failed to query existing listings' }, { status: 500 });

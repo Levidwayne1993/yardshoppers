@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageViewTracker from "@/components/PageViewTracker";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -169,6 +170,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans bg-white text-gray-900 min-h-screen flex flex-col">
+        <PageViewTracker />
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />

@@ -892,7 +892,7 @@ function eventToListing(event: NextdoorEvent): RawExternalListing {
     categories: [],
     collected_at: new Date().toISOString(),
     expires_at: event.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    raw_data: event,
+    raw_data: event as unknown as Record<string, unknown>,
   };
 }
 
