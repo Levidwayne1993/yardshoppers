@@ -1,14 +1,9 @@
 // ============================================================
 // PASTE INTO: app/listing/[id]/ListingDetailClient.tsx (yardshoppers project)
 //
-// CHANGES FROM ORIGINAL:
-// - External listings now show "YardShoppers Seller" as poster
-//   instead of "YardShoppers / Verified by YardShoppers"
-// - RatingSection and CommentsSection shown for ALL listings
-// - "Message Seller" hidden for external (no real seller to msg)
-// - Boost controls hidden for external (no owner)
-// - No mention of "external", "Craigslist", or any source name
-// - Schema organizer always shows seller name or "YardShoppers Seller"
+// UPDATED: Added shadowban check — if a listing is shadowbanned,
+// it appears as "Listing Not Found" to everyone EXCEPT the
+// shadowbanned user themselves (who still sees it normally).
 // ============================================================
 
 "use client";
@@ -44,6 +39,7 @@ interface Listing {
   created_at: string;
   user_id: string;
   is_boosted?: boolean;
+  is_shadowbanned?: boolean;
   profiles?: { display_name?: string } | null;
   listing_photos?: { id: string; photo_url: string }[];
   latitude?: number | null;
@@ -53,7 +49,6 @@ interface Listing {
 // ============================================
 // SCHEMA.ORG JSON-LD BUILDER
 // ============================================
-
 function buildJsonLd(listing: Listing, hasRealSeller: boolean) {
   const displayAddress = listing.street_address || listing.address || "";
   const location = [
@@ -174,13 +169,13 @@ function buildJsonLd(listing: Listing, hasRealSeller: boolean) {
 // ============================================
 // LISTING DETAIL COMPONENT
 // ============================================
-
 export default function ListingDetailClient({
   listingId,
 }: {
   listingId: string;
 }) {
   const supabase = createClient();
+
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState(0);
@@ -231,6 +226,16 @@ export default function ListingDetailClient({
           data = { ...fallback, profiles: null };
           setHasRealSeller(true);
         }
+      }
+
+      // ============================================================
+      // SHADOWBAN CHECK: If this listing is shadowbanned, hide it
+      // from everyone EXCEPT the shadowbanned user who posted it.
+      // The shadowbanned user still sees their own listing normally.
+      // ============================================================
+      if (data && data.is_shadowbanned && data.user_id !== u?.id) {
+        data = null;
+        setHasRealSeller(false);
       }
 
       // If still not found, try external_sales table
@@ -300,11 +305,13 @@ export default function ListingDetailClient({
           .eq("user_id", u.id)
           .eq("listing_id", listingId)
           .maybeSingle();
+
         setSaved(!!s);
       }
 
       setLoading(false);
     }
+
     load();
   }, [listingId]);
 
@@ -314,17 +321,20 @@ export default function ListingDetailClient({
 
   async function toggleSave() {
     if (!user) return;
+
     if (saved) {
       await supabase
         .from("saved_listings")
         .delete()
         .eq("user_id", user.id)
         .eq("listing_id", listingId);
+
       setSaved(false);
     } else {
       await supabase
         .from("saved_listings")
         .insert({ user_id: user.id, listing_id: listingId });
+
       setSaved(true);
     }
   }
@@ -389,13 +399,10 @@ export default function ListingDetailClient({
   }
 
   const photos = listing.listing_photos || [];
-  const displayAddress =
-    listing.street_address || listing.address || "";
-
+  const displayAddress = listing.street_address || listing.address || "";
   const showAddress =
     displayAddress &&
     displayAddress.toLowerCase().trim() !== listing.city?.toLowerCase().trim();
-
   const location = [
     showAddress ? displayAddress : "",
     listing.city,
@@ -436,9 +443,8 @@ export default function ListingDetailClient({
   const rawEnd = listing.end_time || listing.sale_time_end;
   const formattedStart = formatTime(rawStart);
   const formattedEnd = formatTime(rawEnd);
-  const isOwner =
-    user && listing.user_id && listing.user_id === user.id;
 
+  const isOwner = user && listing.user_id && listing.user_id === user.id;
   const jsonLdItems = buildJsonLd(listing, hasRealSeller);
 
   return (
@@ -642,9 +648,7 @@ export default function ListingDetailClient({
                       : "bg-gray-50 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"
                   }`}
                   aria-label={
-                    saved
-                      ? "Unsave this listing"
-                      : "Save this listing"
+                    saved ? "Unsave this listing" : "Save this listing"
                   }
                 >
                   <i
@@ -697,7 +701,9 @@ export default function ListingDetailClient({
                       />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Sale Date</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        Sale Date
+                      </p>
                       <time
                         className="text-sm text-gray-500"
                         dateTime={listing.sale_date}
@@ -833,6 +839,7 @@ export default function ListingDetailClient({
                   </div>
                 </div>
               </div>
+
               {!user && (
                 <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl">
                   <p className="text-xs text-amber-800">

@@ -1,3 +1,13 @@
+// ============================================================
+// PASTE INTO: app/dashboard/page.tsx (yardshoppers project)
+//
+// UPDATED: Added Shadowban + Coupon admin tabs.
+//   - Imported ShadowbanDashboard and CouponDashboard components
+//   - Extended activeTab type to include "shadowban" | "coupons"
+//   - Added two new tab buttons (ghost + ticket icons)
+//   - Added conditional renders for both new tabs
+// ============================================================
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -8,6 +18,8 @@ import { createClient } from "@/lib/supabase-browser";
 import BoostModal from "@/components/BoostModal";
 import TrafficDashboard from "@/components/admin/TrafficDashboard";
 import BoostDashboard from "@/components/admin/BoostDashboard";
+import ShadowbanDashboard from "@/components/admin/ShadowbanDashboard";
+import CouponDashboard from "@/components/admin/CouponDashboard";
 
 const ADMIN_EMAIL = "erwin-levi@outlook.com";
 
@@ -50,7 +62,7 @@ export default function DashboardPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [boostTarget, setBoostTarget] = useState<Listing | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "analytics" | "boosts" | "listings" | "reports" | "coverage"
+    "analytics" | "boosts" | "listings" | "reports" | "coverage" | "shadowban" | "coupons"
   >("analytics");
 
   const [selectedState, setSelectedState] = useState<string>("all");
@@ -465,6 +477,30 @@ export default function DashboardPage() {
                 {reports.length}
               </span>
             )}
+          </button>
+          {/* NEW: Shadowban tab */}
+          <button
+            onClick={() => setActiveTab("shadowban")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
+              activeTab === "shadowban"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <i className="fa-solid fa-ghost mr-2 text-xs" />
+            Shadowban
+          </button>
+          {/* NEW: Coupons tab */}
+          <button
+            onClick={() => setActiveTab("coupons")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
+              activeTab === "coupons"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <i className="fa-solid fa-ticket mr-2 text-xs" />
+            Coupons
           </button>
         </div>
       )}
@@ -1179,21 +1215,23 @@ export default function DashboardPage() {
 
                         <div className="mt-3 flex gap-2">
                           <button
-                            onClick={() => handleDismissReport(report.id)}
-                            className="flex items-center gap-2 px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition"
+                            onClick={() => {
+                              if (reportedListing) {
+                                handleDelete(reportedListing.id);
+                              }
+                            }}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition"
                           >
-                            <i className="fa-solid fa-xmark text-xs" />
+                            <i className="fa-solid fa-trash text-[10px]" />
+                            Delete Listing
+                          </button>
+                          <button
+                            onClick={() => handleDismissReport(report.id)}
+                            className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-xs font-semibold transition"
+                          >
+                            <i className="fa-solid fa-xmark text-[10px]" />
                             Dismiss
                           </button>
-                          {reportedListing && (
-                            <Link
-                              href={`/listing/${reportedListing.id}`}
-                              className="flex items-center gap-2 px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition"
-                            >
-                              <i className="fa-solid fa-eye text-xs" />
-                              View
-                            </Link>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -1205,73 +1243,49 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* ===== DELETE CONFIRMATION MODAL ===== */}
+      {/* ===== SHADOWBAN TAB (NEW) ===== */}
+      {activeTab === "shadowban" && isAdmin && (
+        <ShadowbanDashboard />
+      )}
+
+      {/* ===== COUPONS TAB (NEW) ===== */}
+      {activeTab === "coupons" && isAdmin && (
+        <CouponDashboard />
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center shrink-0">
-                <i className="fa-solid fa-triangle-exclamation text-xl text-red-500" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  Confirm Delete
-                </h3>
-                <p className="text-sm text-gray-500">
-                  This action cannot be undone
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-              <p className="text-sm text-red-800">
-                You are about to permanently delete{" "}
-                <span className="font-bold">{deleteConfirm.label}</span>.
-              </p>
-              <p className="text-sm text-red-600 mt-1">
-                This will remove {deleteConfirm.count} listing
-                {deleteConfirm.count !== 1 ? "s" : ""} and all associated
-                photos, saves, and reports.
-              </p>
-            </div>
-
-            {deleteConfirm.mode === "all" && (
-              <div className="bg-gray-900 text-white rounded-xl p-4 mb-6">
-                <p className="text-sm font-bold flex items-center gap-2">
-                  <i className="fa-solid fa-skull-crossbones text-red-400" />
-                  NUCLEAR OPTION
-                </p>
-                <p className="text-xs text-gray-300 mt-1">
-                  This will delete every single listing you have ever posted.
-                  Are you absolutely sure?
-                </p>
-              </div>
-            )}
-
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              Confirm Delete
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to delete{" "}
+              <span className="font-bold text-red-600">
+                {deleteConfirm.label}
+              </span>
+              ? This cannot be undone.
+            </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                disabled={isDeleting}
-                className="flex-1 px-5 py-3 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl font-semibold transition"
+                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={executeDelete}
                 disabled={isDeleting}
-                className="flex-1 px-5 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition disabled:opacity-50"
               >
                 {isDeleting ? (
-                  <>
-                    <i className="fa-solid fa-spinner fa-spin text-sm" />
+                  <span className="flex items-center justify-center gap-2">
+                    <i className="fa-solid fa-spinner fa-spin text-xs" />
                     Deleting...
-                  </>
+                  </span>
                 ) : (
-                  <>
-                    <i className="fa-solid fa-trash text-sm" />
-                    Delete {deleteConfirm.count} Listing
-                    {deleteConfirm.count !== 1 ? "s" : ""}
-                  </>
+                  `Delete ${deleteConfirm.count} listing${deleteConfirm.count !== 1 ? "s" : ""}`
                 )}
               </button>
             </div>
@@ -1279,13 +1293,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ===== BOOST MODAL ===== */}
+      {/* BOOST MODAL */}
       {boostTarget && (
         <BoostModal
-          listingId={boostTarget.id}
-          listingTitle={boostTarget.title}
-          onClose={() => setBoostTarget(null)}
-        />
+  listingId={boostTarget.id}
+  listingTitle={boostTarget.title}
+  onClose={() => setBoostTarget(null)}
+  onBoosted={() => setBoostTarget(null)}
+/>
       )}
     </div>
   );

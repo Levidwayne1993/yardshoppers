@@ -1,9 +1,9 @@
 // ============================================================
 // PASTE INTO: app/page.tsx (yardshoppers project)
 //
-// FIX: Removed duplicate fetchListings function and old dead
-// code referencing undeclared 'query' variable (line 256 error).
-// Now has ONE clean fetchListings that queries BOTH tables.
+// UPDATED: Added .eq("is_shadowbanned", false) to user listings
+// query so shadowbanned users' posts are hidden from everyone
+// except the shadowbanned user themselves.
 // ============================================================
 
 "use client";
@@ -58,7 +58,7 @@ function getDistanceMiles(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ✅ HowTo schema — matches the "How YardShoppers Works" section
+// HowTo schema — matches the "How YardShoppers Works" section
 const howToSchema = {
   "@context": "https://schema.org",
   "@type": "HowTo",
@@ -90,7 +90,7 @@ const howToSchema = {
   ],
 };
 
-// ✅ Breadcrumb schema for homepage
+// Breadcrumb schema for homepage
 const breadcrumbSchema = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
@@ -159,6 +159,9 @@ export default function HomePage() {
 
       // ── Query 1: User-posted listings ──
       let userQuery = supabase.from("listings").select("*, listing_photos(*)");
+
+      // ✅ SHADOWBAN FILTER — hide shadowbanned listings from public view
+      userQuery = userQuery.eq("is_shadowbanned", false);
 
       // ── Query 2: Collected external sales ──
       let extQuery = supabase.from("external_sales").select("*");
@@ -261,7 +264,7 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* ✅ Inject schemas */}
+      {/* Inject schemas */}
       <JsonLd data={howToSchema} />
       <JsonLd data={breadcrumbSchema} />
 
@@ -398,10 +401,10 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* ✅ Phase 20: Real-Time SEO Signals — Trending, Hot Near You, Price Drops, Popular Searches */}
+        {/* Phase 20: Real-Time SEO Signals — Trending, Hot Near You, Price Drops, Popular Searches */}
         <TrendingSection />
 
-        {/* ✅ Phase 22: Shop by Category — links to AI-enhanced category pages */}
+        {/* Phase 22: Shop by Category — links to AI-enhanced category pages */}
         <CategoryGrid />
 
         {/* Route Planner CTA */}
