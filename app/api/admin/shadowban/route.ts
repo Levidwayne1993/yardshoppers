@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-const ADMIN_EMAIL = "erwin-levi@outlook.com";
+const ADMIN_EMAILS = ["erwin-levi@outlook.com", "gary.w.erwin@gmail.com"];
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,7 +18,7 @@ async function verifyAdmin() {
     { cookies: { getAll: () => cookieStore.getAll() } }
   );
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || user.email?.toLowerCase() !== ADMIN_EMAIL) return null;
+  if (!user || !ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) return null;
   return user;
 }
 

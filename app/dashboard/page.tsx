@@ -21,7 +21,7 @@ import BoostDashboard from "@/components/admin/BoostDashboard";
 import ShadowbanDashboard from "@/components/admin/ShadowbanDashboard";
 import CouponDashboard from "@/components/admin/CouponDashboard";
 
-const ADMIN_EMAIL = "erwin-levi@outlook.com";
+const ADMIN_EMAILS = ["erwin-levi@outlook.com", "gary.w.erwin@gmail.com"];
 
 interface Listing {
   id: string;
@@ -92,7 +92,8 @@ export default function DashboardPage() {
       }
 
       setUser(u);
-      const admin = u.email?.toLowerCase() === ADMIN_EMAIL;
+      const admin = ADMIN_EMAILS.includes(u.email?.toLowerCase() || "");
+
       setIsAdmin(admin);
 
       let query = supabase

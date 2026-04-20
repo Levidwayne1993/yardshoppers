@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-const ADMIN_EMAIL = "erwin-levi@outlook.com";
+const ADMIN_EMAILS = ["erwin-levi@outlook.com", "gary.w.erwin@gmail.com"];
 
 export async function createListing(formData: FormData) {
   const cookieStore = await cookies();
@@ -92,7 +92,7 @@ export async function deleteListing(listingId: string) {
     throw new Error("Not authenticated");
   }
 
-  const isAdmin = user.email?.toLowerCase() === ADMIN_EMAIL;
+  const isAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() || "");
 
   // Verify ownership unless admin
   if (!isAdmin) {

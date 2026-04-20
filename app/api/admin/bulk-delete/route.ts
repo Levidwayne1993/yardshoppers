@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-const ADMIN_EMAIL = "erwin-levi@outlook.com";
+const ADMIN_EMAILS = ["erwin-levi@outlook.com", "gary.w.erwin@gmail.com"];
 
 export async function POST(request: Request) {
   try {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user || user.email?.toLowerCase() !== ADMIN_EMAIL) {
+    if (!user || !ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
