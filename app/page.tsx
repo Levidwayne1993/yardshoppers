@@ -1,15 +1,7 @@
 // ============================================================
-// PASTE INTO: app/page.tsx (yardshoppers project)
-//
-// CHANGES FROM ORIGINAL:
-// - Replaced DistanceSelector + category pills with FilterSidebar
-// - Added date filter support via FilterSidebar
-// - Search + sort remain in hero (unchanged)
-// - All original logic preserved: server-side Supabase ilike +
-//   bounding-box filtering on BOTH tables, shadowban filter,
-//   boost sorting, JSON-LD schemas, ys-* Tailwind colors,
-//   TrendingSection, CategoryGrid, Route Planner CTA,
-//   Why Sellers Love, How It Works, Trust Badges
+// PASTE INTO: app/page.tsx
+// CHANGE: Widened sidebar+listings container to max-w-[1536px]
+//         so sidebar sits further left with room for 4-col grid
 // ============================================================
 
 "use client";
@@ -47,7 +39,6 @@ function milesToDeg(miles: number) {
   return miles / 69;
 }
 
-/** Haversine distance in miles between two lat/lng points */
 function getDistanceMiles(
   lat1: number,
   lng1: number,
@@ -55,7 +46,7 @@ function getDistanceMiles(
   lng2: number
 ): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 3958.8; // Earth radius in miles
+  const R = 3958.8;
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
   const a =
@@ -64,7 +55,6 @@ function getDistanceMiles(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// HowTo schema — matches the "How YardShoppers Works" section
 const howToSchema = {
   "@context": "https://schema.org",
   "@type": "HowTo",
@@ -96,7 +86,6 @@ const howToSchema = {
   ],
 };
 
-// Breadcrumb schema for homepage
 const breadcrumbSchema = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
@@ -149,22 +138,16 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    // Wait for location before fetching (unless user chose "Any" distance)
     if (distance < 999 && (!lat || !lng)) return;
 
     async function fetchListings() {
       setLoading(true);
 
-      // ── Query 1: User-posted listings ──
       let userQuery = supabase.from("listings").select("*, listing_photos(*)");
-
-      // ✅ SHADOWBAN FILTER — hide shadowbanned listings from public view
       userQuery = userQuery.eq("is_shadowbanned", false);
 
-      // ── Query 2: Collected external sales ──
       let extQuery = supabase.from("external_sales").select("*");
 
-      // Apply search filter to BOTH
       if (debouncedSearch.trim()) {
         const term = `%${debouncedSearch.trim()}%`;
         userQuery = userQuery.or(
@@ -175,7 +158,6 @@ export default function HomePage() {
         );
       }
 
-      // Apply category filter to BOTH
       if (selectedCategory) {
         userQuery = userQuery.or(
           `category.eq.${selectedCategory},categories.cs.{${selectedCategory}}`
@@ -185,7 +167,6 @@ export default function HomePage() {
         );
       }
 
-      // Apply geographic bounding box to BOTH
       if (distance < 999 && lat && lng) {
         const deg = milesToDeg(distance);
         userQuery = userQuery
@@ -210,15 +191,10 @@ export default function HomePage() {
 
       userQuery = userQuery.limit(50);
 
-      // Fetch BOTH tables in parallel
-      const [userResult, extResult] = await Promise.all([
-        userQuery,
-        extQuery,
-      ]);
+      const [userResult, extResult] = await Promise.all([userQuery, extQuery]);
 
       const userListings = userResult.data || [];
 
-      // Normalize external_sales to match listings shape
       const externalListings = (extResult.data || []).map((ext: any) => ({
         ...ext,
         listing_photos: ext.photo_urls
@@ -229,17 +205,14 @@ export default function HomePage() {
         created_at: ext.collected_at,
       }));
 
-      // Merge: boosted user listings first, then everything else
       let results = [...userListings, ...externalListings];
 
-      // Apply date filter (client-side)
       if (dateFilter) {
         results = results.filter((l) =>
           matchesDateFilter(l.sale_date, dateFilter)
         );
       }
 
-      // Client-side proximity sort
       if (sort === "nearest" && lat && lng && results.length > 0) {
         const boosted = results.filter((l: any) => l.is_boosted);
         const nonBoosted = results.filter((l: any) => !l.is_boosted);
@@ -270,7 +243,6 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Inject schemas */}
       <JsonLd data={howToSchema} />
       <JsonLd data={breadcrumbSchema} />
 
@@ -325,8 +297,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══════════ MAIN CONTENT WITH SIDEBAR ══════════ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      {/* ══════════ SIDEBAR + LISTINGS (wide container) ══════════ */}
+      <div className="max-w-[1536px] mx-auto px-4 sm:px-6 py-8">
         <div className="flex gap-6">
           {/* ── Left Sidebar ── */}
           <FilterSidebar
@@ -346,7 +318,7 @@ export default function HomePage() {
           <div className="flex-1 min-w-0">
             {loading || (distance < 999 && locationLoading) ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-                {[...Array(6)].map((_, i) => (
+                {[...Array(8)].map((_, i) => (
                   <div key={i} className="animate-pulse">
                     <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
                     <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
@@ -397,11 +369,11 @@ export default function HomePage() {
             )}
           </div>
         </div>
+      </div>
 
-        {/* Phase 20: Real-Time SEO Signals — Trending, Hot Near You, Price Drops, Popular Searches */}
+      {/* ══════════ TRENDING + BELOW (centered container) ══════════ */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <TrendingSection />
-
-        {/* Phase 22: Shop by Category — links to AI-enhanced category pages */}
         <CategoryGrid />
 
         {/* Route Planner CTA */}
