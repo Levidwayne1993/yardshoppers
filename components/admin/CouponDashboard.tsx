@@ -46,6 +46,15 @@ interface BoostCredit {
 
 type SubTab = "codes" | "grant" | "history";
 
+// Extract UUID from a full URL or return as-is if already a UUID
+function extractListingId(input: string): string {
+  const trimmed = input.trim();
+  const uuidMatch = trimmed.match(
+    /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+  );
+  return uuidMatch ? uuidMatch[1] : trimmed;
+}
+
 export default function CouponDashboard() {
   const [subTab, setSubTab] = useState<SubTab>("codes");
   const [codes, setCodes] = useState<PromoCode[]>([]);
@@ -185,7 +194,7 @@ export default function CouponDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "grant_credit",
-          listing_id: grantListingId.trim(),
+          listing_id: extractListingId(grantListingId),
           boost_tier: grantBoostTier,
           duration_days: parseInt(grantDurationDays) || 7,
           reason: grantReason || null,
@@ -206,9 +215,13 @@ export default function CouponDashboard() {
   };
 
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "—";
+    if (!dateStr) return "\u2014";
     return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
     });
   };
 
@@ -249,9 +262,14 @@ export default function CouponDashboard() {
         ].map((tab) => (
           <button
             key={tab.key}
-            onClick={() => { setSubTab(tab.key); setMessage(null); }}
+            onClick={() => {
+              setSubTab(tab.key);
+              setMessage(null);
+            }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              subTab === tab.key ? "bg-white text-ys-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              subTab === tab.key
+                ? "bg-white text-ys-700 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             <i className={`fa-solid ${tab.icon} mr-2`}></i>{tab.label}
@@ -261,12 +279,18 @@ export default function CouponDashboard() {
 
       {/* Status Message */}
       {message && (
-        <div className={`p-4 rounded-xl text-sm font-medium ${
-          message.type === "success"
-            ? "bg-green-50 text-green-700 border border-green-200"
-            : "bg-red-50 text-red-700 border border-red-200"
-        }`}>
-          <i className={`fa-solid ${message.type === "success" ? "fa-check-circle" : "fa-exclamation-circle"} mr-2`}></i>
+        <div
+          className={`p-4 rounded-xl text-sm font-medium ${
+            message.type === "success"
+              ? "bg-green-50 text-green-700 border border-green-200"
+              : "bg-red-50 text-red-700 border border-red-200"
+          }`}
+        >
+          <i
+            className={`fa-solid ${
+              message.type === "success" ? "fa-check-circle" : "fa-exclamation-circle"
+            } mr-2`}
+          ></i>
           {message.text}
         </div>
       )}
@@ -304,7 +328,9 @@ export default function CouponDashboard() {
                 <label className="block text-xs font-medium text-gray-500 mb-1">Discount Type *</label>
                 <select
                   value={newDiscountType}
-                  onChange={(e) => setNewDiscountType(e.target.value as "percentage" | "fixed" | "free_boost")}
+                  onChange={(e) =>
+                    setNewDiscountType(e.target.value as "percentage" | "fixed" | "free_boost")
+                  }
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-ys-500 outline-none bg-white"
                 >
                   <option value="free_boost">Free Boost (100% off)</option>
@@ -312,7 +338,6 @@ export default function CouponDashboard() {
                   <option value="fixed">Fixed $ Off</option>
                 </select>
               </div>
-
               {newDiscountType !== "free_boost" && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">
@@ -327,7 +352,6 @@ export default function CouponDashboard() {
                   />
                 </div>
               )}
-
               {newDiscountType === "free_boost" && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Boost Tier</label>
@@ -336,14 +360,13 @@ export default function CouponDashboard() {
                     onChange={(e) => setNewBoostTier(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-ys-500 outline-none bg-white"
                   >
-                    <option value="spark">Spark ($3)</option>
-                    <option value="spotlight">Spotlight ($5)</option>
-                    <option value="blaze">Blaze ($8)</option>
-                    <option value="mega">Mega ($10)</option>
+                    <option value="spark">Spark ($1.99 / 1 day)</option>
+                    <option value="spotlight">Spotlight ($4.99 / 3 days)</option>
+                    <option value="blaze">Blaze ($9.99 / 7 days)</option>
+                    <option value="mega">Mega ($14.99 / 14 days)</option>
                   </select>
                 </div>
               )}
-
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Duration (days)</label>
                 <input
@@ -354,7 +377,6 @@ export default function CouponDashboard() {
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-ys-500 outline-none"
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Max Uses</label>
                 <input
@@ -365,7 +387,6 @@ export default function CouponDashboard() {
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-ys-500 outline-none"
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Expires At</label>
                 <input
@@ -376,7 +397,6 @@ export default function CouponDashboard() {
                 />
               </div>
             </div>
-
             <button
               onClick={handleCreateCode}
               disabled={createLoading || !newCode.trim()}
@@ -395,7 +415,6 @@ export default function CouponDashboard() {
             <h3 className="text-sm font-semibold text-gray-700 mb-4">
               <i className="fa-solid fa-list mr-2"></i>All Promo Codes ({codes.length})
             </h3>
-
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <i className="fa-solid fa-spinner fa-spin text-2xl text-ys-600"></i>
@@ -408,16 +427,35 @@ export default function CouponDashboard() {
             ) : (
               <div className="space-y-3">
                 {codes.map((promo) => (
-                  <div key={promo.id} className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${promo.is_active ? "bg-white border-gray-200 hover:border-ys-200" : "bg-gray-50 border-gray-100 opacity-60"}`}>
+                  <div
+                    key={promo.id}
+                    className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
+                      promo.is_active
+                        ? "bg-white border-gray-200 hover:border-ys-200"
+                        : "bg-gray-50 border-gray-100 opacity-60"
+                    }`}
+                  >
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${promo.is_active ? "bg-ys-100" : "bg-gray-200"}`}>
-                        <i className={`fa-solid fa-tag ${promo.is_active ? "text-ys-600" : "text-gray-400"}`}></i>
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          promo.is_active ? "bg-ys-100" : "bg-gray-200"
+                        }`}
+                      >
+                        <i
+                          className={`fa-solid fa-tag ${
+                            promo.is_active ? "text-ys-600" : "text-gray-400"
+                          }`}
+                        ></i>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold font-mono text-gray-900">{promo.code}</span>
                           {promo.discount_type === "free_boost" && promo.boost_tier && (
-                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${tierColors[promo.boost_tier] || "bg-gray-100 text-gray-600"}`}>
+                            <span
+                              className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                tierColors[promo.boost_tier] || "bg-gray-100 text-gray-600"
+                              }`}
+                            >
                               {promo.boost_tier} — FREE
                             </span>
                           )}
@@ -432,16 +470,42 @@ export default function CouponDashboard() {
                             </span>
                           )}
                           {!promo.is_active && (
-                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-200 text-gray-500">Inactive</span>
+                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-200 text-gray-500">
+                              Inactive
+                            </span>
                           )}
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           {promo.description && <span>{promo.description}</span>}
-                          <span><i className="fa-solid fa-hashtag mr-1"></i>{promo.uses_count}{promo.max_uses ? `/${promo.max_uses}` : ""} used</span>
-                          {promo.duration_days && <span><i className="fa-solid fa-calendar mr-1"></i>{promo.duration_days}d boost</span>}
-                          {promo.expires_at && <span><i className="fa-solid fa-hourglass mr-1"></i>Expires {formatDate(promo.expires_at)}</span>}
-                          {promo.target_user_id && <span><i className="fa-solid fa-user-lock mr-1"></i>User-specific</span>}
-                          {promo.target_listing_id && <span><i className="fa-solid fa-thumbtack mr-1"></i>Listing-specific</span>}
+                          <span>
+                            <i className="fa-solid fa-hashtag mr-1"></i>
+                            {promo.uses_count}
+                            {promo.max_uses ? `/${promo.max_uses}` : ""} used
+                          </span>
+                          {promo.duration_days && (
+                            <span>
+                              <i className="fa-solid fa-calendar mr-1"></i>
+                              {promo.duration_days}d boost
+                            </span>
+                          )}
+                          {promo.expires_at && (
+                            <span>
+                              <i className="fa-solid fa-hourglass mr-1"></i>
+                              Expires {formatDate(promo.expires_at)}
+                            </span>
+                          )}
+                          {promo.target_user_id && (
+                            <span>
+                              <i className="fa-solid fa-user-lock mr-1"></i>
+                              User-specific
+                            </span>
+                          )}
+                          {promo.target_listing_id && (
+                            <span>
+                              <i className="fa-solid fa-thumbtack mr-1"></i>
+                              Listing-specific
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -474,9 +538,9 @@ export default function CouponDashboard() {
             <i className="fa-solid fa-gift mr-2"></i>Grant Free Boost to a Listing
           </h3>
           <p className="text-xs text-gray-500 mb-6">
-            Instantly activate a boost on any listing for free. Great for compensating issues or rewarding good sellers.
+            Instantly activate a boost on any listing for free. Great for compensating issues or
+            rewarding good sellers.
           </p>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Listing ID *</label>
@@ -487,9 +551,10 @@ export default function CouponDashboard() {
                 onChange={(e) => setGrantListingId(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-mono focus:ring-2 focus:ring-ys-500 outline-none"
               />
-              <p className="text-xs text-gray-400 mt-1">Find this in the Admin Listings tab or from the listing URL.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Find this in the Admin Listings tab or from the listing URL.
+              </p>
             </div>
-
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Boost Tier</label>
               <select
@@ -497,13 +562,12 @@ export default function CouponDashboard() {
                 onChange={(e) => setGrantBoostTier(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-ys-500 outline-none bg-white"
               >
-                <option value="spark">Spark (Tier 1)</option>
-                <option value="spotlight">Spotlight (Tier 2)</option>
-                <option value="blaze">Blaze (Tier 3)</option>
-                <option value="mega">Mega (Tier 4)</option>
+                <option value="spark">Spark ($1.99 / 1 day)</option>
+                <option value="spotlight">Spotlight ($4.99 / 3 days)</option>
+                <option value="blaze">Blaze ($9.99 / 7 days)</option>
+                <option value="mega">Mega ($14.99 / 14 days)</option>
               </select>
             </div>
-
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Duration (days)</label>
               <input
@@ -514,7 +578,6 @@ export default function CouponDashboard() {
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-ys-500 outline-none"
               />
             </div>
-
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Reason</label>
               <input
@@ -526,7 +589,6 @@ export default function CouponDashboard() {
               />
             </div>
           </div>
-
           <button
             onClick={handleGrantCredit}
             disabled={grantLoading || !grantListingId.trim()}
@@ -554,7 +616,10 @@ export default function CouponDashboard() {
             ) : (
               <div className="space-y-2">
                 {redemptions.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-ys-100 rounded-full flex items-center justify-center">
                         <i className="fa-solid fa-ticket text-ys-600 text-xs"></i>
@@ -562,16 +627,21 @@ export default function CouponDashboard() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-mono font-semibold text-gray-900">
-                            {r.promo_codes?.code || "—"}
+                            {r.promo_codes?.code || "\u2014"}
                           </span>
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${tierColors[r.boost_tier] || "bg-gray-100 text-gray-600"}`}>
+                          <span
+                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                              tierColors[r.boost_tier] || "bg-gray-100 text-gray-600"
+                            }`}
+                          >
                             {r.boost_tier}
                           </span>
                         </div>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          ${(r.original_price_cents / 100).toFixed(2)} → ${(r.final_price_cents / 100).toFixed(2)}
-                          {" "}(saved ${(r.discount_cents / 100).toFixed(2)})
-                          {" · "}{r.duration_days}d boost
+                          ${(r.original_price_cents / 100).toFixed(2)} \u2192 $
+                          {(r.final_price_cents / 100).toFixed(2)} (saved $
+                          {(r.discount_cents / 100).toFixed(2)}) {" \u00B7 "}
+                          {r.duration_days}d boost
                         </p>
                       </div>
                     </div>
@@ -592,14 +662,21 @@ export default function CouponDashboard() {
             ) : (
               <div className="space-y-2">
                 {credits.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                         <i className="fa-solid fa-gift text-green-600 text-xs"></i>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${tierColors[c.boost_tier] || "bg-gray-100 text-gray-600"}`}>
+                          <span
+                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                              tierColors[c.boost_tier] || "bg-gray-100 text-gray-600"
+                            }`}
+                          >
                             {c.boost_tier}
                           </span>
                           <span className="text-xs text-gray-600">{c.duration_days}d boost</span>

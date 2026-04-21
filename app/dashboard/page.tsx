@@ -1240,7 +1240,9 @@ export default function DashboardPage() {
                             Delete Listing
                           </button>
                           <button
-                            onClick={() => handleDismissReport(report.id)}
+                            onClick={() =>
+                              handleDismissReport(report.id)
+                            }
                             className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-xs font-semibold transition"
                           >
                             <i className="fa-solid fa-xmark text-[10px]" />
