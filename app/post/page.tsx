@@ -56,6 +56,7 @@ export default function PostPage() {
   const [newListingId, setNewListingId] = useState<string | null>(null);
   const [newListingTitle, setNewListingTitle] = useState("");
   const [boostLoading, setBoostLoading] = useState(false);
+  const [selectedBoostTier, setSelectedBoostTier] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -173,14 +174,19 @@ export default function PostPage() {
     }
   }
 
-  async function handleBoost() {
+  async function handleBoost(tier: string) {
     if (!newListingId) return;
     setBoostLoading(true);
+    setSelectedBoostTier(tier);
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId: newListingId }),
+        body: JSON.stringify({
+          listing_id: newListingId,
+          listing_title: newListingTitle,
+          boost_tier: tier,
+        }),
       });
       const data = await res.json();
       if (data.url) {
@@ -188,10 +194,12 @@ export default function PostPage() {
       } else {
         alert(data.error || "Failed to start checkout");
         setBoostLoading(false);
+        setSelectedBoostTier(null);
       }
     } catch {
       alert("Something went wrong");
       setBoostLoading(false);
+      setSelectedBoostTier(null);
     }
   }
 
@@ -747,44 +755,107 @@ export default function PostPage() {
               </div>
             )}
 
-            {/* Show boost upsell only if no free_boost promo was redeemed */}
+            {/* Show boost tier selection only if no free_boost promo was redeemed */}
             {!(promoRedeemed && promoResult?.discount_type === "free_boost") && (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
-                <div className="flex items-center justify-center gap-2 mb-2">
+              <>
+                <div className="flex items-center justify-center gap-2 mb-4">
                   <i className="fa-solid fa-rocket text-amber-600" />
-                  <h3 className="font-bold text-amber-900">
-                    Want more buyers?
-                  </h3>
+                  <h3 className="font-bold text-gray-900">Boost Your Listing</h3>
                 </div>
-                <p className="text-sm text-amber-800 mb-1">
-                  Boost your listing to the{" "}
-                  <strong>top of search results</strong> and get up to{" "}
-                  <strong>10x more views</strong>.
-                </p>
-                <p className="text-2xl font-extrabold text-amber-900 mt-3">
-                  Just $2.99
-                </p>
-              </div>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {/* Spark */}
+                  <button
+                    onClick={() => handleBoost("spark")}
+                    disabled={boostLoading}
+                    className={`relative text-left p-4 rounded-2xl border-2 transition-all hover:shadow-md disabled:opacity-60 ${
+                      selectedBoostTier === "spark"
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 bg-white"
+                    }`}
+                  >
+                    <div className="text-lg mb-1">⚡</div>
+                    <h4 className="text-sm font-bold text-gray-900">Spark</h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Quick bump to the top</p>
+                    <p className="text-base font-extrabold text-gray-900 mt-2">$1.99</p>
+                    <p className="text-[10px] text-gray-400">1 day &middot; 3x reach</p>
+                    {selectedBoostTier === "spark" && boostLoading && (
+                      <div className="absolute inset-0 bg-white/80 rounded-2xl flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Spotlight */}
+                  <button
+                    onClick={() => handleBoost("spotlight")}
+                    disabled={boostLoading}
+                    className={`relative text-left p-4 rounded-2xl border-2 transition-all hover:shadow-md disabled:opacity-60 ${
+                      selectedBoostTier === "spotlight"
+                        ? "border-yellow-400 bg-yellow-50"
+                        : "border-yellow-300 hover:border-yellow-400 bg-white"
+                    }`}
+                  >
+                    <div className="absolute -top-2.5 right-3 bg-yellow-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">POPULAR</div>
+                    <div className="text-lg mb-1">⭐</div>
+                    <h4 className="text-sm font-bold text-gray-900">Spotlight</h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Stand out from the crowd</p>
+                    <p className="text-base font-extrabold text-gray-900 mt-2">$4.99</p>
+                    <p className="text-[10px] text-gray-400">3 days &middot; 5x reach</p>
+                    {selectedBoostTier === "spotlight" && boostLoading && (
+                      <div className="absolute inset-0 bg-white/80 rounded-2xl flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-yellow-300 border-t-yellow-600 rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Blaze */}
+                  <button
+                    onClick={() => handleBoost("blaze")}
+                    disabled={boostLoading}
+                    className={`relative text-left p-4 rounded-2xl border-2 transition-all hover:shadow-md disabled:opacity-60 ${
+                      selectedBoostTier === "blaze"
+                        ? "border-orange-400 bg-orange-50"
+                        : "border-gray-200 hover:border-orange-300 bg-white"
+                    }`}
+                  >
+                    <div className="text-lg mb-1">🔥</div>
+                    <h4 className="text-sm font-bold text-gray-900">Blaze</h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Maximum visibility for a week</p>
+                    <p className="text-base font-extrabold text-gray-900 mt-2">$9.99</p>
+                    <p className="text-[10px] text-gray-400">7 days &middot; 10x reach</p>
+                    {selectedBoostTier === "blaze" && boostLoading && (
+                      <div className="absolute inset-0 bg-white/80 rounded-2xl flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Mega */}
+                  <button
+                    onClick={() => handleBoost("mega")}
+                    disabled={boostLoading}
+                    className={`relative text-left p-4 rounded-2xl border-2 transition-all hover:shadow-md disabled:opacity-60 ${
+                      selectedBoostTier === "mega"
+                        ? "border-purple-400 bg-purple-50"
+                        : "border-gray-200 hover:border-purple-300 bg-white"
+                    }`}
+                  >
+                    <div className="text-lg mb-1">💎</div>
+                    <h4 className="text-sm font-bold text-gray-900">Mega</h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">The ultimate promotion</p>
+                    <p className="text-base font-extrabold text-gray-900 mt-2">$14.99</p>
+                    <p className="text-[10px] text-gray-400">14 days &middot; 25x reach</p>
+                    {selectedBoostTier === "mega" && boostLoading && (
+                      <div className="absolute inset-0 bg-white/80 rounded-2xl flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </>
             )}
 
             <div className="flex flex-col gap-3">
-              {/* Hide boost button if free_boost promo was already redeemed */}
-              {!(promoRedeemed && promoResult?.discount_type === "free_boost") && (
-                <button
-                  onClick={handleBoost}
-                  disabled={boostLoading}
-                  className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all hover:shadow-lg disabled:opacity-50"
-                >
-                  {boostLoading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Loading...
-                    </span>
-                  ) : (
-                    "🚀 Boost for $2.99"
-                  )}
-                </button>
-              )}
               <button
                 onClick={() =>
                   router.push(`/listing/${newListingId}`)
