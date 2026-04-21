@@ -1,3 +1,13 @@
+// ============================================================
+// REPLACE: app/post/page.tsx
+//
+// UPDATED: Added promo code input with live validation.
+//   - New "Promo Code" section between Photos and Submit button
+//   - "Apply" button validates code via GET /api/promo/redeem?code=X
+//   - After listing creation, auto-redeems code via POST /api/promo/redeem
+//   - Success modal updated to show promo benefit instead of boost upsell
+// ============================================================
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -20,6 +30,16 @@ const CATEGORIES = [
   "Vehicles",
   "Free Stuff",
 ];
+
+interface PromoValidation {
+  valid: boolean;
+  error?: string;
+  discount_type?: string;
+  discount_value?: number;
+  boost_tier?: string;
+  duration_days?: number;
+  benefit?: string;
+}
 
 export default function PostPage() {
   const supabase = createClient();
@@ -51,6 +71,13 @@ export default function PostPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
 
+  // ── Promo Code State ──
+  const [promoCode, setPromoCode] = useState("");
+  const [promoValidating, setPromoValidating] = useState(false);
+  const [promoResult, setPromoResult] = useState<PromoValidation | null>(null);
+  const [promoRedeemed, setPromoRedeemed] = useState(false);
+  const [promoRedeemMessage, setPromoRedeemMessage] = useState("");
+
   useEffect(() => {
     async function checkAuth() {
       const {
@@ -76,6 +103,7 @@ export default function PostPage() {
       </div>
     );
   }
+
   if (!user) return null;
 
   function addPhotos(files: FileList | File[]) {
@@ -91,6 +119,58 @@ export default function PostPage() {
     e.preventDefault();
     setDragActive(false);
     if (e.dataTransfer.files) addPhotos(e.dataTransfer.files);
+  }
+
+  // ── Validate Promo Code ──
+  async function handleValidatePromo() {
+    if (!promoCode.trim()) return;
+    setPromoValidating(true);
+    setPromoResult(null);
+
+    try {
+      const res = await fetch(
+        `/api/promo/redeem?code=${encodeURIComponent(promoCode.trim())}`
+      );
+      const data: PromoValidation = await res.json();
+      setPromoResult(data);
+    } catch {
+      setPromoResult({ valid: false, error: "Network error. Please try again." });
+    }
+
+    setPromoValidating(false);
+  }
+
+  // ── Clear Promo Code ──
+  function handleClearPromo() {
+    setPromoCode("");
+    setPromoResult(null);
+    setPromoRedeemed(false);
+    setPromoRedeemMessage("");
+  }
+
+  // ── Redeem Promo Code (called after listing is created) ──
+  async function redeemPromoCode(listingId: string): Promise<{
+    success: boolean;
+    type?: string;
+    message?: string;
+  }> {
+    try {
+      const res = await fetch("/api/promo/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: promoCode.trim(),
+          listing_id: listingId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return { success: true, type: data.type, message: data.message };
+      }
+      return { success: false, message: data.error || "Failed to redeem" };
+    } catch {
+      return { success: false, message: "Network error during redemption" };
+    }
   }
 
   async function handleBoost() {
@@ -119,8 +199,15 @@ export default function PostPage() {
     e.preventDefault();
     setError("");
 
-    if (!title.trim() || categories.length === 0 || !city.trim() || !state.trim()) {
-      setError("Please fill in all required fields (including at least one category).");
+    if (
+      !title.trim() ||
+      categories.length === 0 ||
+      !city.trim() ||
+      !state.trim()
+    ) {
+      setError(
+        "Please fill in all required fields (including at least one category)."
+      );
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -153,12 +240,12 @@ export default function PostPage() {
 
       if (insertErr) throw insertErr;
 
+      // Upload photos
       for (const photo of photos) {
         const ext = photo.name.split(".").pop();
         const path = `${user.id}/${listing.id}/${Date.now()}-${Math.random()
           .toString(36)
           .slice(2)}.${ext}`;
-
         const { error: upErr } = await supabase.storage
           .from("listing-photos")
           .upload(path, photo);
@@ -167,7 +254,6 @@ export default function PostPage() {
           const { data: urlData } = supabase.storage
             .from("listing-photos")
             .getPublicUrl(path);
-
           await supabase.from("listing_photos").insert({
             listing_id: listing.id,
             photo_url: urlData.publicUrl,
@@ -175,9 +261,14 @@ export default function PostPage() {
         }
       }
 
+      // Geocode
       try {
-        const fullAddress = [address, city, state, zipCode].filter(Boolean).join(", ");
-        const geoRes = await fetch(`/api/geocode?address=${encodeURIComponent(fullAddress)}`);
+        const fullAddress = [address, city, state, zipCode]
+          .filter(Boolean)
+          .join(", ");
+        const geoRes = await fetch(
+          `/api/geocode?address=${encodeURIComponent(fullAddress)}`
+        );
         const geoData = await geoRes.json();
         if (geoData.lat && geoData.lng) {
           await supabase
@@ -186,6 +277,18 @@ export default function PostPage() {
             .eq("id", listing.id);
         }
       } catch {}
+
+      // ── REDEEM PROMO CODE if one was validated ──
+      if (promoResult?.valid && promoCode.trim()) {
+        const result = await redeemPromoCode(listing.id);
+        if (result.success) {
+          setPromoRedeemed(true);
+          setPromoRedeemMessage(result.message || "Promo applied!");
+        } else {
+          // Promo failed but listing was still created successfully
+          setPromoRedeemMessage(result.message || "Promo could not be applied");
+        }
+      }
 
       setNewListingId(listing.id);
       setNewListingTitle(listing.title);
@@ -206,7 +309,8 @@ export default function PostPage() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Post a Yard Sale</h1>
           <p className="text-gray-500 mt-2">
-            Fill in the details below and reach thousands of local buyers &mdash; it&apos;s free!
+            Fill in the details below and reach thousands of local buyers
+            &mdash; it&apos;s free!
           </p>
         </div>
 
@@ -218,12 +322,12 @@ export default function PostPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ───────── BASIC INFO ───────── */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-gray-900 mb-5 flex items-center gap-2">
               <i className="fa-solid fa-pen text-ys-600 text-sm" />
               Basic Info
             </h2>
-
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Title <span className="text-red-400">*</span>
@@ -237,7 +341,6 @@ export default function PostPage() {
                 required
               />
             </div>
-
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Description
@@ -250,7 +353,6 @@ export default function PostPage() {
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-ys-600 focus:ring-2 focus:ring-ys-600/20 transition-all outline-none resize-y"
               />
             </div>
-
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Price Range
@@ -263,7 +365,6 @@ export default function PostPage() {
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-ys-600 focus:ring-2 focus:ring-ys-600/20 transition-all outline-none"
               />
             </div>
-
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Categories <span className="text-red-500">*</span>
@@ -290,22 +391,26 @@ export default function PostPage() {
                     }`}
                   >
                     {cat}
-                    {categories.includes(cat) && <span className="ml-1">✕</span>}
+                    {categories.includes(cat) && (
+                      <span className="ml-1">✕</span>
+                    )}
                   </button>
                 ))}
               </div>
               {categories.length === 0 && (
-                <p className="text-xs text-gray-400 mt-1">Pick at least one category</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Pick at least one category
+                </p>
               )}
             </div>
           </div>
 
+          {/* ───────── LOCATION ───────── */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-gray-900 mb-5 flex items-center gap-2">
               <i className="fa-solid fa-location-dot text-ys-600 text-sm" />
               Location
             </h2>
-
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Street Address
@@ -318,7 +423,6 @@ export default function PostPage() {
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-ys-600 focus:ring-2 focus:ring-ys-600/20 transition-all outline-none"
               />
             </div>
-
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -363,12 +467,12 @@ export default function PostPage() {
             </div>
           </div>
 
+          {/* ───────── DATE & TIME ───────── */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-gray-900 mb-5 flex items-center gap-2">
               <i className="fa-regular fa-calendar text-ys-600 text-sm" />
               Date &amp; Time
             </h2>
-
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -406,6 +510,7 @@ export default function PostPage() {
             </div>
           </div>
 
+          {/* ───────── PHOTOS ───────── */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
               <i className="fa-solid fa-images text-ys-600 text-sm" />
@@ -414,7 +519,6 @@ export default function PostPage() {
             <p className="text-xs text-gray-400 mb-5">
               Upload up to 10 photos. Listings with photos get 5x more views!
             </p>
-
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -434,23 +538,31 @@ export default function PostPage() {
                 type="file"
                 accept="image/*"
                 multiple
-                onChange={(e) => e.target.files && addPhotos(e.target.files)}
+                onChange={(e) =>
+                  e.target.files && addPhotos(e.target.files)
+                }
                 className="hidden"
               />
               <div className="w-12 h-12 bg-ys-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <i className="fa-solid fa-cloud-arrow-up text-xl text-ys-600" />
               </div>
               <p className="text-sm text-gray-600">
-                <span className="font-semibold text-ys-800">Click to upload</span>{" "}
+                <span className="font-semibold text-ys-800">
+                  Click to upload
+                </span>{" "}
                 or drag and drop
               </p>
-              <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP up to 5MB each</p>
+              <p className="text-xs text-gray-400 mt-1">
+                PNG, JPG, WEBP up to 5MB each
+              </p>
             </div>
-
             {previews.length > 0 && (
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mt-4">
                 {previews.map((src, i) => (
-                  <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
+                  <div
+                    key={i}
+                    className="relative aspect-square rounded-xl overflow-hidden group"
+                  >
                     <Image
                       src={src}
                       alt={`Preview ${i + 1}`}
@@ -476,6 +588,99 @@ export default function PostPage() {
             )}
           </div>
 
+          {/* ───────── PROMO CODE (NEW) ───────── */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <h2 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
+              <i className="fa-solid fa-ticket text-ys-600 text-sm" />
+              Promo Code
+            </h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Have a promo code? Enter it below to unlock a free boost or
+              discount.
+            </p>
+
+            <div className="flex gap-3">
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => {
+                    setPromoCode(e.target.value.toUpperCase());
+                    // Clear previous result when typing
+                    if (promoResult) setPromoResult(null);
+                  }}
+                  placeholder="e.g. WELCOME50"
+                  disabled={promoResult?.valid === true}
+                  className={`w-full px-4 py-2.5 border rounded-xl text-sm font-mono uppercase transition-all outline-none ${
+                    promoResult?.valid === true
+                      ? "border-green-300 bg-green-50 text-green-800"
+                      : promoResult?.valid === false
+                      ? "border-red-300 bg-red-50 text-red-800 focus:border-red-400 focus:ring-2 focus:ring-red-200"
+                      : "border-gray-200 focus:border-ys-600 focus:ring-2 focus:ring-ys-600/20"
+                  }`}
+                />
+                {promoResult?.valid === true && (
+                  <i className="fa-solid fa-circle-check text-green-500 absolute right-3 top-1/2 -translate-y-1/2" />
+                )}
+              </div>
+
+              {promoResult?.valid === true ? (
+                <button
+                  type="button"
+                  onClick={handleClearPromo}
+                  className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold rounded-xl transition-all"
+                >
+                  <i className="fa-solid fa-xmark mr-1.5" />
+                  Remove
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleValidatePromo}
+                  disabled={!promoCode.trim() || promoValidating}
+                  className="px-5 py-2.5 bg-ys-700 hover:bg-ys-800 text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {promoValidating ? (
+                    <span className="flex items-center gap-1.5">
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Checking
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <i className="fa-solid fa-check text-xs" />
+                      Apply
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Validation Result */}
+            {promoResult && (
+              <div
+                className={`mt-3 px-4 py-3 rounded-xl text-sm font-medium flex items-start gap-2 ${
+                  promoResult.valid
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
+                }`}
+              >
+                <i
+                  className={`fa-solid ${
+                    promoResult.valid
+                      ? "fa-gift text-green-500"
+                      : "fa-exclamation-circle text-red-500"
+                  } mt-0.5`}
+                />
+                <span>
+                  {promoResult.valid
+                    ? promoResult.benefit
+                    : promoResult.error}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* ───────── SUBMIT ───────── */}
           <button
             type="submit"
             disabled={submitting}
@@ -496,60 +701,99 @@ export default function PostPage() {
 
           <p className="text-center text-xs text-gray-400">
             By posting, you agree to our{" "}
-            <a href="/terms" className="underline hover:text-gray-600">
+            <a
+              href="/terms"
+              className="underline hover:text-gray-600"
+            >
               Terms of Service
             </a>{" "}
             and{" "}
-            <a href="/privacy" className="underline hover:text-gray-600">
+            <a
+              href="/privacy"
+              className="underline hover:text-gray-600"
+            >
               Privacy Policy
             </a>
           </p>
         </form>
       </div>
 
+      {/* ───────── SUCCESS MODAL ───────── */}
       {showBoostModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
               <i className="fa-solid fa-check text-3xl text-emerald-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Sale Posted! 🎉</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Sale Posted! 🎉
+            </h2>
             <p className="text-gray-500 text-sm mb-6">
               &ldquo;{newListingTitle}&rdquo; is now live.
             </p>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <i className="fa-solid fa-rocket text-amber-600" />
-                <h3 className="font-bold text-amber-900">Want more buyers?</h3>
+            {/* Show promo redemption result if a code was applied */}
+            {promoRedeemed && promoRedeemMessage && (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <i className="fa-solid fa-gift text-green-600" />
+                  <h3 className="font-bold text-green-900">
+                    Promo Code Applied!
+                  </h3>
+                </div>
+                <p className="text-sm text-green-800">
+                  {promoRedeemMessage}
+                </p>
               </div>
-              <p className="text-sm text-amber-800 mb-1">
-                Boost your listing to the <strong>top of search results</strong> and get up to{" "}
-                <strong>10x more views</strong>.
-              </p>
-              <p className="text-2xl font-extrabold text-amber-900 mt-3">Just $2.99</p>
-            </div>
+            )}
+
+            {/* Show boost upsell only if no free_boost promo was redeemed */}
+            {!(promoRedeemed && promoResult?.discount_type === "free_boost") && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <i className="fa-solid fa-rocket text-amber-600" />
+                  <h3 className="font-bold text-amber-900">
+                    Want more buyers?
+                  </h3>
+                </div>
+                <p className="text-sm text-amber-800 mb-1">
+                  Boost your listing to the{" "}
+                  <strong>top of search results</strong> and get up to{" "}
+                  <strong>10x more views</strong>.
+                </p>
+                <p className="text-2xl font-extrabold text-amber-900 mt-3">
+                  Just $2.99
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3">
+              {/* Hide boost button if free_boost promo was already redeemed */}
+              {!(promoRedeemed && promoResult?.discount_type === "free_boost") && (
+                <button
+                  onClick={handleBoost}
+                  disabled={boostLoading}
+                  className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all hover:shadow-lg disabled:opacity-50"
+                >
+                  {boostLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Loading...
+                    </span>
+                  ) : (
+                    "🚀 Boost for $2.99"
+                  )}
+                </button>
+              )}
               <button
-                onClick={handleBoost}
-                disabled={boostLoading}
-                className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all hover:shadow-lg disabled:opacity-50"
-              >
-                {boostLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Loading...
-                  </span>
-                ) : (
-                  "🚀 Boost for $2.99"
-                )}
-              </button>
-              <button
-                onClick={() => router.push(`/listing/${newListingId}`)}
+                onClick={() =>
+                  router.push(`/listing/${newListingId}`)
+                }
                 className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium text-sm transition"
               >
-                No thanks, view my listing →
+                {promoRedeemed && promoResult?.discount_type === "free_boost"
+                  ? "View my boosted listing →"
+                  : "No thanks, view my listing →"}
               </button>
             </div>
           </div>
