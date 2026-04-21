@@ -533,8 +533,8 @@ function BrowseContent() {
           onDistanceChange={handleDistanceChange}
           selectedDate={dateFilter}
           onDateChange={handleDateChange}
-          city={displayCity}
-          region={displayRegion}
+          city={displayCity || ""}
+          region={displayRegion || ""}
           onRequestLocation={() => {
             setLocationOverride(null);
             requestPreciseLocation();
