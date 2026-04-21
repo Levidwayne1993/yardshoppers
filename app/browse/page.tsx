@@ -494,7 +494,7 @@ function BrowseContent() {
       )}
 
       {locationOverride && (
-        <div className="max-w-[1536px] mx-auto px-4 sm:px-6 pt-4">
+        <div className="max-w-[1800px] mx-auto px-4 sm:px-6 pt-4">
           <div className="flex items-center justify-between bg-ys-50 border border-ys-200 rounded-xl px-4 py-3">
             <div className="flex items-center gap-2 text-sm">
               <i
@@ -520,7 +520,7 @@ function BrowseContent() {
       )}
 
       {/* ══════════ 3-PANEL LAYOUT: Filter | Listings | Saved ══════════ */}
-      <div className="max-w-[1536px] mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-6">
         <div className="flex gap-6">
           {/* ── Left Sidebar: Filters ── */}
           <FilterSidebar
@@ -642,7 +642,7 @@ function BrowseContent() {
 
             {/* Listings grid — 3 cols max with dual sidebars */}
             {loading || (distance < 999 && !isLocationReady) ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="animate-pulse">
                     <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
@@ -679,7 +679,7 @@ function BrowseContent() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                   {displayedListings.map((listing) => (
                     <ListingCard
                       key={listing.id}

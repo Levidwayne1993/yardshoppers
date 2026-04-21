@@ -300,7 +300,7 @@ export default function HomePage() {
       </section>
 
       {/* ══════════ 3-PANEL LAYOUT: Filter | Listings | Saved ══════════ */}
-      <div className="max-w-[1536px] mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-8">
         <div className="flex gap-6">
           {/* ── Left Sidebar: Filters ── */}
           <FilterSidebar
@@ -319,7 +319,7 @@ export default function HomePage() {
           {/* ── Center: Listings ── */}
           <div className="flex-1 min-w-0">
             {loading || (distance < 999 && locationLoading) ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="animate-pulse">
                     <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
@@ -347,7 +347,7 @@ export default function HomePage() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                 {listings.map((listing) => (
                   <ListingCard
                     key={listing.id}
