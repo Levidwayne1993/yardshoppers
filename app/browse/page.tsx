@@ -1,7 +1,8 @@
 // ============================================================
 // PASTE INTO: app/browse/page.tsx
-// CHANGE: Widened sidebar+listings container to max-w-[1536px]
-//         so sidebar sits further left with room for 4-col grid
+// CHANGE FROM V3: Added SavedPanel right sidebar
+//   Layout: FilterSidebar | Listings | SavedPanel
+//   Grid adjusted to 3-col to fit dual sidebars
 // ============================================================
 
 "use client";
@@ -12,6 +13,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import FilterSidebar, { matchesDateFilter } from "@/components/FilterSidebar";
+import SavedPanel from "@/components/SavedPanel";
 import JsonLd from "@/components/JsonLd";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
@@ -517,10 +519,10 @@ function BrowseContent() {
         </div>
       )}
 
-      {/* ══════════ SIDEBAR + CONTENT LAYOUT (wide) ══════════ */}
+      {/* ══════════ 3-PANEL LAYOUT: Filter | Listings | Saved ══════════ */}
       <div className="max-w-[1536px] mx-auto px-4 sm:px-6 py-6">
         <div className="flex gap-6">
-          {/* ── Left Sidebar ── */}
+          {/* ── Left Sidebar: Filters ── */}
           <FilterSidebar
             selectedCategory={selectedCategory}
             onCategoryChange={handleCategoryChange}
@@ -537,7 +539,7 @@ function BrowseContent() {
             isLoggedIn={!!currentUserId}
           />
 
-          {/* ── Right Content ── */}
+          {/* ── Center: Listings ── */}
           <div className="flex-1 min-w-0">
             {/* Search + Sort */}
             <div className="flex gap-3 mb-4">
@@ -638,10 +640,10 @@ function BrowseContent() {
               </div>
             )}
 
-            {/* Listings grid */}
+            {/* Listings grid — 3 cols max with dual sidebars */}
             {loading || (distance < 999 && !isLocationReady) ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-                {[...Array(8)].map((_, i) => (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
+                {[...Array(6)].map((_, i) => (
                   <div key={i} className="animate-pulse">
                     <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
                     <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
@@ -677,7 +679,7 @@ function BrowseContent() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
                   {displayedListings.map((listing) => (
                     <ListingCard
                       key={listing.id}
@@ -712,10 +714,16 @@ function BrowseContent() {
               </>
             )}
           </div>
+
+          {/* ── Right Sidebar: Saved Sales ── */}
+          <SavedPanel
+            userId={currentUserId}
+            totalListingsNearby={listings.length}
+          />
         </div>
       </div>
 
-      {/* ══════════ BOTTOM CTA (centered container) ══════════ */}
+      {/* ══════════ BOTTOM CTA (centered) ══════════ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#388E3C] rounded-2xl p-6 md:p-10 text-white text-center">
           <h2 className="text-xl md:text-2xl font-bold mb-2">Plan Your Yard Sale Route</h2>

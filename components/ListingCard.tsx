@@ -2,11 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CountdownTimer from "./CountdownTimer";
 import BoostModal from "./BoostModal";
 import BoostBadge from "./BoostBadge";
 import BoostProgressBar from "./BoostProgressBar";
+import { createClient } from "@/lib/supabase-browser";
+
+const supabase = createClient();
 
 const CATEGORY_COLORS: Record<string, string> = {
   Furniture: "bg-amber-100 text-amber-800",
@@ -34,7 +37,72 @@ export default function ListingCard({
   currentUserId,
 }: ListingCardProps) {
   const [saved, setSaved] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
   const [showBoostModal, setShowBoostModal] = useState(false);
+
+  // ── Check if listing is already saved on mount ──
+  useEffect(() => {
+    if (!currentUserId || !listing.id) return;
+    supabase
+      .from("saved_listings")
+      .select("id")
+      .eq("user_id", currentUserId)
+      .eq("listing_id", listing.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setSaved(true);
+      });
+  }, [currentUserId, listing.id]);
+
+  // ── Also listen for external unsave events (from SavedPanel) ──
+  useEffect(() => {
+    const handler = () => {
+      if (!currentUserId || !listing.id) return;
+      supabase
+        .from("saved_listings")
+        .select("id")
+        .eq("user_id", currentUserId)
+        .eq("listing_id", listing.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          setSaved(!!data);
+        });
+    };
+    window.addEventListener("ys-saved-change", handler);
+    return () => window.removeEventListener("ys-saved-change", handler);
+  }, [currentUserId, listing.id]);
+
+  // ── Toggle save in Supabase ──
+  async function handleToggleSave(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!currentUserId || saveBusy) return;
+
+    setSaveBusy(true);
+
+    if (saved) {
+      // Unsave
+      await supabase
+        .from("saved_listings")
+        .delete()
+        .eq("user_id", currentUserId)
+        .eq("listing_id", listing.id);
+      setSaved(false);
+    } else {
+      // Save
+      await supabase
+        .from("saved_listings")
+        .upsert(
+          { user_id: currentUserId, listing_id: listing.id },
+          { onConflict: "user_id,listing_id" }
+        );
+      setSaved(true);
+    }
+
+    // Notify SavedPanel to refresh
+    window.dispatchEvent(new Event("ys-saved-change"));
+    setSaveBusy(false);
+  }
 
   // Handle photos from both listing_photos (Supabase join) and photo_urls (flat array from external)
   const photos =
@@ -81,19 +149,23 @@ export default function ListingCard({
     </div>
   );
 
-  // Shared heart button renderer
+  // Heart button — persists to Supabase (or visual-only if not logged in)
   const heartButton = (
     <button
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setSaved(!saved);
-      }}
+      onClick={
+        currentUserId
+          ? handleToggleSave
+          : (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setSaved(!saved);
+            }
+      }
       className={`absolute bottom-3 left-3 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm ${
         saved
           ? "bg-red-500 text-white"
           : "bg-white/90 text-gray-400 hover:text-red-500"
-      }`}
+      } ${saveBusy ? "opacity-50 pointer-events-none" : ""}`}
     >
       <i
         className={`${saved ? "fa-solid" : "fa-regular"} fa-heart text-xs`}

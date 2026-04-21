@@ -1,7 +1,8 @@
 // ============================================================
 // PASTE INTO: app/page.tsx
-// CHANGE: Widened sidebar+listings container to max-w-[1536px]
-//         so sidebar sits further left with room for 4-col grid
+// CHANGE FROM V3: Added SavedPanel right sidebar
+//   Layout: FilterSidebar | Listings | SavedPanel
+//   Grid adjusted to 3-col to fit dual sidebars
 // ============================================================
 
 "use client";
@@ -11,6 +12,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import FilterSidebar, { matchesDateFilter } from "@/components/FilterSidebar";
+import SavedPanel from "@/components/SavedPanel";
 import JsonLd from "@/components/JsonLd";
 import TrendingSection from "@/components/TrendingSection";
 import CategoryGrid from "@/components/CategoryGrid";
@@ -297,10 +299,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══════════ SIDEBAR + LISTINGS (wide container) ══════════ */}
+      {/* ══════════ 3-PANEL LAYOUT: Filter | Listings | Saved ══════════ */}
       <div className="max-w-[1536px] mx-auto px-4 sm:px-6 py-8">
         <div className="flex gap-6">
-          {/* ── Left Sidebar ── */}
+          {/* ── Left Sidebar: Filters ── */}
           <FilterSidebar
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
@@ -314,11 +316,11 @@ export default function HomePage() {
             isLoggedIn={!!currentUserId}
           />
 
-          {/* ── Right Content ── */}
+          {/* ── Center: Listings ── */}
           <div className="flex-1 min-w-0">
             {loading || (distance < 999 && locationLoading) ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-                {[...Array(8)].map((_, i) => (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
+                {[...Array(6)].map((_, i) => (
                   <div key={i} className="animate-pulse">
                     <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
                     <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
@@ -345,7 +347,7 @@ export default function HomePage() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
                 {listings.map((listing) => (
                   <ListingCard
                     key={listing.id}
@@ -368,6 +370,12 @@ export default function HomePage() {
               </div>
             )}
           </div>
+
+          {/* ── Right Sidebar: Saved Sales ── */}
+          <SavedPanel
+            userId={currentUserId}
+            totalListingsNearby={listings.length}
+          />
         </div>
       </div>
 
