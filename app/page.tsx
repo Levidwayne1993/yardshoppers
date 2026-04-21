@@ -354,7 +354,7 @@ export default function HomePage() {
         </div>
 
         {loading || (distance < 999 && locationLoading) ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="animate-pulse">
                 <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
@@ -378,7 +378,7 @@ export default function HomePage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
             {listings.map((listing) => (
               <ListingCard
                 key={listing.id}
