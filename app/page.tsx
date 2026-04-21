@@ -336,8 +336,8 @@ export default function HomePage() {
             onDistanceChange={handleDistanceChange}
             selectedDate={dateFilter}
             onDateChange={setDateFilter}
-            city={city}
-            region={region}
+            city={city || ""}
+            region={region || ""}
             onRequestLocation={requestPreciseLocation}
             isLoggedIn={!!currentUserId}
           />
