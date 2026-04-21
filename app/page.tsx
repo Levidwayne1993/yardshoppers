@@ -1,9 +1,15 @@
 // ============================================================
 // PASTE INTO: app/page.tsx (yardshoppers project)
 //
-// UPDATED: Added .eq("is_shadowbanned", false) to user listings
-// query so shadowbanned users' posts are hidden from everyone
-// except the shadowbanned user themselves.
+// CHANGES FROM ORIGINAL:
+// - Replaced DistanceSelector + category pills with FilterSidebar
+// - Added date filter support via FilterSidebar
+// - Search + sort remain in hero (unchanged)
+// - All original logic preserved: server-side Supabase ilike +
+//   bounding-box filtering on BOTH tables, shadowban filter,
+//   boost sorting, JSON-LD schemas, ys-* Tailwind colors,
+//   TrendingSection, CategoryGrid, Route Planner CTA,
+//   Why Sellers Love, How It Works, Trust Badges
 // ============================================================
 
 "use client";
@@ -12,7 +18,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
-import DistanceSelector from "@/components/DistanceSelector";
+import FilterSidebar, { matchesDateFilter } from "@/components/FilterSidebar";
 import JsonLd from "@/components/JsonLd";
 import TrendingSection from "@/components/TrendingSection";
 import CategoryGrid from "@/components/CategoryGrid";
@@ -118,9 +124,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [sort, setSort] = useState("nearest");
   const [distance, setDistance] = useState(50);
+  const [dateFilter, setDateFilter] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -133,21 +140,12 @@ export default function HomePage() {
     getUser();
   }, []);
 
-  function handleDistanceChange(value: number) {
-    setDistance(value);
-    if (value < 999) {
+  function handleDistanceChange(value: number | null) {
+    const d = value ?? 999;
+    setDistance(d);
+    if (d < 999) {
       requestPreciseLocation();
     }
-  }
-
-  function toggleCategory(cat: string) {
-    setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
-    );
-  }
-
-  function clearCategories() {
-    setSelectedCategories([]);
   }
 
   useEffect(() => {
@@ -178,12 +176,13 @@ export default function HomePage() {
       }
 
       // Apply category filter to BOTH
-      if (selectedCategories.length > 0) {
-        const orClauses = selectedCategories
-          .map((cat) => `category.eq.${cat},categories.cs.{${cat}}`)
-          .join(",");
-        userQuery = userQuery.or(orClauses);
-        extQuery = extQuery.or(orClauses);
+      if (selectedCategory) {
+        userQuery = userQuery.or(
+          `category.eq.${selectedCategory},categories.cs.{${selectedCategory}}`
+        );
+        extQuery = extQuery.or(
+          `category.eq.${selectedCategory},categories.cs.{${selectedCategory}}`
+        );
       }
 
       // Apply geographic bounding box to BOTH
@@ -233,6 +232,13 @@ export default function HomePage() {
       // Merge: boosted user listings first, then everything else
       let results = [...userListings, ...externalListings];
 
+      // Apply date filter (client-side)
+      if (dateFilter) {
+        results = results.filter((l) =>
+          matchesDateFilter(l.sale_date, dateFilter)
+        );
+      }
+
       // Client-side proximity sort
       if (sort === "nearest" && lat && lng && results.length > 0) {
         const boosted = results.filter((l: any) => l.is_boosted);
@@ -260,7 +266,7 @@ export default function HomePage() {
     }
 
     fetchListings();
-  }, [debouncedSearch, selectedCategories, sort, distance, lat, lng]);
+  }, [debouncedSearch, selectedCategory, dateFilter, sort, distance, lat, lng]);
 
   return (
     <div>
@@ -268,6 +274,7 @@ export default function HomePage() {
       <JsonLd data={howToSchema} />
       <JsonLd data={breadcrumbSchema} />
 
+      {/* ══════════ HERO ══════════ */}
       <section className="relative bg-gradient-to-br from-ys-900 via-ys-800 to-ys-700 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 left-10 text-6xl animate-bounce">🏷️</div>
@@ -318,88 +325,78 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ══════════ MAIN CONTENT WITH SIDEBAR ══════════ */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-col gap-3 mb-6">
-          <DistanceSelector value={distance} onChange={handleDistanceChange} />
-          <div className="flex gap-2 overflow-x-auto pb-1 items-center">
-            <button
-              onClick={clearCategories}
-              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                selectedCategories.length === 0
-                  ? "bg-ys-800 text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              All
-            </button>
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => toggleCategory(cat)}
-                className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                  selectedCategories.includes(cat)
-                    ? "bg-ys-800 text-white shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-          {selectedCategories.length > 1 && (
-            <p className="text-xs text-gray-500">
-              Filtering by {selectedCategories.length} categories
-            </p>
-          )}
-        </div>
+        <div className="flex gap-6">
+          {/* ── Left Sidebar ── */}
+          <FilterSidebar
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            selectedDistance={distance >= 999 ? null : distance}
+            onDistanceChange={handleDistanceChange}
+            selectedDate={dateFilter}
+            onDateChange={setDateFilter}
+            city={city}
+            region={region}
+            onRequestLocation={requestPreciseLocation}
+            isLoggedIn={!!currentUserId}
+          />
 
-        {loading || (distance < 999 && locationLoading) ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
+          {/* ── Right Content ── */}
+          <div className="flex-1 min-w-0">
+            {loading || (distance < 999 && locationLoading) ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                    <div className="h-3 bg-gray-200 rounded w-1/2" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : listings.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
-              <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" aria-hidden="true" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">No sales found nearby</h2>
-            <p className="text-gray-500 mb-6">Try expanding your distance or changing your search.</p>
-            <button
-              onClick={() => setDistance(999)}
-              className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
-            >
-              Show All Sales
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-            {listings.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-                currentUserId={currentUserId}
-              />
-            ))}
-          </div>
-        )}
+            ) : listings.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                  <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" aria-hidden="true" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">No sales found nearby</h2>
+                <p className="text-gray-500 mb-6">Try expanding your distance or changing your search.</p>
+                <button
+                  onClick={() => {
+                    setDistance(999);
+                    setSelectedCategory("");
+                    setDateFilter("");
+                  }}
+                  className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
+                >
+                  Show All Sales
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+                {listings.map((listing) => (
+                  <ListingCard
+                    key={listing.id}
+                    listing={listing}
+                    currentUserId={currentUserId}
+                  />
+                ))}
+              </div>
+            )}
 
-        {listings.length > 0 && (
-          <div className="text-center mt-10">
-            <Link
-              href="/browse"
-              className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition-all hover:shadow-lg"
-            >
-              View All Sales
-              <i className="fa-solid fa-arrow-right text-sm" aria-hidden="true" />
-            </Link>
+            {listings.length > 0 && (
+              <div className="text-center mt-10">
+                <Link
+                  href="/browse"
+                  className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition-all hover:shadow-lg"
+                >
+                  View All Sales
+                  <i className="fa-solid fa-arrow-right text-sm" aria-hidden="true" />
+                </Link>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Phase 20: Real-Time SEO Signals — Trending, Hot Near You, Price Drops, Popular Searches */}
         <TrendingSection />
@@ -432,6 +429,7 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* Why Sellers Love YardShoppers */}
         <section className="mt-10 bg-gradient-to-br from-ys-50 via-white to-amber-50 border border-ys-200 rounded-3xl p-8 sm:p-10">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">Why Sellers Love YardShoppers</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto mb-8">
@@ -468,6 +466,7 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* How YardShoppers Works */}
         <section className="mt-16 mb-8" id="how-it-works">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">How YardShoppers Works</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
@@ -487,6 +486,7 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* Trust Badges */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
             { icon: "fa-dollar-sign", label: "Free to Browse" },

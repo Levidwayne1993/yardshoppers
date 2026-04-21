@@ -1,12 +1,13 @@
 // ============================================================
-// PASTE INTO: app/browse/page.tsx (yardshoppers project)
+// PASTE INTO: app/browse/page.tsx
 //
 // CHANGES FROM ORIGINAL:
-// - Removed SOURCE_FILTERS (All Sales / User Posted / External)
-// - Removed sourceFilter state — always fetches both tables
-// - Removed "External only" / "User posted" result labels
-// - All schema URLs point to /listing/id (never source_url)
-// - External listings blend seamlessly with user-posted ones
+// - Replaced sticky filter bar + category pills + DistanceSelector
+//   with FilterSidebar component (Facebook Marketplace-style)
+// - Added date filter support via FilterSidebar
+// - All original logic preserved: server-side Supabase filtering,
+//   UnifiedListing mapping, JSON-LD schemas, boost sorting,
+//   location override, Route Planner CTA, Load More pagination
 // ============================================================
 
 "use client";
@@ -16,7 +17,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
-import DistanceSelector from "@/components/DistanceSelector";
+import FilterSidebar, { matchesDateFilter } from "@/components/FilterSidebar";
 import JsonLd from "@/components/JsonLd";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
@@ -144,6 +145,14 @@ function BrowseContent() {
     : "";
   const isLocationReady = locationOverride ? true : !locationLoading;
 
+  /* Derive city/region strings for sidebar display */
+  const displayCity = locationOverride
+    ? locationOverride.label.split(",")[0]?.trim() || ""
+    : city;
+  const displayRegion = locationOverride
+    ? locationOverride.label.split(",")[1]?.trim() || ""
+    : region;
+
   const initialCategory = searchParams.get("category");
   const [listings, setListings] = useState<UnifiedListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,13 +160,14 @@ function BrowseContent() {
     searchParams.get("search") || ""
   );
   const debouncedSearch = useDebounce(search, 300);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+  const [selectedCategory, setSelectedCategory] = useState(
     initialCategory && initialCategory !== "All"
-      ? [initialCategory]
-      : []
+      ? initialCategory
+      : ""
   );
   const [sort, setSort] = useState("nearest");
   const [distance, setDistance] = useState(50);
+  const [dateFilter, setDateFilter] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(
     null
   );
@@ -173,25 +183,23 @@ function BrowseContent() {
     getUser();
   }, []);
 
-  function handleDistanceChange(value: number) {
-    setDistance(value);
+  /* Convert sidebar distance (null = Any) to internal value (999 = Any) */
+  function handleDistanceChange(value: number | null) {
+    const d = value ?? 999;
+    setDistance(d);
     setVisibleCount(ITEMS_PER_PAGE);
-    if (value < 999 && !locationOverride) {
+    if (d < 999 && !locationOverride) {
       requestPreciseLocation();
     }
   }
 
-  function toggleCategory(cat: string) {
-    setSelectedCategories((prev) =>
-      prev.includes(cat)
-        ? prev.filter((c) => c !== cat)
-        : [...prev, cat]
-    );
+  function handleCategoryChange(cat: string) {
+    setSelectedCategory(cat);
     setVisibleCount(ITEMS_PER_PAGE);
   }
 
-  function clearCategories() {
-    setSelectedCategories([]);
+  function handleDateChange(d: string) {
+    setDateFilter(d);
     setVisibleCount(ITEMS_PER_PAGE);
   }
 
@@ -215,13 +223,10 @@ function BrowseContent() {
           );
         }
 
-        if (selectedCategories.length > 0) {
-          const orClauses = selectedCategories
-            .map(
-              (cat) => `category.eq.${cat},categories.cs.{${cat}}`
-            )
-            .join(",");
-          query = query.or(orClauses);
+        if (selectedCategory) {
+          query = query.or(
+            `category.eq.${selectedCategory},categories.cs.{${selectedCategory}}`
+          );
         }
 
         if (distance < 999 && effectiveLat && effectiveLng) {
@@ -287,13 +292,10 @@ function BrowseContent() {
           );
         }
 
-        if (selectedCategories.length > 0) {
-          const orClauses = selectedCategories
-            .map(
-              (cat) => `category.eq.${cat},categories.cs.{${cat}}`
-            )
-            .join(",");
-          extQuery = extQuery.or(orClauses);
+        if (selectedCategory) {
+          extQuery = extQuery.or(
+            `category.eq.${selectedCategory},categories.cs.{${selectedCategory}}`
+          );
         }
 
         if (distance < 999 && effectiveLat && effectiveLng) {
@@ -344,15 +346,23 @@ function BrowseContent() {
         }
       }
 
+      // ── Date filter (client-side) ──
+      let filtered = results;
+      if (dateFilter) {
+        filtered = results.filter((l) =>
+          matchesDateFilter(l.sale_date, dateFilter)
+        );
+      }
+
       // ── Sort merged results ──
       if (
         sort === "nearest" &&
         effectiveLat &&
         effectiveLng &&
-        results.length > 0
+        filtered.length > 0
       ) {
-        const boosted = results.filter((l) => l.is_boosted);
-        const nonBoosted = results.filter((l) => !l.is_boosted);
+        const boosted = filtered.filter((l) => l.is_boosted);
+        const nonBoosted = filtered.filter((l) => !l.is_boosted);
 
         const sortByDistance = (
           a: UnifiedListing,
@@ -383,7 +393,7 @@ function BrowseContent() {
         nonBoosted.sort(sortByDistance);
         setListings([...boosted, ...nonBoosted]);
       } else {
-        setListings(results);
+        setListings(filtered);
       }
 
       setVisibleCount(ITEMS_PER_PAGE);
@@ -393,7 +403,8 @@ function BrowseContent() {
     fetchListings();
   }, [
     debouncedSearch,
-    selectedCategories,
+    selectedCategory,
+    dateFilter,
     sort,
     distance,
     effectiveLat,
@@ -405,7 +416,8 @@ function BrowseContent() {
 
   const hasFilters =
     debouncedSearch ||
-    selectedCategories.length > 0 ||
+    selectedCategory ||
+    dateFilter ||
     distance < 999 ||
     locationOverride;
 
@@ -511,9 +523,29 @@ function BrowseContent() {
         </div>
       )}
 
-      <div className="sticky top-[65px] z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 mb-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
+      {/* ══════════ SIDEBAR + CONTENT LAYOUT ══════════ */}
+      <div className="flex gap-6">
+        {/* ── Left Sidebar ── */}
+        <FilterSidebar
+          selectedCategory={selectedCategory}
+          onCategoryChange={handleCategoryChange}
+          selectedDistance={distance >= 999 ? null : distance}
+          onDistanceChange={handleDistanceChange}
+          selectedDate={dateFilter}
+          onDateChange={handleDateChange}
+          city={displayCity}
+          region={displayRegion}
+          onRequestLocation={() => {
+            setLocationOverride(null);
+            requestPreciseLocation();
+          }}
+          isLoggedIn={!!currentUserId}
+        />
+
+        {/* ── Right Content ── */}
+        <div className="flex-1 min-w-0">
+          {/* Search + Sort */}
+          <div className="flex gap-3 mb-4">
             <div className="flex-1 relative">
               <i
                 className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
@@ -542,185 +574,150 @@ function BrowseContent() {
             </select>
           </div>
 
-          <DistanceSelector
-            value={distance}
-            onChange={handleDistanceChange}
-          />
+          {/* Route Planner CTA */}
+          <Link href="/route-planner" className="block mb-5">
+            <div className="bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#388E3C] rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all group cursor-pointer">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-white/30 transition">
+                  <i
+                    className="fa-solid fa-globe text-white text-xl"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-white font-bold text-sm sm:text-base">
+                    Plan Your Yard Sale Route
+                  </p>
+                  <p className="text-white/75 text-xs sm:text-sm truncate">
+                    Map multiple stops, optimize your drive, and never
+                    miss a deal
+                  </p>
+                </div>
+              </div>
+              <div className="flex-shrink-0 bg-white text-[#2E7D32] px-4 py-2 rounded-lg text-sm font-bold group-hover:bg-green-50 transition hidden sm:flex items-center gap-2">
+                <i
+                  className="fa-solid fa-map-location-dot"
+                  aria-hidden="true"
+                />
+                Open Map
+              </div>
+              <div className="flex-shrink-0 sm:hidden w-9 h-9 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition">
+                <i
+                  className="fa-solid fa-chevron-right text-white text-sm"
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+          </Link>
 
-          {/* Category filters */}
-          <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 items-center">
-            <button
-              onClick={clearCategories}
-              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                selectedCategories.length === 0
-                  ? "bg-ys-800 text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              All
-            </button>
-            {CATEGORIES.map((cat) => (
+          {/* Results summary */}
+          {hasFilters && (
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-gray-500">
+                {listings.length} result
+                {listings.length !== 1 ? "s" : ""} found
+                {locationLabel && distance < 999 && (
+                  <span>
+                    {" "}
+                    within {distance} mi of {locationLabel}
+                  </span>
+                )}
+              </p>
               <button
-                key={cat}
-                onClick={() => toggleCategory(cat)}
-                className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                  selectedCategories.includes(cat)
-                    ? "bg-ys-800 text-white shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
+                onClick={() => {
+                  setSearch("");
+                  setSelectedCategory("");
+                  setDateFilter("");
+                  setDistance(50);
+                  setSort("nearest");
+                  setLocationOverride(null);
+                }}
+                className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition"
               >
-                {cat}
+                <i
+                  className="fa-solid fa-xmark mr-1 text-xs"
+                  aria-hidden="true"
+                />
+                Clear filters
               </button>
-            ))}
-          </div>
+            </div>
+          )}
 
-          {selectedCategories.length > 1 && (
-            <p className="text-xs text-gray-500">
-              Filtering by {selectedCategories.length} categories
-            </p>
+          {/* Listings grid */}
+          {loading || (distance < 999 && !isLocationReady) ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-5">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-gray-200 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : listings.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <i
+                  className="fa-solid fa-magnifying-glass text-3xl text-gray-300"
+                  aria-hidden="true"
+                />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                No sales found
+              </h2>
+              <p className="text-gray-500 mb-6">
+                Try expanding your distance or adjusting your search.
+              </p>
+              <button
+                onClick={() => {
+                  setDistance(999);
+                  setSort("newest");
+                  setSelectedCategory("");
+                  setDateFilter("");
+                }}
+                className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
+              >
+                Show All Sales Nationwide
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-5">
+                {displayedListings.map((listing) => (
+                  <ListingCard
+                    key={listing.id}
+                    listing={listing}
+                    currentUserId={currentUserId}
+                  />
+                ))}
+              </div>
+
+              {hasMore && (
+                <div className="text-center mt-8">
+                  <button
+                    onClick={() =>
+                      setVisibleCount((prev) => prev + ITEMS_PER_PAGE)
+                    }
+                    className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition-all hover:shadow-lg"
+                  >
+                    <i
+                      className="fa-solid fa-chevron-down text-sm"
+                      aria-hidden="true"
+                    />
+                    Load More ({listings.length - visibleCount} remaining)
+                  </button>
+                </div>
+              )}
+
+              {!hasMore && listings.length > ITEMS_PER_PAGE && (
+                <p className="text-center text-sm text-gray-400 mt-6">
+                  Showing all {listings.length} listings
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
-
-      {/* Route Planner CTA */}
-      <Link href="/route-planner" className="block mb-5">
-        <div className="bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#388E3C] rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all group cursor-pointer">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-white/30 transition">
-              <i
-                className="fa-solid fa-globe text-white text-xl"
-                aria-hidden="true"
-              />
-            </div>
-            <div className="min-w-0">
-              <p className="text-white font-bold text-sm sm:text-base">
-                Plan Your Yard Sale Route
-              </p>
-              <p className="text-white/75 text-xs sm:text-sm truncate">
-                Map multiple stops, optimize your drive, and never
-                miss a deal
-              </p>
-            </div>
-          </div>
-          <div className="flex-shrink-0 bg-white text-[#2E7D32] px-4 py-2 rounded-lg text-sm font-bold group-hover:bg-green-50 transition hidden sm:flex items-center gap-2">
-            <i
-              className="fa-solid fa-map-location-dot"
-              aria-hidden="true"
-            />
-            Open Map
-          </div>
-          <div className="flex-shrink-0 sm:hidden w-9 h-9 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition">
-            <i
-              className="fa-solid fa-chevron-right text-white text-sm"
-              aria-hidden="true"
-            />
-          </div>
-        </div>
-      </Link>
-
-      {/* Results summary */}
-      {hasFilters && (
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-gray-500">
-            {listings.length} result
-            {listings.length !== 1 ? "s" : ""} found
-            {locationLabel && distance < 999 && (
-              <span>
-                {" "}
-                within {distance} mi of {locationLabel}
-              </span>
-            )}
-          </p>
-          <button
-            onClick={() => {
-              setSearch("");
-              clearCategories();
-              setDistance(50);
-              setSort("nearest");
-              setLocationOverride(null);
-            }}
-            className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition"
-          >
-            <i
-              className="fa-solid fa-xmark mr-1 text-xs"
-              aria-hidden="true"
-            />
-            Clear filters
-          </button>
-        </div>
-      )}
-
-      {/* Listings grid */}
-      {loading || (distance < 999 && !isLocationReady) ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="aspect-[4/3] bg-gray-200 rounded-2xl mb-3" />
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-gray-200 rounded w-1/2" />
-            </div>
-          ))}
-        </div>
-      ) : listings.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
-            <i
-              className="fa-solid fa-magnifying-glass text-3xl text-gray-300"
-              aria-hidden="true"
-            />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
-            No sales found
-          </h2>
-          <p className="text-gray-500 mb-6">
-            Try expanding your distance or adjusting your search.
-          </p>
-          <button
-            onClick={() => {
-              setDistance(999);
-              setSort("newest");
-            }}
-            className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
-          >
-            Show All Sales Nationwide
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-            {displayedListings.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-                currentUserId={currentUserId}
-              />
-            ))}
-          </div>
-
-          {hasMore && (
-            <div className="text-center mt-8">
-              <button
-                onClick={() =>
-                  setVisibleCount((prev) => prev + ITEMS_PER_PAGE)
-                }
-                className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition-all hover:shadow-lg"
-              >
-                <i
-                  className="fa-solid fa-chevron-down text-sm"
-                  aria-hidden="true"
-                />
-                Load More ({listings.length - visibleCount} remaining)
-              </button>
-            </div>
-          )}
-
-          {!hasMore && listings.length > ITEMS_PER_PAGE && (
-            <p className="text-center text-sm text-gray-400 mt-6">
-              Showing all {listings.length} listings
-            </p>
-          )}
-        </>
-      )}
     </div>
   );
 }
