@@ -37,13 +37,15 @@ export async function POST(req: Request) {
     expires.setDate(expires.getDate() + parseInt(duration_days));
 
     const { error } = await supabase
-      .from("listings")
-      .update({
-        boost_tier,
-        boost_started_at: now.toISOString(),
-        boost_expires_at: expires.toISOString(),
-      })
-      .eq("id", listing_id);
+  .from("listings")
+  .update({
+    is_boosted: true,
+    boost_tier,
+    boost_started_at: now.toISOString(),
+    boost_expires_at: expires.toISOString(),
+  })
+  .eq("id", listing_id);
+
 
     if (error) {
       console.error("Failed to activate boost:", error);
