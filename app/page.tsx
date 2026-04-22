@@ -247,6 +247,29 @@ export default function HomePage() {
     <div>
       <JsonLd data={howToSchema} />
       <JsonLd data={breadcrumbSchema} />
+      {/* ═══════════ TEMPORARY UPDATE BANNER — REMOVE AFTER SCRAPER FINISHES ═══════════ */}
+      <div className="bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 text-white">
+        <div className="max-w-5xl mx-auto px-4 py-5 text-center">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🔄</span>
+              <span className="text-lg sm:text-xl font-extrabold tracking-wide uppercase">
+                Major Update Underway
+              </span>
+            </div>
+            <span className="hidden sm:inline text-amber-200 font-bold">|</span>
+            <p className="text-sm sm:text-base font-semibold text-amber-50">
+              We&apos;re loading over <span className="text-white font-extrabold underline decoration-2">1,000,000+</span> yard sales nationwide.
+              Check back in a few hours!
+            </p>
+          </div>
+          <p className="text-xs text-amber-100 mt-2 opacity-80">
+            🏷️ The biggest yard sale database in America is almost ready.
+          </p>
+        </div>
+      </div>
+
+      {/* ══════════ HERO ══════════ */}
 
       {/* ══════════ HERO ══════════ */}
       <section className="relative bg-gradient-to-br from-ys-900 via-ys-800 to-ys-700 text-white overflow-hidden">
