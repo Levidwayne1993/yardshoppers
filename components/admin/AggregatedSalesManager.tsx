@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase-browser";
+import { resolveStateAbbreviation, STATE_ABBR_TO_NAME } from "@/lib/stateMap";
+import CityFixer from "@/components/admin/CityFixer";
 
 const supabase = createClient();
 
@@ -75,6 +77,7 @@ export default function AggregatedSalesManager() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [showCityFixer, setShowCityFixer] = useState(false);
 
   // ── Fetch all external sales ──
   useEffect(() => {
@@ -100,6 +103,7 @@ export default function AggregatedSalesManager() {
       setSales(data || []);
       setLoading(false);
     }
+
     fetchSales();
   }, []);
 
@@ -108,15 +112,18 @@ export default function AggregatedSalesManager() {
     const noAddress = sales.filter(
       (s) => !s.address && (!s.latitude || !s.longitude)
     ).length;
+
     const notYardSale = sales.filter(
       (s) => !looksLikeYardSale(s.title || "", s.description || "")
     ).length;
+
     const noAddressAndNotYardSale = sales.filter(
       (s) =>
         !s.address &&
         (!s.latitude || !s.longitude) &&
         !looksLikeYardSale(s.title || "", s.description || "")
     ).length;
+
     return { total: sales.length, noAddress, notYardSale, noAddressAndNotYardSale };
   }, [sales]);
 
@@ -173,16 +180,19 @@ export default function AggregatedSalesManager() {
       result = result.filter((s) => (s.source || "Unknown") === selectedSource);
     }
 
-    // Search
+    // Search — supports full state names like "Alabama" → matches "AL"
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
+      const stateAbbr = resolveStateAbbreviation(searchQuery.trim());
       result = result.filter(
         (s) =>
           (s.title || "").toLowerCase().includes(q) ||
           (s.description || "").toLowerCase().includes(q) ||
           (s.city || "").toLowerCase().includes(q) ||
           (s.address || "").toLowerCase().includes(q) ||
-          (s.source || "").toLowerCase().includes(q)
+          (s.source || "").toLowerCase().includes(q) ||
+          (s.state || "").toLowerCase().includes(q) ||
+          (stateAbbr && (s.state || "").toUpperCase() === stateAbbr)
       );
     }
 
@@ -264,9 +274,7 @@ export default function AggregatedSalesManager() {
       // Update local state
       setSales((prev) =>
         prev.map((s) =>
-          s.id === editingId
-            ? { ...s, ...updates }
-            : s
+          s.id === editingId ? { ...s, ...updates } : s
         )
       );
       cancelEdit();
@@ -298,6 +306,7 @@ export default function AggregatedSalesManager() {
     setIsDeleting(true);
 
     const ids = Array.from(selectedIds);
+
     // Delete in batches of 100
     for (let i = 0; i < ids.length; i += 100) {
       const batch = ids.slice(i, i + 100);
@@ -305,6 +314,7 @@ export default function AggregatedSalesManager() {
         .from("external_sales")
         .delete()
         .in("id", batch);
+
       if (error) {
         alert(`Delete failed at batch ${i}: ${error.message}`);
         break;
@@ -362,6 +372,7 @@ export default function AggregatedSalesManager() {
           <p className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</p>
           <p className="text-xs font-semibold text-gray-500 mt-1">Total Aggregated</p>
         </button>
+
         <button
           onClick={() => setFilterMode("no-address")}
           className={`p-4 rounded-2xl border text-left transition-all ${
@@ -373,6 +384,7 @@ export default function AggregatedSalesManager() {
           <p className="text-2xl font-bold text-amber-600">{stats.noAddress.toLocaleString()}</p>
           <p className="text-xs font-semibold text-gray-500 mt-1">Missing Address</p>
         </button>
+
         <button
           onClick={() => setFilterMode("not-yard-sale")}
           className={`p-4 rounded-2xl border text-left transition-all ${
@@ -384,6 +396,7 @@ export default function AggregatedSalesManager() {
           <p className="text-2xl font-bold text-red-600">{stats.notYardSale.toLocaleString()}</p>
           <p className="text-xs font-semibold text-gray-500 mt-1">Not a Yard Sale</p>
         </button>
+
         <button
           onClick={() => setFilterMode("no-address-and-not-yard-sale")}
           className={`p-4 rounded-2xl border text-left transition-all ${
@@ -410,6 +423,7 @@ export default function AggregatedSalesManager() {
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-300 focus:border-ys-400 transition"
             />
           </div>
+
           <select
             value={selectedState}
             onChange={(e) => setSelectedState(e.target.value)}
@@ -424,6 +438,7 @@ export default function AggregatedSalesManager() {
                 </option>
               ))}
           </select>
+
           <select
             value={selectedSource}
             onChange={(e) => setSelectedSource(e.target.value)}
@@ -473,6 +488,47 @@ export default function AggregatedSalesManager() {
         </div>
       </div>
 
+      {/* ── City Fixer Tool ── */}
+      <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">
+              <i className="fa-solid fa-wrench text-ys-700 mr-2 text-xs" />
+              City Fixer Tool
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Scan listings for missing cities and extract them from the address field
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCityFixer(!showCityFixer)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 ${
+              showCityFixer
+                ? "bg-gray-200 text-gray-700"
+                : "bg-ys-700 hover:bg-ys-800 text-white"
+            }`}
+          >
+            {showCityFixer ? (
+              <>
+                <i className="fa-solid fa-xmark text-xs" />
+                Close
+              </>
+            ) : (
+              <>
+                <i className="fa-solid fa-magnifying-glass-location text-xs" />
+                Scan & Fix
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {showCityFixer && (
+        <div className="mb-4">
+          <CityFixer />
+        </div>
+      )}
+
       {/* ── Bulk Actions ── */}
       <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -483,6 +539,7 @@ export default function AggregatedSalesManager() {
             <i className="fa-regular fa-square-check text-xs" />
             Select Page ({paginatedSales.length})
           </button>
+
           <button
             onClick={selectAllFiltered}
             className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold transition"
@@ -490,6 +547,7 @@ export default function AggregatedSalesManager() {
             <i className="fa-solid fa-check-double text-xs" />
             Select All Filtered ({filteredSales.length})
           </button>
+
           {selectedIds.size > 0 && (
             <>
               <button
@@ -499,6 +557,7 @@ export default function AggregatedSalesManager() {
                 <i className="fa-regular fa-square text-xs" />
                 Deselect All
               </button>
+
               <button
                 onClick={() => setDeleteConfirm(true)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition"
@@ -522,8 +581,8 @@ export default function AggregatedSalesManager() {
               <h3 className="text-lg font-bold text-gray-900">Confirm Bulk Delete</h3>
               <p className="text-sm text-gray-500 mt-1">
                 You are about to permanently delete{" "}
-                <span className="font-bold text-red-600">{selectedIds.size}</span> aggregated listings.
-                This cannot be undone.
+                <span className="font-bold text-red-600">{selectedIds.size}</span> aggregated
+                listings. This cannot be undone.
               </p>
             </div>
             <div className="flex gap-3">
@@ -630,6 +689,7 @@ export default function AggregatedSalesManager() {
                               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-300"
                             />
                           </div>
+
                           <div>
                             <label className="text-xs font-semibold text-gray-500 mb-1 block">Description</label>
                             <textarea
@@ -639,6 +699,7 @@ export default function AggregatedSalesManager() {
                               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-300 resize-none"
                             />
                           </div>
+
                           <div className="grid grid-cols-3 gap-3">
                             <div>
                               <label className="text-xs font-semibold text-gray-500 mb-1 block">Address</label>
@@ -671,6 +732,7 @@ export default function AggregatedSalesManager() {
                               />
                             </div>
                           </div>
+
                           <div className="flex gap-2">
                             <button
                               onClick={saveEdit}
@@ -803,10 +865,12 @@ export default function AggregatedSalesManager() {
             <i className="fa-solid fa-chevron-left text-xs mr-1" />
             Previous
           </button>
+
           <span className="text-sm text-gray-500 px-3">
             Page <span className="font-bold text-gray-700">{page + 1}</span> of{" "}
             <span className="font-bold text-gray-700">{totalPages}</span>
           </span>
+
           <button
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
