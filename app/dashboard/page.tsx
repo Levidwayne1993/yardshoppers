@@ -1,15 +1,3 @@
-// ============================================================
-// REPLACE: app/dashboard/page.tsx  (FULL FILE — Part 1 of 2)
-//
-// WHAT CHANGED:
-//   ✅ Profile hero header with avatar upload, display name, bio
-//   ✅ Weather widget in sidebar
-//   ✅ Community Board tab for regular users
-//   ✅ Profile edit modal with city/state + geocoding
-//   ✅ User stats row (listings count, saved, member since)
-//   ✅ All existing admin tabs preserved exactly
-// ============================================================
-
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
@@ -23,8 +11,8 @@ import BoostDashboard from "@/components/admin/BoostDashboard";
 import ShadowbanDashboard from "@/components/admin/ShadowbanDashboard";
 import CouponDashboard from "@/components/admin/CouponDashboard";
 import AdminNotepad from "@/components/admin/AdminNotepad";
-import WeatherWidget from '../../components/WeatherWidget'
-import CommunityBoard from '../../components/CommunityBoard'
+import WeatherWidget from '@/components/WeatherWidget';
+import CommunityBoard from '@/components/CommunityBoard';
 
 const ADMIN_EMAILS = ["erwin-levi@outlook.com", "gary.w.erwin@gmail.com"];
 
@@ -970,7 +958,6 @@ export default function DashboardPage() {
       )}
 
 
-// ============================================================
 
       {/* ===== ADMIN: ANALYTICS TAB ===== */}
       {activeTab === "analytics" && isAdmin && (
