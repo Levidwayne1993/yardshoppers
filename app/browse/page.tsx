@@ -1,8 +1,8 @@
 // ============================================================
 // PASTE INTO: app/browse/page.tsx
-// CHANGE FROM V3: Added SavedPanel right sidebar
-//   Layout: FilterSidebar | Listings | SavedPanel
-//   Grid adjusted to 3-col to fit dual sidebars
+// UPDATED: Removed sort dropdown, auto-sorts smartly
+//   - Distance set → nearest first (boosted at top)
+//   - Distance "Any" or searching → newest first (boosted at top)
 // ============================================================
 
 "use client";
@@ -27,7 +27,6 @@ import {
 import { UnifiedListing } from "@/types/external";
 
 const supabase = createClient();
-
 const ITEMS_PER_PAGE = 24;
 
 const CATEGORIES = [
@@ -162,7 +161,6 @@ function BrowseContent() {
   // ── Persisted filters (survive page navigation) ──
   // Same localStorage keys as homepage so filters stay in sync site-wide
   const [selectedCategory, setSelectedCategory] = usePersistedState("ys-filter-category", "");
-  const [sort, setSort] = usePersistedState("ys-filter-sort", "nearest");
   const [distance, setDistance] = usePersistedState("ys-filter-distance", 50);
   const [dateFilter, setDateFilter] = usePersistedState("ys-filter-date", "");
 
@@ -245,12 +243,13 @@ function BrowseContent() {
             .lte("longitude", effectiveLng + deg);
         }
 
+        // Always fetch newest first — client-side re-sorts by distance when applicable
         query = query
           .order("is_boosted", {
             ascending: false,
             nullsFirst: false,
           })
-          .order("created_at", { ascending: sort === "oldest" });
+          .order("created_at", { ascending: false });
         query = query.limit(25000);
 
         const { data } = await query;
@@ -318,7 +317,7 @@ function BrowseContent() {
         }
 
         extQuery = extQuery
-          .order("collected_at", { ascending: sort === "oldest" })
+          .order("collected_at", { ascending: false })
           .limit(25000);
         const { data: extData } = await extQuery;
         if (extData) {
@@ -364,16 +363,16 @@ function BrowseContent() {
         );
       }
 
-      // ── Sort merged results ──
-      if (
-        sort === "nearest" &&
-        effectiveLat &&
-        effectiveLng &&
-        filtered.length > 0
-      ) {
-        const boosted = filtered.filter((l) => l.is_boosted);
-        const nonBoosted = filtered.filter((l) => !l.is_boosted);
+      // ── Smart auto-sort ──
+      // Distance set + have location + no search → nearest first (boosted at top)
+      // Distance "Any" or searching → newest first (boosted at top)
+      const hasLocation = !!(effectiveLat && effectiveLng);
+      const useNearestSort = distance < 999 && hasLocation && !debouncedSearch.trim();
 
+      const boosted = filtered.filter((l) => l.is_boosted);
+      const nonBoosted = filtered.filter((l) => !l.is_boosted);
+
+      if (useNearestSort) {
         const sortByDistance = (
           a: UnifiedListing,
           b: UnifiedListing
@@ -381,8 +380,8 @@ function BrowseContent() {
           const distA =
             a.latitude && a.longitude
               ? getDistanceMiles(
-                  effectiveLat,
-                  effectiveLng,
+                  effectiveLat!,
+                  effectiveLng!,
                   a.latitude,
                   a.longitude
                 )
@@ -390,8 +389,8 @@ function BrowseContent() {
           const distB =
             b.latitude && b.longitude
               ? getDistanceMiles(
-                  effectiveLat,
-                  effectiveLng,
+                  effectiveLat!,
+                  effectiveLng!,
                   b.latitude,
                   b.longitude
                 )
@@ -401,11 +400,16 @@ function BrowseContent() {
 
         boosted.sort(sortByDistance);
         nonBoosted.sort(sortByDistance);
-        setListings([...boosted, ...nonBoosted]);
       } else {
-        setListings(filtered);
+        const sortByNewest = (a: UnifiedListing, b: UnifiedListing) => {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        };
+
+        boosted.sort(sortByNewest);
+        nonBoosted.sort(sortByNewest);
       }
 
+      setListings([...boosted, ...nonBoosted]);
       setVisibleCount(ITEMS_PER_PAGE);
       setLoading(false);
     }
@@ -415,7 +419,6 @@ function BrowseContent() {
     debouncedSearch,
     selectedCategory,
     dateFilter,
-    sort,
     distance,
     effectiveLat,
     effectiveLng,
@@ -557,9 +560,9 @@ function BrowseContent() {
 
           {/* ── Center: Listings ── */}
           <div className="flex-1 min-w-0">
-            {/* Search + Sort */}
-            <div className="flex gap-3 mb-4">
-              <div className="flex-1 relative">
+            {/* Search bar — no sort dropdown */}
+            <div className="mb-4">
+              <div className="relative">
                 <i
                   className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
                   aria-hidden="true"
@@ -571,20 +574,10 @@ function BrowseContent() {
                     setSearch(e.target.value);
                     setVisibleCount(ITEMS_PER_PAGE);
                   }}
-                  placeholder="Search yard sales..."
+                  placeholder="Search yard sales, cities, or states..."
                   className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-300 focus:border-ys-400 transition"
                 />
               </div>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                aria-label="Sort listings"
-                className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-ys-300"
-              >
-                <option value="nearest">Nearest first</option>
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-              </select>
             </div>
 
             {/* Route Planner CTA */}
@@ -642,7 +635,6 @@ function BrowseContent() {
                     setSelectedCategory("");
                     setDateFilter("");
                     setDistance(50);
-                    setSort("nearest");
                     setLocationOverride(null);
                   }}
                   className="text-sm text-ys-700 hover:text-ys-900 font-semibold transition"
@@ -656,7 +648,7 @@ function BrowseContent() {
               </div>
             )}
 
-            {/* Listings grid — 3 cols max with dual sidebars */}
+            {/* Listings grid */}
             {loading || (distance < 999 && !isLocationReady) ? (
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                 {[...Array(6)].map((_, i) => (
@@ -684,7 +676,6 @@ function BrowseContent() {
                 <button
                   onClick={() => {
                     setDistance(999);
-                    setSort("newest");
                     setSelectedCategory("");
                     setDateFilter("");
                   }}

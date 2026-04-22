@@ -1,8 +1,9 @@
 // ============================================================
 // PASTE INTO: app/page.tsx
-// CHANGE FROM V3: Added SavedPanel right sidebar
-//   Layout: FilterSidebar | Listings | SavedPanel
-//   Grid adjusted to 3-col to fit dual sidebars
+// UPDATED: Removed sort dropdown, auto-sorts smartly
+//   - Distance set → nearest first (boosted at top)
+//   - Distance "Any" → newest first (boosted at top)
+//   - Search by state/city → shows results from that area
 // ============================================================
 
 "use client";
@@ -120,7 +121,6 @@ export default function HomePage() {
 
   // ── Persisted filters (survive page navigation) ──
   const [selectedCategory, setSelectedCategory] = usePersistedState("ys-filter-category", "");
-  const [sort, setSort] = usePersistedState("ys-filter-sort", "nearest");
   const [distance, setDistance] = usePersistedState("ys-filter-distance", 50);
   const [dateFilter, setDateFilter] = usePersistedState("ys-filter-date", "");
 
@@ -189,12 +189,13 @@ export default function HomePage() {
           .lte("longitude", lng + deg);
       }
 
+      // Always fetch newest first from DB — client-side re-sorts by distance when applicable
       userQuery = userQuery
         .order("is_boosted", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: sort === "oldest" });
+        .order("created_at", { ascending: false });
 
       extQuery = extQuery
-        .order("collected_at", { ascending: sort === "oldest" })
+        .order("collected_at", { ascending: false })
         .limit(50);
 
       userQuery = userQuery.limit(50);
@@ -221,7 +222,14 @@ export default function HomePage() {
         );
       }
 
-      if (sort === "nearest" && lat && lng && results.length > 0) {
+      // ── Smart auto-sort ──
+      // Distance set + have location → nearest first (boosted always on top)
+      // Distance "Any" or no location → newest first (boosted always on top)
+      const hasLocation = !!(lat && lng);
+      const useNearestSort = distance < 999 && hasLocation && !debouncedSearch.trim();
+
+      if (useNearestSort) {
+        // Sort by nearest — boosted listings stay at top
         const boosted = results.filter((l: any) => l.is_boosted);
         const nonBoosted = results.filter((l: any) => !l.is_boosted);
 
@@ -240,6 +248,18 @@ export default function HomePage() {
         boosted.sort(sortByDistance);
         nonBoosted.sort(sortByDistance);
         results = [...boosted, ...nonBoosted];
+      } else {
+        // Sort by newest — boosted listings stay at top
+        const boosted = results.filter((l: any) => l.is_boosted);
+        const nonBoosted = results.filter((l: any) => !l.is_boosted);
+
+        const sortByNewest = (a: any, b: any) => {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        };
+
+        boosted.sort(sortByNewest);
+        nonBoosted.sort(sortByNewest);
+        results = [...boosted, ...nonBoosted];
       }
 
       setListings(results.slice(0, 12));
@@ -247,15 +267,12 @@ export default function HomePage() {
     }
 
     fetchListings();
-  }, [debouncedSearch, selectedCategory, dateFilter, sort, distance, lat, lng]);
+  }, [debouncedSearch, selectedCategory, dateFilter, distance, lat, lng]);
 
   return (
     <div>
       <JsonLd data={howToSchema} />
       <JsonLd data={breadcrumbSchema} />
-    
-
-      {/* ══════════ HERO ══════════ */}
 
       {/* ══════════ HERO ══════════ */}
       <section className="relative bg-gradient-to-br from-ys-900 via-ys-800 to-ys-700 text-white overflow-hidden">
@@ -283,27 +300,18 @@ export default function HomePage() {
             </p>
           )}
 
-          <div className="max-w-2xl mx-auto flex gap-3">
-            <div className="flex-1 relative">
+          {/* Search bar — no sort dropdown */}
+          <div className="max-w-2xl mx-auto">
+            <div className="relative">
               <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search for furniture, electronics, toys..."
+                placeholder="Search for furniture, electronics, toys, or a city/state..."
                 className="w-full pl-11 pr-4 py-3.5 bg-white text-gray-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-400 shadow-lg"
               />
             </div>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              aria-label="Sort listings"
-              className="bg-white text-gray-700 rounded-xl px-4 py-3.5 text-sm font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-ys-400"
-            >
-              <option value="nearest">Nearest</option>
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-            </select>
           </div>
         </div>
       </section>
