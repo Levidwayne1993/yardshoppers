@@ -20,7 +20,6 @@ import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
 import { usePersistedState } from "@/lib/usePersistedState";
 import { resolveStateAbbreviation } from "@/lib/stateMap";
-import { resolveStateAbbreviation } from "@/lib/stateMap";
 
 const supabase = createClient();
 
@@ -158,12 +157,13 @@ export default function HomePage() {
 
       if (debouncedSearch.trim()) {
         const term = `%${debouncedSearch.trim()}%`;
-        userQuery = userQuery.or(
-          `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
-        );
-        extQuery = extQuery.or(
-          `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
-        );
+        const stateAbbr = resolveStateAbbreviation(debouncedSearch.trim());
+        let conditions = `title.ilike.${term},description.ilike.${term},city.ilike.${term},state.ilike.${term}`;
+        if (stateAbbr) {
+          conditions += `,state.ilike.%${stateAbbr}%`;
+        }
+        userQuery = userQuery.or(conditions);
+        extQuery = extQuery.or(conditions);
       }
 
       if (selectedCategory) {
