@@ -175,7 +175,7 @@ export default function HomePage() {
         );
       }
 
-      if (distance < 999 && lat && lng) {
+      if (distance < 999 && lat && lng && !debouncedSearch.trim()) {
         const deg = milesToDeg(distance);
         userQuery = userQuery
           .gte("latitude", lat - deg)
@@ -226,7 +226,7 @@ export default function HomePage() {
       // Distance set + have location → nearest first (boosted always on top)
       // Distance "Any" or no location → newest first (boosted always on top)
       const hasLocation = !!(lat && lng);
-      const useNearestSort = hasLocation;
+      const useNearestSort = hasLocation && !debouncedSearch.trim();
 
       if (useNearestSort) {
         // Sort by nearest — boosted listings stay at top

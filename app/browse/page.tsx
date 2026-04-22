@@ -234,7 +234,7 @@ function BrowseContent() {
           );
         }
 
-        if (distance < 999 && effectiveLat && effectiveLng) {
+        if (distance < 999 && effectiveLat && effectiveLng && !debouncedSearch.trim()) {
           const deg = milesToDeg(distance);
           query = query
             .gte("latitude", effectiveLat - deg)
@@ -307,7 +307,7 @@ function BrowseContent() {
           );
         }
 
-        if (distance < 999 && effectiveLat && effectiveLng) {
+        if (distance < 999 && effectiveLat && effectiveLng && !debouncedSearch.trim()) {
           const deg = milesToDeg(distance);
           extQuery = extQuery
             .gte("latitude", effectiveLat - deg)
@@ -367,7 +367,7 @@ function BrowseContent() {
       // Distance set + have location + no search → nearest first (boosted at top)
       // Distance "Any" or searching → newest first (boosted at top)
       const hasLocation = !!(effectiveLat && effectiveLng);
-      const useNearestSort = hasLocation;
+      const useNearestSort = hasLocation && !debouncedSearch.trim();
 
       const boosted = filtered.filter((l) => l.is_boosted);
       const nonBoosted = filtered.filter((l) => !l.is_boosted);
