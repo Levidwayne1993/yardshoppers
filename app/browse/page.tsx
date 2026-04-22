@@ -17,6 +17,7 @@ import SavedPanel from "@/components/SavedPanel";
 import JsonLd from "@/components/JsonLd";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
+import { usePersistedState } from "@/lib/usePersistedState";
 import { cities } from "@/lib/cities";
 import {
   generateCollectionPageSchema,
@@ -155,14 +156,21 @@ function BrowseContent() {
     searchParams.get("search") || ""
   );
   const debouncedSearch = useDebounce(search, 300);
-  const [selectedCategory, setSelectedCategory] = useState(
-    initialCategory && initialCategory !== "All"
-      ? initialCategory
-      : ""
-  );
-  const [sort, setSort] = useState("nearest");
-  const [distance, setDistance] = useState(50);
-  const [dateFilter, setDateFilter] = useState("");
+
+  // ── Persisted filters (survive page navigation) ──
+  // Same localStorage keys as homepage so filters stay in sync site-wide
+  const [selectedCategory, setSelectedCategory] = usePersistedState("ys-filter-category", "");
+  const [sort, setSort] = usePersistedState("ys-filter-sort", "nearest");
+  const [distance, setDistance] = usePersistedState("ys-filter-distance", 50);
+  const [dateFilter, setDateFilter] = usePersistedState("ys-filter-date", "");
+
+  // URL param category overrides persisted value (e.g. clicking a category card)
+  useEffect(() => {
+    if (initialCategory && initialCategory !== "All") {
+      setSelectedCategory(initialCategory);
+    }
+  }, [initialCategory]);
+
   const [currentUserId, setCurrentUserId] = useState<string | null>(
     null
   );

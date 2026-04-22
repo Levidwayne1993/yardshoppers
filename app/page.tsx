@@ -18,6 +18,7 @@ import TrendingSection from "@/components/TrendingSection";
 import CategoryGrid from "@/components/CategoryGrid";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
+import { usePersistedState } from "@/lib/usePersistedState";
 
 const supabase = createClient();
 
@@ -115,10 +116,13 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [sort, setSort] = useState("nearest");
-  const [distance, setDistance] = useState(50);
-  const [dateFilter, setDateFilter] = useState("");
+
+  // ── Persisted filters (survive page navigation) ──
+  const [selectedCategory, setSelectedCategory] = usePersistedState("ys-filter-category", "");
+  const [sort, setSort] = usePersistedState("ys-filter-sort", "nearest");
+  const [distance, setDistance] = usePersistedState("ys-filter-distance", 50);
+  const [dateFilter, setDateFilter] = usePersistedState("ys-filter-date", "");
+
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
