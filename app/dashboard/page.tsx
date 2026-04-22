@@ -1835,11 +1835,13 @@ export default function DashboardPage() {
 
       {/* ========== BOOST MODAL ========== */}
       {boostTarget && (
-        <BoostModal
-          listing={boostTarget}
-          onClose={() => setBoostTarget(null)}
-        />
-      )}
+  <BoostModal
+    listingId={boostTarget.id}
+    listingTitle={boostTarget.title}
+    onClose={() => setBoostTarget(null)}
+  />
+)}
+
     </div>
   );
 }
