@@ -367,7 +367,7 @@ function BrowseContent() {
       // Distance set + have location + no search → nearest first (boosted at top)
       // Distance "Any" or searching → newest first (boosted at top)
       const hasLocation = !!(effectiveLat && effectiveLng);
-      const useNearestSort = distance < 999 && hasLocation && !debouncedSearch.trim();
+      const useNearestSort = hasLocation;
 
       const boosted = filtered.filter((l) => l.is_boosted);
       const nonBoosted = filtered.filter((l) => !l.is_boosted);

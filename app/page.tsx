@@ -226,7 +226,7 @@ export default function HomePage() {
       // Distance set + have location → nearest first (boosted always on top)
       // Distance "Any" or no location → newest first (boosted always on top)
       const hasLocation = !!(lat && lng);
-      const useNearestSort = distance < 999 && hasLocation && !debouncedSearch.trim();
+      const useNearestSort = hasLocation;
 
       if (useNearestSort) {
         // Sort by nearest — boosted listings stay at top
