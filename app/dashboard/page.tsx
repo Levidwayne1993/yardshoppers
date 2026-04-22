@@ -11,6 +11,7 @@ import BoostDashboard from "@/components/admin/BoostDashboard";
 import ShadowbanDashboard from "@/components/admin/ShadowbanDashboard";
 import CouponDashboard from "@/components/admin/CouponDashboard";
 import AdminNotepad from "@/components/admin/AdminNotepad";
+import AggregatedSalesManager from "@/components/admin/AggregatedSalesManager";
 import WeatherWidget from '@/components/WeatherWidget';
 import CommunityBoard from '@/components/CommunityBoard';
 
@@ -72,7 +73,7 @@ export default function DashboardPage() {
 
   // Tabs — users get: my-listings, community | admins get full set
   const [activeTab, setActiveTab] = useState<
-    "my-listings" | "community" | "analytics" | "boosts" | "listings" | "reports" | "coverage" | "shadowban" | "coupons" | "notepad"
+    "my-listings" | "community" | "analytics" | "boosts" | "listings" | "aggregated" | "reports" | "coverage" | "shadowban" | "coupons" | "aggregated" | "notepad"
   >("my-listings");
 
   // Profile editing
@@ -798,6 +799,17 @@ export default function DashboardPage() {
             >
               <i className="fa-solid fa-ticket mr-2 text-xs" />
               Coupons
+            </button>
+            <button
+              onClick={() => setActiveTab("aggregated")}
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
+                activeTab === "aggregated"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <i className="fa-solid fa-database mr-2 text-xs" />
+              Aggregated
             </button>
             <button
               onClick={() => setActiveTab("notepad")}
@@ -1668,6 +1680,11 @@ export default function DashboardPage() {
 
       {/* ===== ADMIN: COUPONS TAB ===== */}
       {activeTab === "coupons" && isAdmin && <CouponDashboard />}
+
+      {/* ===== ADMIN: AGGREGATED TAB ===== */}
+      {activeTab === "aggregated" && isAdmin && (
+        <AggregatedSalesManager />
+      )}
 
       {/* ===== ADMIN: NOTEPAD TAB ===== */}
       {activeTab === "notepad" && isAdmin && <AdminNotepad userEmail={""} />}
