@@ -19,6 +19,8 @@ import CategoryGrid from "@/components/CategoryGrid";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
 import { usePersistedState } from "@/lib/usePersistedState";
+import { resolveStateAbbreviation } from "@/lib/stateMap";
+import { resolveStateAbbreviation } from "@/lib/stateMap";
 
 const supabase = createClient();
 

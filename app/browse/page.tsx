@@ -18,6 +18,7 @@ import JsonLd from "@/components/JsonLd";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
 import { usePersistedState } from "@/lib/usePersistedState";
+import { resolveStateAbbreviation } from "@/lib/stateMap";
 import { cities } from "@/lib/cities";
 import {
   generateCollectionPageSchema,
@@ -26,6 +27,7 @@ import {
 import { UnifiedListing } from "@/types/external";
 
 const supabase = createClient();
+
 const ITEMS_PER_PAGE = 24;
 
 const CATEGORIES = [
@@ -220,9 +222,12 @@ function BrowseContent() {
 
         if (debouncedSearch.trim()) {
           const term = `%${debouncedSearch.trim()}%`;
-          query = query.or(
-            `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
-          );
+          const stateAbbr = resolveStateAbbreviation(debouncedSearch.trim());
+          let conditions = `title.ilike.${term},description.ilike.${term},city.ilike.${term},state.ilike.${term}`;
+          if (stateAbbr) {
+            conditions += `,state.ilike.%${stateAbbr}%`;
+          }
+          query = query.or(conditions);
         }
 
         if (selectedCategory) {
@@ -289,9 +294,12 @@ function BrowseContent() {
 
         if (debouncedSearch.trim()) {
           const term = `%${debouncedSearch.trim()}%`;
-          extQuery = extQuery.or(
-            `title.ilike.${term},description.ilike.${term},city.ilike.${term}`
-          );
+          const stateAbbr = resolveStateAbbreviation(debouncedSearch.trim());
+          let conditions = `title.ilike.${term},description.ilike.${term},city.ilike.${term},state.ilike.${term}`;
+          if (stateAbbr) {
+            conditions += `,state.ilike.%${stateAbbr}%`;
+          }
+          extQuery = extQuery.or(conditions);
         }
 
         if (selectedCategory) {
