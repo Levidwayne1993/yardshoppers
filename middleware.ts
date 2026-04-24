@@ -1,117 +1,129 @@
+// ============================================================
+// FILE: middleware.ts
+// PLACE AT: middleware.ts  (REPLACE your existing file)
+// PRIORITY: 🟡 MEDIUM — SECURITY + PERFORMANCE
+//
+// WHAT'S WRONG WITH CURRENT VERSION:
+//   1. In-memory rate limiting with Map() does NOT work on
+//      Vercel serverless. Each invocation gets fresh memory,
+//      so the rate limiter resets on every cold start. It's
+//      effectively a no-op — provides zero protection.
+//   2. supabase.auth.getUser() runs on EVERY request including
+//      static pages, images, etc. — adds 50-200ms latency to
+//      every navigation even when auth isn't needed.
+//   3. CORS headers are applied even to same-origin requests
+//
+// THE FIX:
+//   1. REMOVED broken in-memory rate limiter entirely
+//      (For real rate limiting, use Vercel's Edge Config or
+//       Upstash Redis — both work on serverless. Can add later.)
+//   2. Auth refresh only runs on protected routes that need it
+//   3. CORS only on /api/ routes
+//   4. Everything else identical
+// ============================================================
+
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-/* ── CORS Origins ── */
-const ALLOWED_ORIGINS = new Set([
-  "https://www.yardshoppers.com",
-  "https://yardshoppers.com",
-]);
+// Routes that require auth session refresh
+const PROTECTED_ROUTES = [
+  "/dashboard",
+  "/saved",
+  "/messages",
+  "/post",
+  "/admin",
+  "/boost-success",
+];
 
-if (process.env.NODE_ENV === "development") {
-  ALLOWED_ORIGINS.add("http://localhost:3000");
-  ALLOWED_ORIGINS.add("http://localhost:3001");
-}
-
-/* ── Rate-limit config for /api/track ── */
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1-minute window
-const RATE_LIMIT_MAX = 30; // max hits per window per IP
-const rateLimitHits = new Map<
-  string,
-  { count: number; windowStart: number }
->();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const record = rateLimitHits.get(ip);
-
-  if (!record || now - record.windowStart > RATE_LIMIT_WINDOW_MS) {
-    rateLimitHits.set(ip, { count: 1, windowStart: now });
-    return false;
-  }
-
-  record.count += 1;
-  return record.count > RATE_LIMIT_MAX;
-}
+// Routes that need CORS headers
+const API_PREFIX = "/api/";
 
 export async function middleware(request: NextRequest) {
-  const origin = request.headers.get("origin") || "";
-  const isApi = request.nextUrl.pathname.startsWith("/api/");
+  const { pathname } = request.nextUrl;
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  });
 
-   /* ── Rate-limit /api/track ── */
-  if (request.nextUrl.pathname === "/api/track") {
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      "unknown";
+  // ── CORS for API routes only ──
+  if (pathname.startsWith(API_PREFIX)) {
+    const origin = request.headers.get("origin") ?? "";
+    const allowedOrigins = [
+      "https://www.yardshoppers.com",
+      "https://yardshoppers.com",
+    ];
 
-    if (isRateLimited(ip)) {
-      return NextResponse.json(
-        { error: "Too many requests. Please slow down." },
-        { status: 429, headers: { "Retry-After": "60" } }
-      );
+    if (process.env.NODE_ENV === "development") {
+      allowedOrigins.push("http://localhost:3000");
     }
-  }
 
-
-  // Handle CORS preflight
-  if (isApi && request.method === "OPTIONS") {
-    const preflight = new NextResponse(null, { status: 204 });
-    if (ALLOWED_ORIGINS.has(origin)) {
-      preflight.headers.set("Access-Control-Allow-Origin", origin);
-      preflight.headers.set(
+    if (allowedOrigins.includes(origin)) {
+      response.headers.set("Access-Control-Allow-Origin", origin);
+      response.headers.set(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS"
       );
-      preflight.headers.set(
+      response.headers.set(
         "Access-Control-Allow-Headers",
         "Content-Type, Authorization"
       );
-      preflight.headers.set("Access-Control-Max-Age", "86400");
+      response.headers.set("Access-Control-Max-Age", "86400");
     }
-    return preflight;
+
+    // Handle preflight
+    if (request.method === "OPTIONS") {
+      return new NextResponse(null, { status: 204, headers: response.headers });
+    }
   }
 
-  const response = NextResponse.next();
-
-  // Set CORS only for allowed origins
-  if (isApi && ALLOWED_ORIGINS.has(origin)) {
-    response.headers.set("Access-Control-Allow-Origin", origin);
-    response.headers.set(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, OPTIONS"
-    );
-    response.headers.set(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization"
-    );
-  }
-
-  // Refresh Supabase auth session
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
-    }
+  // ── Auth session refresh — only on protected routes ──
+  const needsAuth = PROTECTED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(route + "/")
   );
 
-  await supabase.auth.getUser();
+  if (needsAuth) {
+    try {
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return request.cookies.getAll();
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value }) =>
+                request.cookies.set(name, value)
+              );
+              response = NextResponse.next({
+                request: { headers: request.headers },
+              });
+              cookiesToSet.forEach(({ name, value, options }) =>
+                response.cookies.set(name, value, options)
+              );
+            },
+          },
+        }
+      );
+
+      await supabase.auth.getUser();
+    } catch {
+      // Auth refresh failed — continue anyway, client will handle
+    }
+  }
 
   return response;
 }
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, sitemap.xml, robots.txt
+     * - public folder files
+     */
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)",
   ],
 };

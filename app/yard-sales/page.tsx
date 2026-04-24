@@ -1,245 +1,559 @@
+// ============================================================
+// FILE: app/yard-sales/[city]/page.tsx
+// PLACE AT: app/yard-sales/[city]/page.tsx  (REPLACE your existing file)
+// WHAT CHANGED:
+//   1. ADDED faqSchema (FAQPage JSON-LD) — enables Google to
+//      show FAQ rich results in search for all 430+ city pages
+//   2. ADDED <script> tag to inject faqSchema into the page
+//   3. Everything else is IDENTICAL to your current file
+// ============================================================
+
 import { Metadata } from "next";
 import Link from "next/link";
-import { getAllCities, getStates } from "@/lib/cities";
+import { notFound } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+import {
+  getAllCities,
+  getCityBySlug,
+  getNearestCities,
+} from "@/lib/cities";
 
-export const metadata: Metadata = {
-  title: "Yard Sales & Garage Sales by City — Find Sales Near You",
-  description:
-    "Browse yard sales and garage sales by city. Find local sales happening this weekend in your area. Covering 36+ cities across the United States.",
-  alternates: { canonical: "/yard-sales" },
-  openGraph: {
-    title: "Yard Sales & Garage Sales by City — YardShoppers",
-    description:
-      "Browse yard sales and garage sales by city. Find local sales near you this weekend.",
-    url: "https://www.yardshoppers.com/yard-sales",
-    type: "website",
-    images: [
+interface Props {
+  params: Promise<{ city: string }>;
+}
+
+export async function generateStaticParams() {
+  const cities = getAllCities();
+  return cities.map((city) => ({ city: city.slug }));
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { city: slug } = await params;
+  const city = getCityBySlug(slug);
+
+  if (!city) return {};
+
+  const title = `Yard Sales & Garage Sales in ${city.name}, ${city.stateCode} — Find Sales Near You`;
+  const description = `Find yard sales and garage sales happening in ${city.name}, ${city.stateCode} this weekend. Browse listings, see photos, and plan your route to the best sales near you.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/yard-sales/${city.slug}` },
+    openGraph: {
+      title,
+      description,
+      url: `https://www.yardshoppers.com/yard-sales/${city.slug}`,
+      type: "website",
+      images: [
+        {
+          url: "/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: `Yard Sales and Garage Sales in ${city.name}, ${city.stateCode}`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
+
+async function getListingsForCity(cityName: string, stateCode: string) {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const { data: listings } = await supabase
+      .from("listings")
+      .select("*")
+      .or(`city.ilike.%${cityName}%,address.ilike.%${cityName}%`)
+      .gte("sale_date", today)
+      .order("sale_date", { ascending: true })
+      .limit(200);
+
+    return listings || [];
+  } catch {
+    return [];
+  }
+}
+
+export default async function CityPage({ params }: Props) {
+  const { city: slug } = await params;
+  const city = getCityBySlug(slug);
+
+  if (!city) notFound();
+
+  const listings = await getListingsForCity(city.name, city.stateCode);
+  const nearbyCities = getNearestCities(city.lat, city.lng, 6, city.slug);
+
+  // ── Schema: WebPage ──
+  const localBusinessSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: `Yard Sales & Garage Sales in ${city.name}, ${city.stateCode}`,
+    description: `Find yard sales and garage sales in ${city.name}, ${city.stateCode}. Browse local listings with photos, dates, and directions.`,
+    url: `https://www.yardshoppers.com/yard-sales/${city.slug}`,
+    isPartOf: {
+      "@type": "WebSite",
+      name: "YardShoppers",
+      url: "https://www.yardshoppers.com",
+    },
+    about: {
+      "@type": "City",
+      name: city.name,
+      containedInPlace: {
+        "@type": "State",
+        name: city.state,
+      },
+    },
+  };
+
+  // ── Schema: Breadcrumb ──
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
       {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Find Yard Sales and Garage Sales by City — YardShoppers",
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: "https://www.yardshoppers.com",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Yard Sales by City",
+        item: "https://www.yardshoppers.com/yard-sales",
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: `${city.name}, ${city.stateCode}`,
+        item: `https://www.yardshoppers.com/yard-sales/${city.slug}`,
       },
     ],
-  },
-};
+  };
 
-export default function YardSalesCityIndex() {
-  const allCities = getAllCities();
-  const states = getStates();
-
-  const citiesByState: Record<string, typeof allCities> = {};
-  allCities.forEach((city) => {
-    if (!citiesByState[city.stateCode]) {
-      citiesByState[city.stateCode] = [];
-    }
-    citiesByState[city.stateCode].push(city);
-  });
+  // ── NEW: Schema: FAQPage (enables Google rich results) ──
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: `How do I find yard sales in ${city.name}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `The easiest way to find yard sales and garage sales in ${city.name}, ${city.stateCode} is to browse YardShoppers. You can search by date, category, and location. You can also check Facebook Marketplace, Craigslist, and Nextdoor, or drive through neighborhoods on Saturday mornings.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `When is yard sale season in ${city.name}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `In ${city.name}, ${city.stateCode}, yard sale season typically runs from ${
+            city.stateCode === "AZ" || city.stateCode === "NV"
+              ? "October through April when the weather is cooler"
+              : city.stateCode === "FL"
+              ? "year-round thanks to the warm climate, with fall and spring being the busiest"
+              : city.stateCode === "CA"
+              ? "year-round, with spring and fall weekends being the most popular"
+              : "April through October, with spring and early fall weekends being the busiest"
+          }. Saturday mornings from 7–8 AM are the most popular start times.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `Is it free to post a yard sale in ${city.name} on YardShoppers?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `Yes! Posting a yard sale or garage sale on YardShoppers is 100% free. You can optionally boost your listing for more visibility starting at $2.99. Just go to the Post a Sale page, add your details and photos, and your listing will be live in minutes.`,
+        },
+      },
+      {
+        "@type": "Question",
+        name: `Do I need a permit for a yard sale in ${city.name}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `Yard sale permit requirements vary by city. Some cities in ${city.state} require a free permit or limit the number of sales per year. Check with the ${city.name} city clerk or local government website for current regulations.`,
+        },
+      },
+    ],
+  };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16">
-      {/* Breadcrumb */}
-      <nav
-        aria-label="Breadcrumb"
-        className="flex items-center gap-2 text-sm text-gray-500 mb-8"
-      >
-        <Link href="/" className="hover:text-ys-800 transition">
-          Home
-        </Link>
-        <i
-          className="fa-solid fa-chevron-right text-[10px] text-gray-300"
-          aria-hidden="true"
-        />
-        <span className="text-gray-900 font-medium">Yard Sales by City</span>
-      </nav>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(localBusinessSchema),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbSchema),
+        }}
+      />
+      {/* ── NEW: FAQ schema for Google rich results ── */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(faqSchema),
+        }}
+      />
 
-      {/* Hero */}
-      <header className="text-center mb-14">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
-          Yard Sales &amp; Garage Sales by City
-        </h1>
-        <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-          Find yard sales, garage sales, and estate sales happening near you.
-          Browse by city to discover local sales this weekend.
-        </p>
-      </header>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16">
+        {/* Breadcrumb */}
+        <nav
+          aria-label="Breadcrumb"
+          className="flex items-center gap-2 text-sm text-gray-500 mb-8"
+        >
+          <Link href="/" className="hover:text-ys-800 transition">
+            Home
+          </Link>
+          <i
+            className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+            aria-hidden="true"
+          />
+          <Link
+            href="/yard-sales"
+            className="hover:text-ys-800 transition"
+          >
+            Yard Sales by City
+          </Link>
+          <i
+            className="fa-solid fa-chevron-right text-[10px] text-gray-300"
+            aria-hidden="true"
+          />
+          <span className="text-gray-900 font-medium">
+            {city.name}, {city.stateCode}
+          </span>
+        </nav>
 
-      {/* Quick Stats Bar */}
-      <div className="grid grid-cols-3 gap-4 mb-14">
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 text-center shadow-sm">
-          <p className="text-2xl font-extrabold text-ys-800">
-            {allCities.length}
+        {/* Hero Section */}
+        <header className="mb-12">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
+            Yard Sales &amp; Garage Sales in {city.name},{" "}
+            {city.stateCode}
+          </h1>
+          <p className="text-lg text-gray-500 max-w-3xl">
+            {city.description}
           </p>
-          <p className="text-sm text-gray-500 mt-1">Cities Covered</p>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 text-center shadow-sm">
-          <p className="text-2xl font-extrabold text-ys-800">
-            {states.length}
-          </p>
-          <p className="text-sm text-gray-500 mt-1">States</p>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 text-center shadow-sm">
-          <p className="text-2xl font-extrabold text-ys-800">Free</p>
-          <p className="text-sm text-gray-500 mt-1">To List a Sale</p>
-        </div>
-      </div>
-
-      {/* State Jump Links */}
-      <div className="mb-10">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
-          Jump to State
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {states.map((state) => (
-            <a
-              key={state.code}
-              href={`#${state.code}`}
-              className="text-sm px-3 py-1.5 bg-gray-100 hover:bg-ys-100 hover:text-ys-800 text-gray-700 rounded-full font-medium transition"
+          <div className="flex flex-wrap items-center gap-3 mt-6">
+            <Link
+              href={`/browse?location=${encodeURIComponent(
+                city.name + ", " + city.stateCode
+              )}`}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
             >
-              {state.name}
-            </a>
-          ))}
-        </div>
-      </div>
+              <i
+                className="fa-solid fa-map-marker-alt"
+                aria-hidden="true"
+              />
+              Browse Sales in {city.name}
+            </Link>
+            <Link
+              href="/post"
+              className="inline-flex items-center gap-2 px-6 py-2.5 border-2 border-ys-800 text-ys-800 hover:bg-ys-800 hover:text-white rounded-full font-semibold transition"
+            >
+              <i className="fa-solid fa-plus" aria-hidden="true" />
+              Post a Sale in {city.name}
+            </Link>
+          </div>
+        </header>
 
-      {/* Cities by State */}
-      <div className="space-y-12">
-        {states.map((state) => (
-          <section key={state.code} id={state.code}>
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 bg-ys-100 rounded-lg flex items-center justify-center">
+        {/* Active Listings */}
+        <section className="mb-16">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">
+            {listings.length > 0
+              ? `Upcoming Yard Sales in ${city.name}`
+              : `No Sales Listed Yet in ${city.name}`}
+          </h2>
+
+          {listings.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {listings.map((listing: Record<string, string>) => (
+                <Link
+                  key={listing.id}
+                  href={`/listing/${listing.id}`}
+                  className="group bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-ys-200 transition-all"
+                >
+                  <h3 className="font-bold text-gray-900 group-hover:text-ys-800 transition mb-1 line-clamp-1">
+                    {listing.title}
+                  </h3>
+                  {listing.sale_date && (
+                    <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-2">
+                      <i
+                        className="fa-regular fa-calendar text-xs"
+                        aria-hidden="true"
+                      />
+                      <time dateTime={listing.sale_date}>
+                        {new Date(
+                          listing.sale_date + "T00:00:00"
+                        ).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </time>
+                    </div>
+                  )}
+                  {listing.address && (
+                    <p className="text-sm text-gray-400 line-clamp-1">
+                      <i
+                        className="fa-solid fa-location-dot mr-1"
+                        aria-hidden="true"
+                      />
+                      {listing.address}
+                    </p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-8 text-center">
+              <div className="w-14 h-14 bg-ys-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i
-                  className="fa-solid fa-location-dot text-sm text-ys-700"
+                  className="fa-solid fa-map-pin text-xl text-ys-700"
                   aria-hidden="true"
                 />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {state.name}
-              </h2>
-              <span className="text-sm text-gray-400">
-                {citiesByState[state.code].length}{" "}
-                {citiesByState[state.code].length === 1 ? "city" : "cities"}
-              </span>
+              <p className="text-gray-600 mb-2">
+                No yard sales or garage sales are currently listed in{" "}
+                {city.name}.
+              </p>
+              <p className="text-sm text-gray-400 mb-5">
+                Be the first to post a sale and reach local buyers!
+              </p>
+              <Link
+                href="/post"
+                className="inline-block px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
+              >
+                Post a Free Listing
+              </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {citiesByState[state.code].map((city) => (
+          )}
+        </section>
+
+        {/* Local Tips Section */}
+        <section className="mb-16">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">
+            Yard Sale &amp; Garage Sale Tips for {city.name}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              <div className="w-10 h-10 bg-ys-100 rounded-xl flex items-center justify-center mb-3">
+                <i
+                  className="fa-solid fa-magnifying-glass text-ys-700"
+                  aria-hidden="true"
+                />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">
+                Finding Sales
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Browse{" "}
                 <Link
-                  key={city.slug}
-                  href={`/yard-sales/${city.slug}`}
-                  className="group bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-ys-200 transition-all"
+                  href={`/browse?location=${encodeURIComponent(
+                    city.name + ", " + city.stateCode
+                  )}`}
+                  className="text-ys-800 hover:underline font-medium"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-gray-900 group-hover:text-ys-800 transition">
-                        {city.name}, {city.stateCode}
-                      </h3>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Pop. {city.population}
-                      </p>
-                    </div>
-                    <div className="w-8 h-8 bg-gray-50 group-hover:bg-ys-50 rounded-full flex items-center justify-center shrink-0 transition">
-                      <i
-                        className="fa-solid fa-arrow-right text-xs text-gray-400 group-hover:text-ys-700 transition"
-                        aria-hidden="true"
-                      />
-                    </div>
+                  yard sales in {city.name}
+                </Link>{" "}
+                on YardShoppers. Check Facebook Marketplace, Craigslist,
+                and Nextdoor for additional listings. Drive through popular
+                neighborhoods on Saturday mornings — many sales
+                aren&apos;t posted online.
+              </p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              <div className="w-10 h-10 bg-ys-100 rounded-xl flex items-center justify-center mb-3">
+                <i
+                  className="fa-solid fa-route text-ys-700"
+                  aria-hidden="true"
+                />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">
+                Plan Your Route
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Use the{" "}
+                <Link
+                  href="/route-planner"
+                  className="text-ys-800 hover:underline font-medium"
+                >
+                  YardShoppers Route Planner
+                </Link>{" "}
+                to map out multiple garage sales in {city.name} and hit
+                them all in one morning. Start early — the best finds go
+                fast.
+              </p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              <div className="w-10 h-10 bg-ys-100 rounded-xl flex items-center justify-center mb-3">
+                <i
+                  className="fa-solid fa-tags text-ys-700"
+                  aria-hidden="true"
+                />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">
+                Selling in {city.name}
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                <Link
+                  href="/post"
+                  className="text-ys-800 hover:underline font-medium"
+                >
+                  Post your yard sale
+                </Link>{" "}
+                for free on YardShoppers to reach {city.name} buyers. Add
+                photos, set your date, and share the link on social media
+                for maximum visibility.
+              </p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              <div className="w-10 h-10 bg-ys-100 rounded-xl flex items-center justify-center mb-3">
+                <i
+                  className="fa-solid fa-book-open text-ys-700"
+                  aria-hidden="true"
+                />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">
+                Read Our Guides
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                New to yard sales? Check out our{" "}
+                <Link
+                  href="/blog/how-to-have-a-successful-yard-sale"
+                  className="text-ys-800 hover:underline font-medium"
+                >
+                  complete yard sale guide
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/blog/how-to-price-items-for-yard-sale"
+                  className="text-ys-800 hover:underline font-medium"
+                >
+                  pricing guide
+                </Link>{" "}
+                for expert tips.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="mb-16">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">
+            {city.name} Yard Sale &amp; Garage Sale FAQs
+          </h2>
+          <div className="space-y-3">
+            {[
+              {
+                q: `How do I find yard sales in ${city.name}?`,
+                a: `The easiest way to find yard sales and garage sales in ${city.name}, ${city.stateCode} is to browse YardShoppers. You can search by date, category, and location. You can also check Facebook Marketplace, Craigslist, and Nextdoor, or drive through neighborhoods on Saturday mornings.`,
+              },
+              {
+                q: `When is yard sale season in ${city.name}?`,
+                a: `In ${city.name}, ${city.stateCode}, yard sale season typically runs from ${
+                  city.stateCode === "AZ" || city.stateCode === "NV"
+                    ? "October through April when the weather is cooler"
+                    : city.stateCode === "FL"
+                    ? "year-round thanks to the warm climate, with fall and spring being the busiest"
+                    : city.stateCode === "CA"
+                    ? "year-round, with spring and fall weekends being the most popular"
+                    : "April through October, with spring and early fall weekends being the busiest"
+                }. Saturday mornings from 7–8 AM are the most popular start times.`,
+              },
+              {
+                q: `Is it free to post a yard sale in ${city.name} on YardShoppers?`,
+                a: `Yes! Posting a yard sale or garage sale on YardShoppers is 100% free. You can optionally boost your listing for more visibility starting at $2.99. Just go to the Post a Sale page, add your details and photos, and your listing will be live in minutes.`,
+              },
+              {
+                q: `Do I need a permit for a yard sale in ${city.name}?`,
+                a: `Yard sale permit requirements vary by city. Some cities in ${city.state} require a free permit or limit the number of sales per year. Check with the ${city.name} city clerk or local government website for current regulations.`,
+              },
+            ].map((item, i) => (
+              <details
+                key={i}
+                className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm cursor-pointer"
+              >
+                <summary className="font-semibold text-gray-800">
+                  {item.q}
+                </summary>
+                <p className="mt-2 text-sm text-gray-600">{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        {/* Nearby Cities */}
+        {nearbyCities.length > 0 && (
+          <section className="mb-16">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">
+              Yard Sales in Nearby Cities
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {nearbyCities.map((nearby) => (
+                <Link
+                  key={nearby.slug}
+                  href={`/yard-sales/${nearby.slug}`}
+                  className="group bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-ys-200 transition-all text-center"
+                >
+                  <div className="w-9 h-9 bg-ys-50 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-ys-100 transition">
+                    <i
+                      className="fa-solid fa-location-dot text-sm text-ys-700"
+                      aria-hidden="true"
+                    />
                   </div>
-                  <p className="text-sm text-gray-500 mt-2 line-clamp-2">
-                    {city.description}
+                  <h3 className="font-semibold text-gray-900 group-hover:text-ys-800 transition text-sm">
+                    {nearby.name}, {nearby.stateCode}
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {nearby.population} people
                   </p>
                 </Link>
               ))}
             </div>
           </section>
-        ))}
-      </div>
+        )}
 
-      {/* SEO Content Section */}
-      <section className="mt-16 mb-12">
-        <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            How to Find Yard Sales &amp; Garage Sales Near You
+        {/* Bottom CTA */}
+        <div className="bg-gradient-to-br from-ys-50 to-ys-100 border border-ys-200 rounded-2xl p-8 text-center">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            Host a yard sale or garage sale in {city.name}
           </h2>
-          <div className="prose prose-gray prose-sm max-w-none">
-            <p>
-              YardShoppers makes it easy to find yard sales, garage sales,
-              estate sales, and tag sales in cities across the United States.
-              Simply select your city above to see upcoming sales in your
-              area, complete with photos, dates, and directions.
-            </p>
-            <h3>Tips for Finding the Best Sales</h3>
-            <ul>
-              <li>
-                <strong>Start early:</strong> The best deals at yard sales and
-                garage sales go fast. Arrive at 7–8 AM for the best selection.
-              </li>
-              <li>
-                <strong>Plan a route:</strong> Use our{" "}
-                <Link
-                  href="/route-planner"
-                  className="text-ys-800 hover:underline"
-                >
-                  Route Planner
-                </Link>{" "}
-                to hit multiple sales in one morning.
-              </li>
-              <li>
-                <strong>Bring cash:</strong> Most yard sale sellers prefer
-                small bills. Bring at least $40 in ones and fives.
-              </li>
-              <li>
-                <strong>Check back often:</strong> New sales are posted daily,
-                especially on Wednesday through Friday for upcoming weekend
-                sales.
-              </li>
-            </ul>
-            <h3>Hosting a Sale?</h3>
-            <p>
-              <Link
-                href="/post"
-                className="text-ys-800 hover:underline font-medium"
-              >
-                Post your yard sale or garage sale for free
-              </Link>{" "}
-              on YardShoppers and reach thousands of local buyers. Add photos,
-              set your sale date, and share your listing link on social media
-              for maximum visibility. Check out our{" "}
-              <Link
-                href="/blog/how-to-have-a-successful-yard-sale"
-                className="text-ys-800 hover:underline font-medium"
-              >
-                complete yard sale guide
-              </Link>{" "}
-              for expert tips on pricing, setup, and promotion.
-            </p>
+          <p className="text-sm text-gray-600 mb-5">
+            List your sale for free and reach thousands of buyers in{" "}
+            {city.name}, {city.stateCode}.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/post"
+              className="px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
+            >
+              Post Your Sale — Free
+            </Link>
+            <Link
+              href="/browse"
+              className="px-6 py-2.5 border-2 border-ys-800 text-ys-800 hover:bg-ys-800 hover:text-white rounded-full font-semibold transition"
+            >
+              Browse All Sales
+            </Link>
           </div>
         </div>
-      </section>
-
-      {/* Bottom CTA */}
-      <div className="bg-gradient-to-br from-ys-50 to-ys-100 border border-ys-200 rounded-2xl p-8 text-center">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">
-          Don&apos;t see your city?
-        </h2>
-        <p className="text-sm text-gray-600 mb-5">
-          YardShoppers covers yard sales and garage sales nationwide. Browse
-          all listings or post a sale in any location.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            href="/browse"
-            className="px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
-          >
-            Browse All Sales
-          </Link>
-          <Link
-            href="/post"
-            className="px-6 py-2.5 border-2 border-ys-800 text-ys-800 hover:bg-ys-800 hover:text-white rounded-full font-semibold transition"
-          >
-            Post a Sale — Free
-          </Link>
-        </div>
       </div>
-    </div>
+    </>
   );
 }
