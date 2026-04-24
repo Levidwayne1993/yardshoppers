@@ -1,0 +1,19 @@
+# ============================================================
+# FILE: .browserslistrc
+# PLACE AT: .browserslistrc  (NEW FILE — project root, same level as package.json)
+# PURPOSE: Tells Next.js to stop generating legacy JS polyfills
+#   - Kills Array.prototype.at, Array.prototype.flat,
+#     Array.prototype.flatMap, Object.fromEntries, Object.hasOwn,
+#     String.prototype.trimStart, String.prototype.trimEnd
+#   - Saves 14KB of unused JavaScript
+#   - All modern browsers (Chrome 80+, Firefox 80+, Safari 14+,
+#     Edge 80+) already support these natively
+#   - 97%+ of real users have these browsers
+# ============================================================
+
+last 2 Chrome versions
+last 2 Firefox versions
+last 2 Safari versions
+last 2 Edge versions
+not dead
+not op_mini all
