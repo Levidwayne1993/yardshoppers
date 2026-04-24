@@ -1,22 +1,13 @@
 // ============================================================
 // FILE: app/sitemap.ts
 // PLACE AT: app/sitemap.ts  (REPLACE your existing file)
-// PRIORITY: 🔴 CRITICAL — SEO
-//
-// WHAT'S WRONG WITH CURRENT VERSION:
-//   1. listings .limit(25000) can timeout on Vercel (10s limit)
-//      — if it times out, your ENTIRE sitemap returns empty
-//   2. Missing pages: /contact, /tips, /pricing, /about
-//   3. external_sales not included — only internal listings
-//   4. Blog posts use string dates, not Date objects
-//   5. No changefreq or priority hints
-//
-// THE FIX:
-//   1. Paginated fetches (1000 at a time) — no timeout risk
-//   2. Added ALL missing static pages
-//   3. Added external_sales alongside listings
-//   4. Added try/catch so sitemap never fully breaks
-//   5. Proper Date objects throughout
+// BUILD FIX:
+//   Changed `supabase: ReturnType<typeof createClient>` to
+//   `supabase: any` on line 31. The strict ReturnType typing
+//   resolves to SupabaseClient<unknown, ...> which doesn't match
+//   the actual SupabaseClient<any, "public", ...> returned by
+//   createClient(url, key). Using `any` fixes the mismatch.
+//   Everything else is IDENTICAL to what you already pushed.
 // ============================================================
 
 import type { MetadataRoute } from "next";
@@ -27,9 +18,10 @@ const BASE = "https://www.yardshoppers.com";
 
 export const revalidate = 3600; // regenerate sitemap hourly
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchAllIds(
   table: string,
-  supabase: ReturnType<typeof createClient>
+  supabase: any
 ): Promise<{ id: string }[]> {
   const PAGE = 1000;
   const all: { id: string }[] = [];
