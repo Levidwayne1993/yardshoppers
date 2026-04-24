@@ -25,7 +25,7 @@ const poppins = Poppins({
   display: "swap",
 });
 
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-XXXXXXX";
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-GTM-P3N8VNGV";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
 export const metadata: Metadata = {
