@@ -2,10 +2,11 @@
 // FILE: app/layout.tsx
 // PLACE AT: app/layout.tsx  (REPLACE your existing layout.tsx)
 // WHAT CHANGED:
-//   - Added GTM Consent Mode v2 defaults BEFORE the GTM script
-//   - Checks localStorage for "ys_cookie_consent" === "all"
-//     to immediately grant consent on return visits
-//   - Everything else is identical to your current file
+//   1. Added preconnect to Supabase for faster API calls
+//   2. Added dns-prefetch for Font Awesome CDN
+//   3. Added GTM Consent Mode v2 defaults (from earlier)
+//   4. Font Awesome now loads async properly with crossOrigin
+//   5. Everything else is identical to your current file
 // ============================================================
 
 import type { Metadata } from "next";
@@ -24,12 +25,8 @@ const poppins = Poppins({
   display: "swap",
 });
 
-/* ──────────────────────────────────────────────
-   IMPORTANT — Replace GTM-XXXXXXX with your
-   real Google Tag Manager container ID.
-   Create one free at https://tagmanager.google.com
-   ────────────────────────────────────────────── */
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-XXXXXXX";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.yardshoppers.com"),
@@ -171,10 +168,20 @@ export default function RootLayout({
         <meta name="theme-color" content="#15803d" />
         <meta name="geo.region" content="US" />
 
-        {/* ── NEW: GTM Consent Mode v2 defaults (MUST come BEFORE GTM script) ── */}
-        {/* Sets all consent to "denied" by default. If user previously           */}
-        {/* accepted cookies (ys_cookie_consent = "all"), immediately updates     */}
-        {/* to "granted" before GTM fires any tags.                               */}
+        {/* ── PERF: Preconnect to Supabase (saves ~100-200ms on first API call) ── */}
+        {SUPABASE_URL && (
+          <link
+            rel="preconnect"
+            href={SUPABASE_URL}
+            crossOrigin="anonymous"
+          />
+        )}
+
+        {/* ── PERF: DNS prefetch for Font Awesome + GTM ── */}
+        <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+
+        {/* ── GTM Consent Mode v2 defaults (MUST come BEFORE GTM script) ── */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -216,6 +223,7 @@ export default function RootLayout({
           }}
         />
 
+        {/* ── PERF: Font Awesome loaded async (non-blocking) ── */}
         <link
           rel="preconnect"
           href="https://cdnjs.cloudflare.com"
@@ -225,6 +233,7 @@ export default function RootLayout({
           rel="preload"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
           as="style"
+          crossOrigin="anonymous"
         />
         <link
           rel="stylesheet"
@@ -232,6 +241,7 @@ export default function RootLayout({
           media="print"
           // @ts-ignore
           onLoad="this.media='all'"
+          crossOrigin="anonymous"
         />
         <noscript>
           <link
