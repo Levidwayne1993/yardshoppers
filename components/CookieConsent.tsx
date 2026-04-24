@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 
 type ConsentLevel = "all" | "essential" | null;
 
+/* ── Extend Window so TypeScript knows about gtag ── */
+declare global {
+  interface Window {
+    gtag: (...args: unknown[]) => void;
+  }
+}
+
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -22,28 +29,25 @@ export default function CookieConsent() {
   }, []);
 
   function applyConsent(level: ConsentLevel) {
+    if (typeof window === "undefined" || typeof window.gtag !== "function")
+      return;
+
     if (level === "all") {
-      // Enable GTM dataLayer consent mode
-      if (typeof window !== "undefined" && (window as any).dataLayer) {
-        (window as any).dataLayer.push({
-          event: "consent_update",
-          analytics_storage: "granted",
-          ad_storage: "granted",
-          ad_user_data: "granted",
-          ad_personalization: "granted",
-        });
-      }
+      // Grant all tracking
+      window.gtag("consent", "update", {
+        analytics_storage: "granted",
+        ad_storage: "granted",
+        ad_user_data: "granted",
+        ad_personalization: "granted",
+      });
     } else {
       // Essential only — deny tracking cookies
-      if (typeof window !== "undefined" && (window as any).dataLayer) {
-        (window as any).dataLayer.push({
-          event: "consent_update",
-          analytics_storage: "denied",
-          ad_storage: "denied",
-          ad_user_data: "denied",
-          ad_personalization: "denied",
-        });
-      }
+      window.gtag("consent", "update", {
+        analytics_storage: "denied",
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+      });
     }
   }
 

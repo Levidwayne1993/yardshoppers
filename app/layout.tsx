@@ -161,6 +161,36 @@ export default function RootLayout({
         <meta name="theme-color" content="#15803d" />
         <meta name="geo.region" content="US" />
 
+        {/* ── NEW: GTM Consent Mode v2 defaults (MUST come BEFORE GTM script) ── */}
+        {/* Sets all consent to "denied" by default. If user previously           */}
+        {/* accepted cookies (ys_cookie_consent = "all"), immediately updates     */}
+        {/* to "granted" before GTM fires any tags.                               */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              window.gtag = function(){window.dataLayer.push(arguments);};
+              window.gtag('consent', 'default', {
+                'analytics_storage': 'denied',
+                'ad_storage': 'denied',
+                'ad_user_data': 'denied',
+                'ad_personalization': 'denied',
+                'wait_for_update': 500
+              });
+              try {
+                if (localStorage.getItem('ys_cookie_consent') === 'all') {
+                  window.gtag('consent', 'update', {
+                    'analytics_storage': 'granted',
+                    'ad_storage': 'granted',
+                    'ad_user_data': 'granted',
+                    'ad_personalization': 'granted'
+                  });
+                }
+              } catch(e) {}
+            `,
+          }}
+        />
+
         {/* ── Google Tag Manager (head) ── */}
         <Script
           id="gtm-script"
