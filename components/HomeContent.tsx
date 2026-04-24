@@ -1,13 +1,14 @@
 // ============================================================
 // FILE: components/HomeContent.tsx
-// PLACE AT: components/HomeContent.tsx  (NEW FILE — create it)
-// PURPOSE:
-//   - This is where ALL the interactive homepage logic lives
-//   - Receives initialListings from the server component (page.tsx)
-//   - Shows pre-fetched data instantly on first render (no loading)
-//   - Only re-fetches from Supabase when user searches/filters
-//   - TrendingSection + CategoryGrid are lazy-loaded (below fold)
-//   - This is your original page.tsx code, just moved here
+// PLACE AT: components/HomeContent.tsx  (REPLACE your existing file)
+// WHAT CHANGED:
+//   - When initialListings is empty (which it now always is),
+//     the component auto-fetches on mount with loading=true
+//   - Hero section renders INSTANTLY (static HTML, no data needed)
+//   - Skeleton shimmer shows for listings while Supabase loads
+//   - Data appears in ~500ms after hydration
+//   - Removed the hasInteracted gate for initial fetch
+//   - TrendingSection + CategoryGrid still lazy-loaded
 // ============================================================
 
 "use client";
@@ -25,7 +26,6 @@ import { useDebounce } from "@/lib/useDebounce";
 import { usePersistedState } from "@/lib/usePersistedState";
 import { resolveStateAbbreviation } from "@/lib/stateMap";
 
-// ── PERFORMANCE: Lazy-load below-fold components ──
 const TrendingSection = dynamic(
   () => import("@/components/TrendingSection"),
   { ssr: false }
@@ -119,7 +119,6 @@ const breadcrumbSchema = {
   ],
 };
 
-/* ── Props: server component passes pre-fetched listings ── */
 interface HomeContentProps {
   initialListings: any[];
 }
@@ -134,16 +133,12 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
     requestPreciseLocation,
   } = useLocation();
 
-  /* ── Start with server-fetched data — NO loading spinner ── */
+  // ── Start loading=true so skeletons show while data loads ──
   const [listings, setListings] = useState<any[]>(initialListings);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(initialListings.length === 0);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
-  // ── Track whether user has interacted with filters ──
-  const [hasInteracted, setHasInteracted] = useState(false);
-
-  // ── Persisted filters (survive page navigation) ──
   const [selectedCategory, setSelectedCategory] = usePersistedState(
     "ys-filter-category",
     ""
@@ -169,28 +164,13 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
   function handleDistanceChange(value: number | null) {
     const d = value ?? 999;
     setDistance(d);
-    setHasInteracted(true);
     if (d < 999) {
       requestPreciseLocation();
     }
   }
 
-  function handleCategoryChange(cat: string) {
-    setSelectedCategory(cat);
-    setHasInteracted(true);
-  }
-
-  function handleDateChange(date: string) {
-    setDateFilter(date);
-    setHasInteracted(true);
-  }
-
-  /* ── Only re-fetch when user interacts with filters/search.
-        On initial load, we use the server-provided data. ── */
+  // ── Always fetch on mount + when filters change ──
   useEffect(() => {
-    // Skip client fetch on initial mount — server already provided data
-    if (!hasInteracted && !debouncedSearch.trim()) return;
-
     if (distance < 999 && (!lat || !lng)) return;
 
     async function fetchListings() {
@@ -270,7 +250,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
         );
       }
 
-      // ── Smart auto-sort ──
       const hasLocation = !!(lat && lng);
       const useNearestSort = hasLocation && !debouncedSearch.trim();
 
@@ -309,7 +288,7 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
       setLoading(false);
     }
     fetchListings();
-  }, [debouncedSearch, selectedCategory, dateFilter, distance, lat, lng, hasInteracted]);
+  }, [debouncedSearch, selectedCategory, dateFilter, distance, lat, lng]);
 
   return (
     <div>
@@ -352,7 +331,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
             </p>
           )}
 
-          {/* Search bar */}
           <div className="max-w-2xl mx-auto">
             <div className="relative">
               <i
@@ -362,10 +340,7 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setHasInteracted(true);
-                }}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search for furniture, electronics, toys, or a city/state..."
                 aria-label="Search yard sales"
                 className="w-full pl-11 pr-4 py-3.5 bg-white text-gray-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-400 shadow-lg"
@@ -375,24 +350,22 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
         </div>
       </section>
 
-      {/* ══════════ 3-PANEL LAYOUT: Filter | Listings | Saved ══════════ */}
+      {/* ══════════ 3-PANEL LAYOUT ══════════ */}
       <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-8">
         <div className="flex gap-6">
-          {/* ── Left Sidebar: Filters ── */}
           <FilterSidebar
             selectedCategory={selectedCategory}
-            onCategoryChange={handleCategoryChange}
+            onCategoryChange={setSelectedCategory}
             selectedDistance={distance >= 999 ? null : distance}
             onDistanceChange={handleDistanceChange}
             selectedDate={dateFilter}
-            onDateChange={handleDateChange}
+            onDateChange={setDateFilter}
             city={city || ""}
             region={region || ""}
             onRequestLocation={requestPreciseLocation}
             isLoggedIn={!!currentUserId}
           />
 
-          {/* ── Center: Listings ── */}
           <div className="flex-1 min-w-0">
             {loading || (distance < 999 && locationLoading) ? (
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
@@ -423,7 +396,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
                     setDistance(999);
                     setSelectedCategory("");
                     setDateFilter("");
-                    setHasInteracted(true);
                   }}
                   className="px-6 py-2.5 bg-ys-800 text-white rounded-full font-semibold hover:bg-ys-900 transition"
                 >
@@ -458,7 +430,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
             )}
           </div>
 
-          {/* ── Right Sidebar: Saved Sales ── */}
           <SavedPanel
             userId={currentUserId}
             totalListingsNearby={listings.length}
@@ -466,12 +437,11 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
         </div>
       </div>
 
-      {/* ══════════ TRENDING + BELOW (centered container) ══════════ */}
+      {/* ══════════ TRENDING + BELOW ══════════ */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <TrendingSection />
         <CategoryGrid />
 
-        {/* Route Planner CTA */}
         <section className="mt-12 bg-gradient-to-r from-ys-50 to-emerald-50 border border-ys-200 rounded-3xl p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center shrink-0">
@@ -502,7 +472,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
           </div>
         </section>
 
-        {/* Why Sellers Love YardShoppers */}
         <section className="mt-10 bg-gradient-to-br from-ys-50 via-white to-amber-50 border border-ys-200 rounded-3xl p-8 sm:p-10">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
             Why Sellers Love YardShoppers
@@ -565,7 +534,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
           </div>
         </section>
 
-        {/* How YardShoppers Works */}
         <section className="mt-16 mb-8" id="how-it-works">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
             How YardShoppers Works
@@ -604,7 +572,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
           </div>
         </section>
 
-        {/* Trust Badges */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
             { icon: "fa-dollar-sign", label: "Free to Browse" },
