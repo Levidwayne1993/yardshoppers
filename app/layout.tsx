@@ -1,3 +1,13 @@
+// ============================================================
+// FILE: app/layout.tsx
+// PLACE AT: app/layout.tsx  (REPLACE your existing layout.tsx)
+// WHAT CHANGED:
+//   - Added GTM Consent Mode v2 defaults BEFORE the GTM script
+//   - Checks localStorage for "ys_cookie_consent" === "all"
+//     to immediately grant consent on return visits
+//   - Everything else is identical to your current file
+// ============================================================
+
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import Script from "next/script";

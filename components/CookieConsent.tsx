@@ -1,3 +1,16 @@
+// ============================================================
+// FILE: components/CookieConsent.tsx
+// PLACE AT: components/CookieConsent.tsx  (REPLACE your existing file)
+// WHAT CHANGED:
+//   - Fixed applyConsent() to use window.gtag('consent','update')
+//     instead of dataLayer.push — this is the correct Consent
+//     Mode v2 API that works with the defaults in layout.tsx
+//   - Your existing UI (cookie emoji, expandable details,
+//     Accept All / Essential Only buttons) is unchanged
+//   - localStorage key stays "ys_cookie_consent" with values
+//     "all" or "essential" — matches your current code
+// ============================================================
+
 "use client";
 
 import { useState, useEffect } from "react";

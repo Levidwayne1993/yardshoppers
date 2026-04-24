@@ -1,26 +1,40 @@
 // ============================================================
-// PASTE INTO: app/page.tsx
-// UPDATED: Removed sort dropdown, auto-sorts smartly
-//   - Distance set → nearest first (boosted at top)
-//   - Distance "Any" → newest first (boosted at top)
-//   - Search by state/city → shows results from that area
+// FILE: app/page.tsx
+// PLACE AT: app/page.tsx  (REPLACE your existing file)
+// WHAT CHANGED:
+//   1. PERFORMANCE: TrendingSection and CategoryGrid now use
+//      next/dynamic with { ssr: false } — they load lazily
+//      since they're below the fold. This cuts initial JS
+//      bundle size and speeds up first paint.
+//   2. ACCESSIBILITY: Added aria-label="Search yard sales"
+//      to the hero search input.
+//   3. Everything else is identical to your current file.
 // ============================================================
 
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase-browser";
 import ListingCard from "@/components/ListingCard";
 import FilterSidebar, { matchesDateFilter } from "@/components/FilterSidebar";
 import SavedPanel from "@/components/SavedPanel";
 import JsonLd from "@/components/JsonLd";
-import TrendingSection from "@/components/TrendingSection";
-import CategoryGrid from "@/components/CategoryGrid";
 import { useLocation } from "@/lib/useLocation";
 import { useDebounce } from "@/lib/useDebounce";
 import { usePersistedState } from "@/lib/usePersistedState";
 import { resolveStateAbbreviation } from "@/lib/stateMap";
+
+// ── PERFORMANCE: Lazy-load below-fold components ──
+const TrendingSection = dynamic(
+  () => import("@/components/TrendingSection"),
+  { ssr: false }
+);
+const CategoryGrid = dynamic(
+  () => import("@/components/CategoryGrid"),
+  { ssr: false }
+);
 
 const supabase = createClient();
 
@@ -56,7 +70,9 @@ function getDistanceMiles(
   const dLng = toRad(lng2 - lng1);
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -120,9 +136,15 @@ export default function HomePage() {
   const debouncedSearch = useDebounce(search, 300);
 
   // ── Persisted filters (survive page navigation) ──
-  const [selectedCategory, setSelectedCategory] = usePersistedState("ys-filter-category", "");
+  const [selectedCategory, setSelectedCategory] = usePersistedState(
+    "ys-filter-category",
+    ""
+  );
   const [distance, setDistance] = usePersistedState("ys-filter-distance", 50);
-  const [dateFilter, setDateFilter] = usePersistedState("ys-filter-date", "");
+  const [dateFilter, setDateFilter] = usePersistedState(
+    "ys-filter-date",
+    ""
+  );
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -150,9 +172,10 @@ export default function HomePage() {
     async function fetchListings() {
       setLoading(true);
 
-      let userQuery = supabase.from("listings").select("*, listing_photos(*)");
+      let userQuery = supabase
+        .from("listings")
+        .select("*, listing_photos(*)");
       userQuery = userQuery.eq("is_shadowbanned", false);
-
       let extQuery = supabase.from("external_sales").select("*");
 
       if (debouncedSearch.trim()) {
@@ -200,10 +223,12 @@ export default function HomePage() {
 
       userQuery = userQuery.limit(50);
 
-      const [userResult, extResult] = await Promise.all([userQuery, extQuery]);
+      const [userResult, extResult] = await Promise.all([
+        userQuery,
+        extQuery,
+      ]);
 
       const userListings = userResult.data || [];
-
       const externalListings = (extResult.data || []).map((ext: any) => ({
         ...ext,
         listing_photos: ext.photo_urls
@@ -232,7 +257,6 @@ export default function HomePage() {
         // Sort by nearest — boosted listings stay at top
         const boosted = results.filter((l: any) => l.is_boosted);
         const nonBoosted = results.filter((l: any) => !l.is_boosted);
-
         const sortByDistance = (a: any, b: any) => {
           const distA =
             a.latitude && a.longitude
@@ -244,7 +268,6 @@ export default function HomePage() {
               : Infinity;
           return distA - distB;
         };
-
         boosted.sort(sortByDistance);
         nonBoosted.sort(sortByDistance);
         results = [...boosted, ...nonBoosted];
@@ -252,11 +275,12 @@ export default function HomePage() {
         // Sort by newest — boosted listings stay at top
         const boosted = results.filter((l: any) => l.is_boosted);
         const nonBoosted = results.filter((l: any) => !l.is_boosted);
-
         const sortByNewest = (a: any, b: any) => {
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          return (
+            new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime()
+          );
         };
-
         boosted.sort(sortByNewest);
         nonBoosted.sort(sortByNewest);
         results = [...boosted, ...nonBoosted];
@@ -265,7 +289,6 @@ export default function HomePage() {
       setListings(results.slice(0, 12));
       setLoading(false);
     }
-
     fetchListings();
   }, [debouncedSearch, selectedCategory, dateFilter, distance, lat, lng]);
 
@@ -277,16 +300,23 @@ export default function HomePage() {
       {/* ══════════ HERO ══════════ */}
       <section className="relative bg-gradient-to-br from-ys-900 via-ys-800 to-ys-700 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 text-6xl animate-bounce">🏷️</div>
-          <div className="absolute top-20 right-20 text-5xl animate-bounce delay-300">🛋️</div>
-          <div className="absolute bottom-10 left-1/4 text-4xl animate-bounce delay-700">📦</div>
-          <div className="absolute bottom-20 right-1/3 text-5xl animate-bounce delay-500">🎸</div>
+          <div className="absolute top-10 left-10 text-6xl animate-bounce">
+            🏷️
+          </div>
+          <div className="absolute top-20 right-20 text-5xl animate-bounce delay-300">
+            🛋️
+          </div>
+          <div className="absolute bottom-10 left-1/4 text-4xl animate-bounce delay-700">
+            📦
+          </div>
+          <div className="absolute bottom-20 right-1/3 text-5xl animate-bounce delay-500">
+            🎸
+          </div>
         </div>
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center relative z-10">
           <h1 className="text-3xl sm:text-5xl font-extrabold mb-3 leading-tight">
-            Discover Yard Sales
-            <br />
+            Discover Yard Sales <br />
             <span className="text-ys-300">Near You</span>
           </h1>
           <p className="text-ys-100 text-lg mb-2 max-w-xl mx-auto">
@@ -295,7 +325,10 @@ export default function HomePage() {
           </p>
           {(city || region) && (
             <p className="text-ys-300 text-sm mb-8">
-              <i className="fa-solid fa-location-dot mr-1" aria-hidden="true" />
+              <i
+                className="fa-solid fa-location-dot mr-1"
+                aria-hidden="true"
+              />
               {[city, region].filter(Boolean).join(", ")}
             </p>
           )}
@@ -303,12 +336,17 @@ export default function HomePage() {
           {/* Search bar — no sort dropdown */}
           <div className="max-w-2xl mx-auto">
             <div className="relative">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+              <i
+                className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                aria-hidden="true"
+              />
+              {/* ── A11Y FIX: Added aria-label ── */}
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search for furniture, electronics, toys, or a city/state..."
+                aria-label="Search yard sales"
                 className="w-full pl-11 pr-4 py-3.5 bg-white text-gray-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-400 shadow-lg"
               />
             </div>
@@ -348,10 +386,17 @@ export default function HomePage() {
             ) : listings.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
-                  <i className="fa-solid fa-magnifying-glass text-3xl text-gray-300" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-magnifying-glass text-3xl text-gray-300"
+                    aria-hidden="true"
+                  />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">No sales found nearby</h2>
-                <p className="text-gray-500 mb-6">Try expanding your distance or changing your search.</p>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  No sales found nearby
+                </h2>
+                <p className="text-gray-500 mb-6">
+                  Try expanding your distance or changing your search.
+                </p>
                 <button
                   onClick={() => {
                     setDistance(999);
@@ -382,7 +427,10 @@ export default function HomePage() {
                   className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition-all hover:shadow-lg"
                 >
                   View All Sales
-                  <i className="fa-solid fa-arrow-right text-sm" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-arrow-right text-sm"
+                    aria-hidden="true"
+                  />
                 </Link>
               </div>
             )}
@@ -398,6 +446,7 @@ export default function HomePage() {
 
       {/* ══════════ TRENDING + BELOW (centered container) ══════════ */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* ── PERFORMANCE: These load lazily via next/dynamic ── */}
         <TrendingSection />
         <CategoryGrid />
 
@@ -405,22 +454,28 @@ export default function HomePage() {
         <section className="mt-12 bg-gradient-to-r from-ys-50 to-emerald-50 border border-ys-200 rounded-3xl p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center shrink-0">
-              <i className="fa-solid fa-route text-2xl text-ys-700" aria-hidden="true" />
+              <i
+                className="fa-solid fa-route text-2xl text-ys-700"
+                aria-hidden="true"
+              />
             </div>
             <div className="flex-1 text-center sm:text-left">
               <h2 className="text-lg font-bold text-gray-900 mb-1">
                 Plan Your Route
               </h2>
               <p className="text-sm text-gray-600">
-                Hit multiple sales in one trip. Map out the most efficient route
-                and never miss a deal on your way.
+                Hit multiple sales in one trip. Map out the most efficient
+                route and never miss a deal on your way.
               </p>
             </div>
             <Link
               href="/route-planner"
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-ys-700 hover:bg-ys-800 text-white rounded-full font-semibold text-sm transition-all hover:shadow-lg shrink-0"
             >
-              <i className="fa-solid fa-map-location-dot" aria-hidden="true" />
+              <i
+                className="fa-solid fa-map-location-dot"
+                aria-hidden="true"
+              />
               Open Route Planner
             </Link>
           </div>
@@ -428,28 +483,51 @@ export default function HomePage() {
 
         {/* Why Sellers Love YardShoppers */}
         <section className="mt-10 bg-gradient-to-br from-ys-50 via-white to-amber-50 border border-ys-200 rounded-3xl p-8 sm:p-10">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">Why Sellers Love YardShoppers</h2>
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
+            Why Sellers Love YardShoppers
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto mb-8">
             <div className="text-center">
               <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <i className="fa-solid fa-check text-lg text-green-600" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-check text-lg text-green-600"
+                  aria-hidden="true"
+                />
               </div>
               <h3 className="font-bold text-gray-900 mb-1">Free to Post</h3>
-              <p className="text-sm text-gray-500">List your yard sale in under 2 minutes — no fees, no catch.</p>
+              <p className="text-sm text-gray-500">
+                List your yard sale in under 2 minutes — no fees, no catch.
+              </p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <i className="fa-solid fa-rocket text-lg text-amber-600" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-rocket text-lg text-amber-600"
+                  aria-hidden="true"
+                />
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">Boost for More Eyes</h3>
-              <p className="text-sm text-gray-500">Get up to 25x more views with optional boost tiers starting at just $1.99.</p>
+              <h3 className="font-bold text-gray-900 mb-1">
+                Boost for More Eyes
+              </h3>
+              <p className="text-sm text-gray-500">
+                Get up to 25x more views with optional boost tiers starting
+                at just $1.99.
+              </p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <i className="fa-solid fa-map-location-dot text-lg text-blue-600" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-map-location-dot text-lg text-blue-600"
+                  aria-hidden="true"
+                />
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">Route Planner Ready</h3>
-              <p className="text-sm text-gray-500">Buyers plan trips around your sale — boosted listings get priority pins.</p>
+              <h3 className="font-bold text-gray-900 mb-1">
+                Route Planner Ready
+              </h3>
+              <p className="text-sm text-gray-500">
+                Buyers plan trips around your sale — boosted listings get
+                priority pins.
+              </p>
             </div>
           </div>
           <div className="text-center">
@@ -457,7 +535,10 @@ export default function HomePage() {
               href="/post"
               className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-bold transition-all hover:shadow-lg"
             >
-              <i className="fa-solid fa-plus text-sm" aria-hidden="true" />
+              <i
+                className="fa-solid fa-plus text-sm"
+                aria-hidden="true"
+              />
               Post Your Yard Sale — Free
             </Link>
           </div>
@@ -465,18 +546,37 @@ export default function HomePage() {
 
         {/* How YardShoppers Works */}
         <section className="mt-16 mb-8" id="how-it-works">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">How YardShoppers Works</h2>
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
+            How YardShoppers Works
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
             {[
-              { icon: "fa-magnifying-glass", title: "Search", desc: "Find yard sales near you by location, category, or keyword." },
-              { icon: "fa-heart", title: "Save", desc: "Save your favorite listings and plan your yard sale route." },
-              { icon: "fa-map-location-dot", title: "Visit", desc: "Get directions and head out to find amazing deals!" },
+              {
+                icon: "fa-magnifying-glass",
+                title: "Search",
+                desc: "Find yard sales near you by location, category, or keyword.",
+              },
+              {
+                icon: "fa-heart",
+                title: "Save",
+                desc: "Save your favorite listings and plan your yard sale route.",
+              },
+              {
+                icon: "fa-map-location-dot",
+                title: "Visit",
+                desc: "Get directions and head out to find amazing deals!",
+              },
             ].map((step) => (
               <div key={step.title} className="text-center">
                 <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <i className={`fa-solid ${step.icon} text-xl text-ys-700`} aria-hidden="true" />
+                  <i
+                    className={`fa-solid ${step.icon} text-xl text-ys-700`}
+                    aria-hidden="true"
+                  />
                 </div>
-                <h3 className="font-bold text-gray-900 mb-1">{step.title}</h3>
+                <h3 className="font-bold text-gray-900 mb-1">
+                  {step.title}
+                </h3>
                 <p className="text-sm text-gray-500">{step.desc}</p>
               </div>
             ))}
@@ -491,11 +591,19 @@ export default function HomePage() {
             { icon: "fa-bolt", label: "Instant Posting" },
             { icon: "fa-shield-halved", label: "Secure & Private" },
           ].map((trust) => (
-            <div key={trust.label} className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl">
+            <div
+              key={trust.label}
+              className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl"
+            >
               <div className="w-9 h-9 bg-ys-100 rounded-lg flex items-center justify-center shrink-0">
-                <i className={`fa-solid ${trust.icon} text-sm text-ys-700`} aria-hidden="true" />
+                <i
+                  className={`fa-solid ${trust.icon} text-sm text-ys-700`}
+                  aria-hidden="true"
+                />
               </div>
-              <span className="text-sm font-semibold text-gray-700">{trust.label}</span>
+              <span className="text-sm font-semibold text-gray-700">
+                {trust.label}
+              </span>
             </div>
           ))}
         </section>
