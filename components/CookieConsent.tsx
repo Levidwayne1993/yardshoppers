@@ -1,23 +1,9 @@
-// ============================================================
-// FILE: components/CookieConsent.tsx
-// PLACE AT: components/CookieConsent.tsx  (REPLACE your existing file)
-// WHAT CHANGED:
-//   - Fixed applyConsent() to use window.gtag('consent','update')
-//     instead of dataLayer.push — this is the correct Consent
-//     Mode v2 API that works with the defaults in layout.tsx
-//   - Your existing UI (cookie emoji, expandable details,
-//     Accept All / Essential Only buttons) is unchanged
-//   - localStorage key stays "ys_cookie_consent" with values
-//     "all" or "essential" — matches your current code
-// ============================================================
-
 "use client";
 
 import { useState, useEffect } from "react";
 
 type ConsentLevel = "all" | "essential" | null;
 
-/* ── Extend Window so TypeScript knows about gtag ── */
 declare global {
   interface Window {
     gtag: (...args: unknown[]) => void;
@@ -29,14 +15,12 @@ export default function CookieConsent() {
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    // If user already made a choice, don't show the banner
     const consent = localStorage.getItem("ys_cookie_consent");
     if (!consent) {
-      // Small delay so it doesn't flash on initial load
-      const timer = setTimeout(() => setVisible(true), 1500);
-      return () => clearTimeout(timer);
+      // ── NO MORE setTimeout! Show on first frame.
+      //    CSS animation handles the smooth slide-in. ──
+      setVisible(true);
     } else {
-      // Apply saved consent on page load
       applyConsent(consent as ConsentLevel);
     }
   }, []);
@@ -46,7 +30,6 @@ export default function CookieConsent() {
       return;
 
     if (level === "all") {
-      // Grant all tracking
       window.gtag("consent", "update", {
         analytics_storage: "granted",
         ad_storage: "granted",
@@ -54,7 +37,6 @@ export default function CookieConsent() {
         ad_personalization: "granted",
       });
     } else {
-      // Essential only — deny tracking cookies
       window.gtag("consent", "update", {
         analytics_storage: "denied",
         ad_storage: "denied",
@@ -86,7 +68,13 @@ export default function CookieConsent() {
       aria-label="Cookie consent"
       aria-live="polite"
       className="fixed bottom-0 inset-x-0 z-[9999] p-4 sm:p-6"
+      style={{ animation: "ysSlideUp 0.4s ease-out" }}
     >
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `@keyframes ysSlideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}`,
+        }}
+      />
       <div className="mx-auto max-w-3xl rounded-2xl bg-white shadow-2xl border border-gray-200 p-5 sm:p-6">
         {/* ── Header ── */}
         <div className="flex items-start gap-3 mb-3">

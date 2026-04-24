@@ -1,14 +1,3 @@
-// ============================================================
-// FILE: app/layout.tsx
-// PLACE AT: app/layout.tsx  (REPLACE your existing layout.tsx)
-// WHAT CHANGED:
-//   1. Added preconnect to Supabase for faster API calls
-//   2. Added dns-prefetch for Font Awesome CDN
-//   3. Added GTM Consent Mode v2 defaults (from earlier)
-//   4. Font Awesome now loads async properly with crossOrigin
-//   5. Everything else is identical to your current file
-// ============================================================
-
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import Script from "next/script";
@@ -25,8 +14,8 @@ const poppins = Poppins({
   display: "swap",
 });
 
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-GTM-P3N8VNGV";
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+// ── FIXED: was "GTM-GTM-P3N8VNGV" (double prefix — completely broken) ──
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-P3N8VNGV";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.yardshoppers.com"),
@@ -168,16 +157,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#15803d" />
         <meta name="geo.region" content="US" />
 
-        {/* ── PERF: Preconnect to Supabase (saves ~100-200ms on first API call) ── */}
-        {SUPABASE_URL && (
-          <link
-            rel="preconnect"
-            href={SUPABASE_URL}
-            crossOrigin="anonymous"
-          />
-        )}
-
-        {/* ── PERF: DNS prefetch for Font Awesome + GTM ── */}
+        {/* ── DNS prefetch for Font Awesome + GTM ── */}
         <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
 
@@ -208,10 +188,10 @@ export default function RootLayout({
           }}
         />
 
-        {/* ── Google Tag Manager (head) ── */}
+        {/* ── Google Tag Manager — PERF: lazyOnload cuts ~224ms TBT ── */}
         <Script
           id="gtm-script"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `
               (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -223,18 +203,7 @@ export default function RootLayout({
           }}
         />
 
-        {/* ── PERF: Font Awesome loaded async (non-blocking) ── */}
-        <link
-          rel="preconnect"
-          href="https://cdnjs.cloudflare.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-          as="style"
-          crossOrigin="anonymous"
-        />
+        {/* ── Font Awesome async (non-render-blocking) ── */}
         <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
