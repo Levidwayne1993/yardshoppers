@@ -18,6 +18,7 @@ export default function Navbar() {
       setUser(data.user);
       if (data.user) fetchUnread(data.user.id);
     });
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -25,6 +26,7 @@ export default function Navbar() {
       if (session?.user) fetchUnread(session.user.id);
       else setUnreadCount(0);
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -46,27 +48,43 @@ export default function Navbar() {
       .select("*", { count: "exact", head: true })
       .eq("receiver_id", userId)
       .eq("is_read", false);
-
     setUnreadCount(count || 0);
   };
 
   const mobileNav = [
     { href: "/", icon: "fa-house", label: "Home" },
     { href: "/browse", icon: "fa-magnifying-glass", label: "Browse" },
-    { href: "/messages", icon: "fa-envelope", label: "Messages", badge: true },
+    {
+      href: "/messages",
+      icon: "fa-envelope",
+      label: "Messages",
+      badge: true,
+    },
     { href: "/post", icon: "fa-plus", label: "Post" },
-    { href: user ? "/dashboard" : "/login", icon: "fa-user", label: user ? "Account" : "Log In" },
+    {
+      href: user ? "/dashboard" : "/login",
+      icon: "fa-user",
+      label: user ? "Account" : "Log In",
+    },
   ];
 
   return (
     <>
-      {/* Top navbar */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      {/* ── A11Y FIX: added aria-label="Main navigation" ── */}
+      <nav
+        className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm"
+        aria-label="Main navigation"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-2xl">🏷️</span>
+            <Link
+              href="/"
+              className="flex items-center gap-2 flex-shrink-0"
+            >
+              <span className="text-2xl" aria-hidden="true">
+                🏷️
+              </span>
               <span className="text-xl font-bold text-ys-800 tracking-tight">
                 YardShoppers
               </span>
@@ -82,7 +100,10 @@ export default function Navbar() {
                     : "text-gray-600 hover:text-ys-700 hover:bg-ys-50"
                 }`}
               >
-                <i className="fa-solid fa-magnifying-glass mr-1.5" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-magnifying-glass mr-1.5"
+                  aria-hidden="true"
+                />
                 Browse Sales
               </Link>
 
@@ -94,7 +115,10 @@ export default function Navbar() {
                     : "text-gray-600 hover:text-ys-700 hover:bg-ys-50"
                 }`}
               >
-                <i className="fa-solid fa-route mr-1.5" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-route mr-1.5"
+                  aria-hidden="true"
+                />
                 Route Planner
               </Link>
 
@@ -102,7 +126,10 @@ export default function Navbar() {
                 href="/#how-it-works"
                 className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-ys-700 hover:bg-ys-50 transition"
               >
-                <i className="fa-solid fa-circle-info mr-1.5" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-circle-info mr-1.5"
+                  aria-hidden="true"
+                />
                 How It Works
               </a>
 
@@ -115,10 +142,16 @@ export default function Navbar() {
                       : "text-gray-600 hover:text-ys-700 hover:bg-ys-50"
                   }`}
                 >
-                  <i className="fa-solid fa-envelope mr-1.5" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-envelope mr-1.5"
+                    aria-hidden="true"
+                  />
                   Messages
                   {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 left-[72px] bg-[#FF6B35] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                    <span
+                      className="absolute -top-0.5 left-[72px] bg-[#FF6B35] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1"
+                      aria-label={`${unreadCount} unread messages`}
+                    >
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                   )}
@@ -134,7 +167,10 @@ export default function Navbar() {
                       : "text-gray-600 hover:text-ys-700 hover:bg-ys-50"
                   }`}
                 >
-                  <i className="fa-solid fa-user mr-1.5" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-user mr-1.5"
+                    aria-hidden="true"
+                  />
                   My Account
                 </Link>
               )}
@@ -147,7 +183,10 @@ export default function Navbar() {
                   href="/post"
                   className="px-4 py-2 rounded-xl bg-ys-600 text-white text-sm font-semibold hover:bg-ys-700 transition shadow-sm"
                 >
-                  <i className="fa-solid fa-plus mr-1.5" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-plus mr-1.5"
+                    aria-hidden="true"
+                  />
                   Post a Sale
                 </Link>
               ) : (
@@ -193,51 +232,65 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
               className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
             >
-              <i className="fa-solid fa-magnifying-glass mr-2 text-ys-600" aria-hidden="true" />
+              <i
+                className="fa-solid fa-magnifying-glass mr-2 text-ys-600"
+                aria-hidden="true"
+              />
               Browse Sales
             </Link>
-
             <Link
               href="/route-planner"
               onClick={() => setMenuOpen(false)}
               className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
             >
-              <i className="fa-solid fa-route mr-2 text-ys-600" aria-hidden="true" />
+              <i
+                className="fa-solid fa-route mr-2 text-ys-600"
+                aria-hidden="true"
+              />
               Route Planner
             </Link>
-
             <a
               href="/#how-it-works"
               onClick={() => setMenuOpen(false)}
               className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
             >
-              <i className="fa-solid fa-circle-info mr-2 text-ys-600" aria-hidden="true" />
+              <i
+                className="fa-solid fa-circle-info mr-2 text-ys-600"
+                aria-hidden="true"
+              />
               How It Works
             </a>
-
             {user && (
               <Link
                 href="/messages"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
               >
-                <i className="fa-solid fa-envelope mr-2 text-ys-600" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-envelope mr-2 text-ys-600"
+                  aria-hidden="true"
+                />
                 Messages
                 {unreadCount > 0 && (
-                  <span className="ml-auto bg-[#FF6B35] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                  <span
+                    className="ml-auto bg-[#FF6B35] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1"
+                    aria-label={`${unreadCount} unread messages`}
+                  >
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}
               </Link>
             )}
-
             {user && (
               <Link
                 href="/dashboard"
                 onClick={() => setMenuOpen(false)}
                 className="block px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-ys-50 transition"
               >
-                <i className="fa-solid fa-user mr-2 text-ys-600" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-user mr-2 text-ys-600"
+                  aria-hidden="true"
+                />
                 My Account
               </Link>
             )}
@@ -249,7 +302,10 @@ export default function Navbar() {
                   onClick={() => setMenuOpen(false)}
                   className="block w-full text-center px-4 py-2.5 rounded-xl bg-ys-600 text-white text-sm font-semibold hover:bg-ys-700 transition"
                 >
-                  <i className="fa-solid fa-plus mr-1.5" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-plus mr-1.5"
+                    aria-hidden="true"
+                  />
                   Post a Sale
                 </Link>
               ) : (
@@ -287,6 +343,7 @@ export default function Navbar() {
               <Link
                 key={item.label}
                 href={item.href}
+                aria-current={isActive ? "page" : undefined}
                 className={`relative flex flex-col items-center justify-center gap-0.5 flex-1 py-1 rounded-lg transition ${
                   isActive
                     ? "text-ys-700"
@@ -301,7 +358,10 @@ export default function Navbar() {
                     aria-hidden="true"
                   />
                   {item.badge && unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-2.5 bg-[#FF6B35] text-white text-[8px] font-bold min-w-[14px] h-[14px] rounded-full flex items-center justify-center px-0.5">
+                    <span
+                      className="absolute -top-1.5 -right-2.5 bg-[#FF6B35] text-white text-[8px] font-bold min-w-[14px] h-[14px] rounded-full flex items-center justify-center px-0.5"
+                      aria-label={`${unreadCount} unread`}
+                    >
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}

@@ -77,7 +77,6 @@ export default function ListingCard({
     e.preventDefault();
     e.stopPropagation();
     if (!currentUserId || saveBusy) return;
-
     setSaveBusy(true);
 
     if (saved) {
@@ -112,6 +111,7 @@ export default function ListingCard({
           id: `p-${i}`,
           photo_url: url,
         }));
+
   const coverPhoto = photos[0]?.photo_url;
 
   let categories: string[] = [];
@@ -149,7 +149,7 @@ export default function ListingCard({
     </div>
   );
 
-  // Heart button — persists to Supabase (or visual-only if not logged in)
+  // ── A11Y FIX: Heart button now has aria-label ──
   const heartButton = (
     <button
       onClick={
@@ -161,6 +161,7 @@ export default function ListingCard({
               setSaved(!saved);
             }
       }
+      aria-label={saved ? "Remove from saved listings" : "Save this listing"}
       className={`absolute bottom-3 left-3 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm ${
         saved
           ? "bg-red-500 text-white"
@@ -169,6 +170,7 @@ export default function ListingCard({
     >
       <i
         className={`${saved ? "fa-solid" : "fa-regular"} fa-heart text-xs`}
+        aria-hidden="true"
       />
     </button>
   );
@@ -188,14 +190,17 @@ export default function ListingCard({
             {coverPhoto ? (
               <Image
                 src={coverPhoto}
-                alt={listing.title}
+                alt={listing.title || "Listing photo"}
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-300"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full bg-ys-50">
-                <i className="fa-solid fa-tag text-3xl text-ys-300 mb-1" />
+                <i
+                  className="fa-solid fa-tag text-3xl text-ys-300 mb-1"
+                  aria-hidden="true"
+                />
                 <p className="text-xs text-ys-400">No photo</p>
               </div>
             )}
@@ -212,9 +217,12 @@ export default function ListingCard({
             {categoryBadges}
 
             {photos.length > 1 && (
-              <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] font-medium px-2 py-1 rounded-lg backdrop-blur-sm flex items-center gap-1">
-                <i className="fa-solid fa-images" />
-                {photos.length}
+              <div
+                className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] font-medium px-2 py-1 rounded-lg backdrop-blur-sm flex items-center gap-1"
+                aria-label={`${photos.length} photos`}
+              >
+                <i className="fa-solid fa-images" aria-hidden="true" />
+                <span>{photos.length}</span>
               </div>
             )}
 
@@ -238,14 +246,20 @@ export default function ListingCard({
 
           {(listing.city || listing.state) && (
             <p className="text-sm text-gray-500 mt-1.5 flex items-center gap-1.5">
-              <i className="fa-solid fa-location-dot text-[10px] text-ys-500" />
+              <i
+                className="fa-solid fa-location-dot text-[10px] text-ys-500"
+                aria-hidden="true"
+              />
               {[listing.city, listing.state].filter(Boolean).join(", ")}
             </p>
           )}
 
           {listing.sale_date && (
             <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-              <i className="fa-regular fa-calendar text-[10px] text-ys-500" />
+              <i
+                className="fa-regular fa-calendar text-[10px] text-ys-500"
+                aria-hidden="true"
+              />
               {new Date(listing.sale_date + "T00:00:00").toLocaleDateString(
                 "en-US",
                 { month: "short", day: "numeric" }
@@ -281,16 +295,23 @@ export default function ListingCard({
                 e.stopPropagation();
                 setShowBoostModal(true);
               }}
+              aria-label={`Boost listing: ${listing.title}`}
               className="mt-3 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-900 py-2 rounded-xl text-sm font-bold transition-all hover:shadow-md"
             >
-              <i className="fa-solid fa-rocket text-xs" />
+              <i
+                className="fa-solid fa-rocket text-xs"
+                aria-hidden="true"
+              />
               Boost This Listing
             </button>
           )}
 
           {isOwner && isBoosted && (
             <div className="mt-3 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 py-2 rounded-xl text-sm font-semibold">
-              <i className="fa-solid fa-check-circle text-xs" />
+              <i
+                className="fa-solid fa-check-circle text-xs"
+                aria-hidden="true"
+              />
               Boosted
             </div>
           )}
