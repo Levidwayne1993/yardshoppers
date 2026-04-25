@@ -1,9 +1,11 @@
 // ============================================================
-// PASTE INTO: app/listing/[id]/ListingDetailClient.tsx (yardshoppers project)
+// FILE: app/listing/[id]/ListingDetailClient.tsx
+// PLACE AT: app/listing/[id]/ListingDetailClient.tsx (REPLACE)
 //
-// UPDATED: Added shadowban check — if a listing is shadowbanned,
-// it appears as "Listing Not Found" to everyone EXCEPT the
-// shadowbanned user themselves (who still sees it normally).
+// WHAT CHANGED: Added sanitizeDescription() helper that strips
+// raw URLs, HTML tags, and excess whitespace from listing
+// descriptions. Added "Show more / Show less" toggle for long
+// descriptions. Everything else is IDENTICAL to your current file.
 // ============================================================
 
 "use client";
@@ -44,6 +46,44 @@ interface Listing {
   listing_photos?: { id: string; photo_url: string }[];
   latitude?: number | null;
   longitude?: number | null;
+}
+
+// ============================================
+// NEW: DESCRIPTION SANITIZER
+// Strips raw URLs, HTML tags, and excess whitespace
+// so scraped descriptions display cleanly.
+// ============================================
+function sanitizeDescription(raw: string): string {
+  let text = raw;
+
+  // Strip HTML tags (e.g. <img>, <a href="...">, <br>, etc.)
+  text = text.replace(/<[^>]*>/g, "");
+
+  // Strip raw URLs (http://, https://, www.)
+  text = text.replace(/https?:\/\/[^\s)]+/gi, "");
+  text = text.replace(/www\.[^\s)]+/gi, "");
+
+  // Decode common HTML entities that might be in scraped text
+  text = text.replace(/&amp;/g, "&");
+  text = text.replace(/&lt;/g, "<");
+  text = text.replace(/&gt;/g, ">");
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&#39;/g, "'");
+  text = text.replace(/&nbsp;/g, " ");
+
+  // Collapse 3+ consecutive newlines into 2
+  text = text.replace(/\n{3,}/g, "\n\n");
+
+  // Remove lines that are ONLY whitespace
+  text = text
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n");
+
+  // Trim leading/trailing whitespace
+  text = text.trim();
+
+  return text;
 }
 
 // ============================================
@@ -187,6 +227,9 @@ export default function ListingDetailClient({
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [hostAvgRating, setHostAvgRating] = useState<number | null>(null);
   const [hostTotalRatings, setHostTotalRatings] = useState<number>(0);
+
+  // NEW: state for "Show more / Show less" toggle on long descriptions
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   // Track whether this listing has a real user-seller (for Message Seller, Boost, etc.)
   const [hasRealSeller, setHasRealSeller] = useState(false);
@@ -447,6 +490,18 @@ export default function ListingDetailClient({
   const isOwner = user && listing.user_id && listing.user_id === user.id;
   const jsonLdItems = buildJsonLd(listing, hasRealSeller);
 
+  // NEW: Sanitize the description and determine if it's long enough for truncation
+  const cleanDescription = listing.description
+    ? sanitizeDescription(listing.description)
+    : "";
+  const DESCRIPTION_TRUNCATE_LENGTH = 500;
+  const isLongDescription =
+    cleanDescription.length > DESCRIPTION_TRUNCATE_LENGTH;
+  const displayDescription =
+    isLongDescription && !showFullDescription
+      ? cleanDescription.slice(0, DESCRIPTION_TRUNCATE_LENGTH).trimEnd() + "…"
+      : cleanDescription;
+
   return (
     <article
       className="max-w-6xl mx-auto px-4 sm:px-6 py-8"
@@ -597,7 +652,8 @@ export default function ListingDetailClient({
             </div>
           )}
 
-          {listing.description && (
+          {/* UPDATED: About This Sale — now uses sanitized description + show more/less */}
+          {cleanDescription && (
             <section className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-3">
                 About This Sale
@@ -606,8 +662,16 @@ export default function ListingDetailClient({
                 className="text-gray-600 leading-relaxed whitespace-pre-line"
                 itemProp="description"
               >
-                {listing.description}
+                {displayDescription}
               </p>
+              {isLongDescription && (
+                <button
+                  onClick={() => setShowFullDescription(!showFullDescription)}
+                  className="mt-2 text-sm font-semibold text-ys-800 hover:text-ys-900 transition"
+                >
+                  {showFullDescription ? "Show less" : "Show more"}
+                </button>
+              )}
             </section>
           )}
 
