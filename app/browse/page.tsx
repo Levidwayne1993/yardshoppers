@@ -273,7 +273,7 @@ function BrowseContent() {
   );
   const [distance, setDistance] = usePersistedState(
     "ys-filter-distance",
-    50
+    100
   );
   const [dateFilter, setDateFilter] = usePersistedState(
     "ys-filter-date",
