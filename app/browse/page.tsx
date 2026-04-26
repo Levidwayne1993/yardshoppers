@@ -159,6 +159,7 @@ function BrowseContent() {
     lat,
     lng,
     loading: locationLoading,
+    precise,
     requestPreciseLocation,
   } = useLocation();
 
@@ -192,8 +193,11 @@ function BrowseContent() {
   //   2. If no city, fall back to state centroid from STATE_COORDS
   // This ensures distance sorting ALWAYS works.
   const fallbackCoords = useMemo(() => {
-    // Already have real coords from useLocation — no fallback needed
-    if (lat && lng) return null;
+    // Only skip fallback when we have GPS-level precision.
+    // IP geolocation often returns WRONG coordinates (e.g. San Diego
+    // for a Washington user). Always use text-based lookup unless
+    // the user granted browser GPS.
+    if (lat && lng && precise) return null;
 
     const regionAbbr = region
       ? resolveStateAbbreviation(region) || normalizeState(region)
@@ -227,15 +231,15 @@ function BrowseContent() {
     }
 
     return null;
-  }, [city, region, lat, lng]);
+  }, [city, region, lat, lng, precise]);
 
   // Use fallback coords when real ones are missing
   const effectiveLat = locationOverride
     ? locationOverride.lat
-    : lat || fallbackCoords?.lat || null;
+    : fallbackCoords?.lat || (precise ? lat : null) || null;
   const effectiveLng = locationOverride
     ? locationOverride.lng
-    : lng || fallbackCoords?.lng || null;
+    : fallbackCoords?.lng || (precise ? lng : null) || null;
 
   const locationLabel = locationOverride
     ? locationOverride.label
