@@ -41,6 +41,51 @@ const CATEGORIES = [
   "Free Stuff",
 ];
 
+// ── STATE CENTROIDS ──
+// When useLocation returns only a state (e.g. "WA") with no city or coords,
+// we use these as fallback so bounding-box + distance sort still work.
+const STATE_COORDS: Record<string, [number, number]> = {
+  AL: [32.8067, -86.7911], AK: [61.3707, -152.4044], AZ: [33.7298, -111.4312],
+  AR: [34.9697, -92.3731], CA: [36.1162, -119.6816], CO: [39.0598, -105.3111],
+  CT: [41.5978, -72.7554], DE: [39.3185, -75.5071], FL: [27.7663, -81.6868],
+  GA: [33.0406, -83.6431], HI: [21.0943, -157.4983], ID: [44.2405, -114.4788],
+  IL: [40.3495, -88.9861], IN: [39.8494, -86.2583], IA: [42.0115, -93.2105],
+  KS: [38.5266, -96.7265], KY: [37.6681, -84.6701], LA: [31.1695, -91.8678],
+  ME: [44.6939, -69.3819], MD: [39.0639, -76.8021], MA: [42.2302, -71.5301],
+  MI: [43.3266, -84.5361], MN: [45.6945, -93.9002], MS: [32.7416, -89.6787],
+  MO: [38.4561, -92.2884], MT: [46.9219, -110.4544], NE: [41.1254, -98.2681],
+  NV: [38.3135, -117.0554], NH: [43.4525, -71.5639], NJ: [40.2989, -74.5210],
+  NM: [34.8405, -106.2485], NY: [42.1657, -74.9481], NC: [35.6301, -79.8064],
+  ND: [47.5289, -99.7840], OH: [40.3888, -82.7649], OK: [35.5653, -96.9289],
+  OR: [44.5720, -122.0709], PA: [40.5908, -77.2098], RI: [41.6809, -71.5118],
+  SC: [33.8569, -80.9450], SD: [44.2998, -99.4388], TN: [35.7478, -86.6923],
+  TX: [31.0545, -97.5635], UT: [40.1500, -111.8624], VT: [44.0459, -72.7107],
+  VA: [37.7693, -78.1700], WA: [47.4009, -121.4905], WV: [38.4912, -80.9545],
+  WI: [44.2685, -89.6165], WY: [42.7560, -107.3025], DC: [38.9072, -77.0369],
+};
+
+// Full state name to abbreviation for fallback
+const STATE_ABBREV: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA",
+  colorado: "CO", connecticut: "CT", delaware: "DE", florida: "FL", georgia: "GA",
+  hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA",
+  kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD",
+  massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS",
+  missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV",
+  "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY",
+  "north carolina": "NC", "north dakota": "ND", ohio: "OH", oklahoma: "OK",
+  oregon: "OR", pennsylvania: "PA", "rhode island": "RI", "south carolina": "SC",
+  "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT",
+  virginia: "VA", washington: "WA", "west virginia": "WV", wisconsin: "WI",
+  wyoming: "WY", "district of columbia": "DC",
+};
+
+function normalizeState(raw: string): string {
+  const s = (raw || "").trim();
+  if (s.length === 2) return s.toUpperCase();
+  return STATE_ABBREV[s.toLowerCase()] || s.toUpperCase().substring(0, 2);
+}
+
 function milesToDeg(miles: number) {
   return miles / 69;
 }
@@ -90,6 +135,17 @@ function resolveLocationOverride(
         lng: matchedCity.lng,
       };
     }
+    // Try state centroid if city not found
+    if (stateCode) {
+      const abbr = normalizeState(stateCode);
+      if (STATE_COORDS[abbr]) {
+        return {
+          label: locationParam,
+          lat: STATE_COORDS[abbr][0],
+          lng: STATE_COORDS[abbr][1],
+        };
+      }
+    }
   }
   return null;
 }
@@ -129,28 +185,51 @@ function BrowseContent() {
     }
   }, [locationParam, latParam, lngParam]);
 
-  // ── FIX #1: FALLBACK COORDINATE LOOKUP ──
-  // useLocation often returns city="Olympia" region="Washington" but
-  // lat/lng as NULL from IP geolocation. Without coordinates, the
-  // bounding box query can't run and distance sort has nothing to
-  // sort against. This looks up coordinates from the built-in cities
-  // table when useLocation gives a city name but no coords.
+  // ── FALLBACK COORDINATE LOOKUP ──
+  // useLocation often returns region="WA" (or "Washington") but city=null
+  // and lat/lng=null from IP geolocation. This cascading fallback:
+  //   1. Try city+state lookup in the cities table
+  //   2. If no city, fall back to state centroid from STATE_COORDS
+  // This ensures distance sorting ALWAYS works.
   const fallbackCoords = useMemo(() => {
+    // Already have real coords from useLocation — no fallback needed
     if (lat && lng) return null;
-    if (!city) return null;
+
     const regionAbbr = region
-      ? resolveStateAbbreviation(region) || region
+      ? resolveStateAbbreviation(region) || normalizeState(region)
       : "";
-    const match = cities.find(
-      (c) =>
-        c.name.toLowerCase() === city.toLowerCase() &&
-        (!regionAbbr ||
-          c.stateCode.toLowerCase() === regionAbbr.toLowerCase())
-    );
-    return match ? { lat: match.lat, lng: match.lng } : null;
+
+    // Try city-level lookup first
+    if (city) {
+      const match = cities.find(
+        (c) =>
+          c.name.toLowerCase() === city.toLowerCase() &&
+          (!regionAbbr ||
+            c.stateCode.toLowerCase() === regionAbbr.toLowerCase())
+      );
+      if (match) return { lat: match.lat, lng: match.lng };
+    }
+
+    // Fall back to state centroid — works even when city is empty
+    if (regionAbbr && STATE_COORDS[regionAbbr]) {
+      return {
+        lat: STATE_COORDS[regionAbbr][0],
+        lng: STATE_COORDS[regionAbbr][1],
+      };
+    }
+
+    // Last resort: try the raw region string as a 2-letter code
+    if (region) {
+      const upper = region.trim().toUpperCase();
+      if (upper.length === 2 && STATE_COORDS[upper]) {
+        return { lat: STATE_COORDS[upper][0], lng: STATE_COORDS[upper][1] };
+      }
+    }
+
+    return null;
   }, [city, region, lat, lng]);
 
-  // ── FIX #2: USE FALLBACK COORDS WHEN REAL ONES ARE MISSING ──
+  // Use fallback coords when real ones are missing
   const effectiveLat = locationOverride
     ? locationOverride.lat
     : lat || fallbackCoords?.lat || null;
@@ -162,7 +241,7 @@ function BrowseContent() {
     ? locationOverride.label
     : city
     ? `${city}${region ? `, ${region}` : ""}`
-    : "";
+    : region || "";
 
   const isLocationReady = locationOverride
     ? true
@@ -255,6 +334,9 @@ function BrowseContent() {
 
   const buildQueries = useCallback(
     (offset: number) => {
+      const now = new Date().toISOString();
+      const today = new Date().toISOString().split("T")[0];
+
       let userQuery = supabase
         .from("listings")
         .select("*, listing_photos(*)")
@@ -264,7 +346,11 @@ function BrowseContent() {
         .from("external_sales")
         .select("*")
         .or(
-          `expires_at.is.null,expires_at.gt.${new Date().toISOString()}`
+          `expires_at.is.null,expires_at.gt.${now}`
+        )
+        // Filter out ended sales (sale_date in the past)
+        .or(
+          `sale_date.is.null,sale_date.gte.${today}`
         );
 
       if (debouncedSearch.trim()) {
@@ -441,6 +527,7 @@ function BrowseContent() {
   }
 
   useEffect(() => {
+    // Only block if user explicitly picked a radius AND we truly have no coords
     if (distance < 999 && (!effectiveLat || !effectiveLng)) return;
 
     async function fetchListings() {
@@ -450,9 +537,7 @@ function BrowseContent() {
 
       const { userQuery, extQuery } = buildQueries(0);
 
-      // ── FIX #3: COUNT QUERIES APPLY SAME BOUNDING BOX ──
-      // Before: count query had NO bounding box = always showed total
-      // Now: "Near You" count only counts listings actually in range
+      // Count queries also apply bounding box so "Near You" is accurate
       let userCountQuery = supabase
         .from("listings")
         .select("id", { count: "exact", head: true })
@@ -462,6 +547,9 @@ function BrowseContent() {
         .select("id", { count: "exact", head: true })
         .or(
           `expires_at.is.null,expires_at.gt.${new Date().toISOString()}`
+        )
+        .or(
+          `sale_date.is.null,sale_date.gte.${new Date().toISOString().split("T")[0]}`
         );
 
       if (isBounded) {
