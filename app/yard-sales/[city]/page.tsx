@@ -43,11 +43,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         },
       ],
     },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-    },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
@@ -60,15 +56,47 @@ async function getListingsForCity(cityName: string, stateCode: string) {
 
     const today = new Date().toISOString().split("T")[0];
 
-    const { data: listings } = await supabase
+    // Query user-posted listings
+    const { data: userListings } = await supabase
       .from("listings")
       .select("*")
       .or(`city.ilike.%${cityName}%,address.ilike.%${cityName}%`)
       .gte("sale_date", today)
       .order("sale_date", { ascending: true })
-      .limit(200);
+      .limit(100);
 
-    return listings || [];
+    // Query external/aggregated listings (scraped sales)
+    const { data: extListings } = await supabase
+      .from("external_sales")
+      .select("*")
+      .or(`city.ilike.%${cityName}%,address.ilike.%${cityName}%`)
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .order("collected_at", { ascending: false })
+      .limit(100);
+
+    // Normalize external listings to match user listing shape
+    const normalizedExt = (extListings || []).map((ext) => ({
+      id: ext.id,
+      title: ext.title,
+      description: ext.description,
+      address: ext.address,
+      city: ext.city,
+      state: ext.state,
+      sale_date: ext.sale_date,
+      sale_time_start: ext.sale_time_start,
+      sale_time_end: ext.sale_time_end,
+      category: ext.category,
+      categories: ext.categories,
+      latitude: ext.latitude,
+      longitude: ext.longitude,
+      photo_urls: ext.photo_urls,
+      source_url: ext.source_url,
+      is_external: true,
+    }));
+
+    // Merge: user-posted first, then external
+    const merged = [...(userListings || []), ...normalizedExt];
+    return merged;
   } catch {
     return [];
   }
@@ -132,11 +160,15 @@ export default async function CityPage({ params }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(localBusinessSchema),
+        }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbSchema),
+        }}
       />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16">
@@ -178,7 +210,10 @@ export default async function CityPage({ params }: Props) {
               href={`/browse?location=${encodeURIComponent(city.name + ", " + city.stateCode)}`}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
             >
-              <i className="fa-solid fa-map-marker-alt" aria-hidden="true" />
+              <i
+                className="fa-solid fa-map-marker-alt"
+                aria-hidden="true"
+              />
               Browse Sales in {city.name}
             </Link>
             <Link
@@ -201,7 +236,7 @@ export default async function CityPage({ params }: Props) {
 
           {listings.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {listings.map((listing: Record<string, string>) => (
+              {listings.map((listing: Record<string, any>) => (
                 <Link
                   key={listing.id}
                   href={`/listing/${listing.id}`}
@@ -288,8 +323,8 @@ export default async function CityPage({ params }: Props) {
                 </Link>{" "}
                 on YardShoppers. Check Facebook Marketplace, Craigslist, and
                 Nextdoor for additional listings. Drive through popular
-                neighborhoods on Saturday mornings — many sales aren&apos;t
-                posted online.
+                neighborhoods on Saturday mornings &mdash; many sales
+                aren&apos;t posted online.
               </p>
             </div>
             <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
@@ -309,7 +344,7 @@ export default async function CityPage({ params }: Props) {
                   YardShoppers Route Planner
                 </Link>{" "}
                 to map out multiple garage sales in {city.name} and hit them all
-                in one morning. Start early — the best finds go fast.
+                in one morning. Start early &mdash; the best finds go fast.
               </p>
             </div>
             <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
@@ -319,7 +354,9 @@ export default async function CityPage({ params }: Props) {
                   aria-hidden="true"
                 />
               </div>
-              <h3 className="font-bold text-gray-900 mb-2">Selling in {city.name}</h3>
+              <h3 className="font-bold text-gray-900 mb-2">
+                Selling in {city.name}
+              </h3>
               <p className="text-sm text-gray-600 leading-relaxed">
                 <Link
                   href="/post"
@@ -374,7 +411,15 @@ export default async function CityPage({ params }: Props) {
               },
               {
                 q: `When is yard sale season in ${city.name}?`,
-                a: `In ${city.name}, ${city.stateCode}, yard sale season typically runs from ${city.stateCode === "AZ" || city.stateCode === "NV" ? "October through April when the weather is cooler" : city.stateCode === "FL" ? "year-round thanks to the warm climate, with fall and spring being the busiest" : city.stateCode === "CA" ? "year-round, with spring and fall weekends being the most popular" : "April through October, with spring and early fall weekends being the busiest"}. Saturday mornings from 7–8 AM are the most popular start times.`,
+                a: `In ${city.name}, ${city.stateCode}, yard sale season typically runs from ${
+                  city.stateCode === "AZ" || city.stateCode === "NV"
+                    ? "October through April when the weather is cooler"
+                    : city.stateCode === "FL"
+                    ? "year-round thanks to the warm climate, with fall and spring being the busiest"
+                    : city.stateCode === "CA"
+                    ? "year-round, with spring and fall weekends being the most popular"
+                    : "April through October, with spring and early fall weekends being the busiest"
+                }. Saturday mornings from 7–8 AM are the most popular start times.`,
               },
               {
                 q: `Is it free to post a yard sale in ${city.name} on YardShoppers?`,
@@ -443,7 +488,7 @@ export default async function CityPage({ params }: Props) {
               href="/post"
               className="px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-semibold transition"
             >
-              Post Your Sale — Free
+              Post Your Sale &mdash; Free
             </Link>
             <Link
               href="/browse"
