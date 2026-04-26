@@ -1,21 +1,3 @@
-// ============================================================
-// FILE: app/browse/page.tsx
-// PLACE AT: app/browse/page.tsx  (REPLACE your existing file)
-// ROOT CAUSE FIX:
-//   Both Supabase queries used .limit(25000) — fetching up to
-//   50,000 rows before anything rendered. That's the 45-second wait.
-//
-// CHANGES:
-//   1. DB_PAGE_SIZE = 200 — initial fetch grabs 200 per source
-//      (was 25,000 per source = 50,000 total!)
-//   2. Separate count query for total listings (so SavedPanel
-//      still shows "13,575 Near You Active listings" accurately)
-//   3. "Load More" now has two modes:
-//      a) Show next 24 from already-loaded data (instant)
-//      b) When loaded data runs out, fetch next 200 from DB
-//   4. Everything else is IDENTICAL to your current file
-// ============================================================
-
 "use client";
 
 import { useEffect, useState, Suspense, useMemo, useCallback } from "react";
@@ -39,12 +21,9 @@ import { UnifiedListing } from "@/types/external";
 
 const supabase = createClient();
 
-// ── DISPLAY: How many cards to show per "page" on screen ──
 const ITEMS_PER_PAGE = 24;
-
-// ── DATABASE: How many rows to fetch per Supabase call per source ──
-// Was 25,000 — that's what caused the 45-second load!
 const DB_PAGE_SIZE = 200;
+const DB_PAGE_SIZE_BOUNDED = 1000;
 
 const CATEGORIES = [
   "Furniture",
@@ -78,9 +57,7 @@ function getDistanceMiles(
   const dLng = toRad(lng2 - lng1);
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -96,7 +73,6 @@ function resolveLocationOverride(
       return { label: locationParam, lat: parsedLat, lng: parsedLng };
     }
   }
-
   if (locationParam) {
     const parts = locationParam.split(",").map((s) => s.trim());
     const cityName = parts[0];
@@ -115,7 +91,6 @@ function resolveLocationOverride(
       };
     }
   }
-
   return null;
 }
 
@@ -154,14 +129,45 @@ function BrowseContent() {
     }
   }, [locationParam, latParam, lngParam]);
 
-  const effectiveLat = locationOverride ? locationOverride.lat : lat;
-  const effectiveLng = locationOverride ? locationOverride.lng : lng;
+  // ── FIX #1: FALLBACK COORDINATE LOOKUP ──
+  // useLocation often returns city="Olympia" region="Washington" but
+  // lat/lng as NULL from IP geolocation. Without coordinates, the
+  // bounding box query can't run and distance sort has nothing to
+  // sort against. This looks up coordinates from the built-in cities
+  // table when useLocation gives a city name but no coords.
+  const fallbackCoords = useMemo(() => {
+    if (lat && lng) return null;
+    if (!city) return null;
+    const regionAbbr = region
+      ? resolveStateAbbreviation(region) || region
+      : "";
+    const match = cities.find(
+      (c) =>
+        c.name.toLowerCase() === city.toLowerCase() &&
+        (!regionAbbr ||
+          c.stateCode.toLowerCase() === regionAbbr.toLowerCase())
+    );
+    return match ? { lat: match.lat, lng: match.lng } : null;
+  }, [city, region, lat, lng]);
+
+  // ── FIX #2: USE FALLBACK COORDS WHEN REAL ONES ARE MISSING ──
+  const effectiveLat = locationOverride
+    ? locationOverride.lat
+    : lat || fallbackCoords?.lat || null;
+  const effectiveLng = locationOverride
+    ? locationOverride.lng
+    : lng || fallbackCoords?.lng || null;
+
   const locationLabel = locationOverride
     ? locationOverride.label
     : city
     ? `${city}${region ? `, ${region}` : ""}`
     : "";
-  const isLocationReady = locationOverride ? true : !locationLoading;
+
+  const isLocationReady = locationOverride
+    ? true
+    : !locationLoading || !!(fallbackCoords);
+
   const displayCity = locationOverride
     ? locationOverride.label.split(",")[0]?.trim() || ""
     : city || "";
@@ -178,7 +184,6 @@ function BrowseContent() {
   );
   const debouncedSearch = useDebounce(search, 300);
 
-  // ── Persisted filters (survive page navigation) ──
   const [selectedCategory, setSelectedCategory] = usePersistedState(
     "ys-filter-category",
     ""
@@ -192,7 +197,6 @@ function BrowseContent() {
     ""
   );
 
-  // URL param category overrides persisted value
   useEffect(() => {
     if (initialCategory && initialCategory !== "All") {
       setSelectedCategory(initialCategory);
@@ -202,7 +206,6 @@ function BrowseContent() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
-  // ── NEW: Server-side pagination tracking ──
   const [dbOffset, setDbOffset] = useState(0);
   const [hasMoreInDB, setHasMoreInDB] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -217,6 +220,13 @@ function BrowseContent() {
     }
     getUser();
   }, []);
+
+  const isBounded =
+    distance < 999 &&
+    !!effectiveLat &&
+    !!effectiveLng &&
+    !debouncedSearch.trim();
+  const effectivePageSize = isBounded ? DB_PAGE_SIZE_BOUNDED : DB_PAGE_SIZE;
 
   function handleDistanceChange(value: number | null) {
     const d = value ?? 999;
@@ -243,16 +253,13 @@ function BrowseContent() {
     setHasMoreInDB(true);
   }
 
-  // ── Helper: Build queries with current filters ──
   const buildQueries = useCallback(
     (offset: number) => {
-      // ── Internal listings query ──
       let userQuery = supabase
         .from("listings")
         .select("*, listing_photos(*)")
         .eq("is_shadowbanned", false);
 
-      // ── External listings query ──
       let extQuery = supabase
         .from("external_sales")
         .select("*")
@@ -260,7 +267,6 @@ function BrowseContent() {
           `expires_at.is.null,expires_at.gt.${new Date().toISOString()}`
         );
 
-      // ── Apply search filter to both ──
       if (debouncedSearch.trim()) {
         const term = `%${debouncedSearch.trim()}%`;
         const stateAbbr = resolveStateAbbreviation(
@@ -274,7 +280,6 @@ function BrowseContent() {
         extQuery = extQuery.or(conditions);
       }
 
-      // ── Apply category filter to both ──
       if (selectedCategory) {
         userQuery = userQuery.or(
           `category.eq.${selectedCategory},categories.cs.{${selectedCategory}}`
@@ -284,36 +289,27 @@ function BrowseContent() {
         );
       }
 
-      // ── Apply distance filter to both ──
-      if (
-        distance < 999 &&
-        effectiveLat &&
-        effectiveLng &&
-        !debouncedSearch.trim()
-      ) {
+      if (isBounded) {
         const deg = milesToDeg(distance);
         userQuery = userQuery
-          .gte("latitude", effectiveLat - deg)
-          .lte("latitude", effectiveLat + deg)
-          .gte("longitude", effectiveLng - deg)
-          .lte("longitude", effectiveLng + deg);
+          .gte("latitude", effectiveLat! - deg)
+          .lte("latitude", effectiveLat! + deg)
+          .gte("longitude", effectiveLng! - deg)
+          .lte("longitude", effectiveLng! + deg);
         extQuery = extQuery
-          .gte("latitude", effectiveLat - deg)
-          .lte("latitude", effectiveLat + deg)
-          .gte("longitude", effectiveLng - deg)
-          .lte("longitude", effectiveLng + deg);
+          .gte("latitude", effectiveLat! - deg)
+          .lte("latitude", effectiveLat! + deg)
+          .gte("longitude", effectiveLng! - deg)
+          .lte("longitude", effectiveLng! + deg);
       }
 
-      // ── Sorting ──
       userQuery = userQuery
         .order("is_boosted", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
-
       extQuery = extQuery.order("collected_at", { ascending: false });
 
-      // ── PAGINATION: fetch DB_PAGE_SIZE rows starting at offset ──
-      userQuery = userQuery.range(offset, offset + DB_PAGE_SIZE - 1);
-      extQuery = extQuery.range(offset, offset + DB_PAGE_SIZE - 1);
+      userQuery = userQuery.range(offset, offset + effectivePageSize - 1);
+      extQuery = extQuery.range(offset, offset + effectivePageSize - 1);
 
       return { userQuery, extQuery };
     },
@@ -323,10 +319,11 @@ function BrowseContent() {
       distance,
       effectiveLat,
       effectiveLng,
+      isBounded,
+      effectivePageSize,
     ]
   );
 
-  // ── Helper: Parse raw DB rows into UnifiedListing[] ──
   function parseResults(
     userData: any[] | null,
     extData: any[] | null
@@ -398,7 +395,6 @@ function BrowseContent() {
     return results;
   }
 
-  // ── Helper: Sort results by distance or newest ──
   function sortResults(results: UnifiedListing[]): UnifiedListing[] {
     const hasLocation = !!(effectiveLat && effectiveLng);
     const useNearestSort = hasLocation && !debouncedSearch.trim();
@@ -444,7 +440,6 @@ function BrowseContent() {
     return [...boosted, ...nonBoosted];
   }
 
-  // ── INITIAL FETCH: Runs when filters change ──
   useEffect(() => {
     if (distance < 999 && (!effectiveLat || !effectiveLng)) return;
 
@@ -455,30 +450,44 @@ function BrowseContent() {
 
       const { userQuery, extQuery } = buildQueries(0);
 
-      // ── Fetch data + count in parallel ──
+      // ── FIX #3: COUNT QUERIES APPLY SAME BOUNDING BOX ──
+      // Before: count query had NO bounding box = always showed total
+      // Now: "Near You" count only counts listings actually in range
+      let userCountQuery = supabase
+        .from("listings")
+        .select("id", { count: "exact", head: true })
+        .eq("is_shadowbanned", false);
+      let extCountQuery = supabase
+        .from("external_sales")
+        .select("id", { count: "exact", head: true })
+        .or(
+          `expires_at.is.null,expires_at.gt.${new Date().toISOString()}`
+        );
+
+      if (isBounded) {
+        const deg = milesToDeg(distance);
+        userCountQuery = userCountQuery
+          .gte("latitude", effectiveLat! - deg)
+          .lte("latitude", effectiveLat! + deg)
+          .gte("longitude", effectiveLng! - deg)
+          .lte("longitude", effectiveLng! + deg);
+        extCountQuery = extCountQuery
+          .gte("latitude", effectiveLat! - deg)
+          .lte("latitude", effectiveLat! + deg)
+          .gte("longitude", effectiveLng! - deg)
+          .lte("longitude", effectiveLng! + deg);
+      }
+
       const [userResult, extResult, userCount, extCount] =
         await Promise.all([
           userQuery,
           extQuery,
-          // Separate count queries (fast — no data transfer)
-          supabase
-            .from("listings")
-            .select("id", { count: "exact", head: true })
-            .eq("is_shadowbanned", false),
-          supabase
-            .from("external_sales")
-            .select("id", { count: "exact", head: true })
-            .or(
-              `expires_at.is.null,expires_at.gt.${new Date().toISOString()}`
-            ),
+          userCountQuery,
+          extCountQuery,
         ]);
 
-      const results = parseResults(
-        userResult.data,
-        extResult.data
-      );
+      const results = parseResults(userResult.data, extResult.data);
 
-      // ── Date filter (client-side) ──
       let filtered = results;
       if (dateFilter) {
         filtered = results.filter((l) =>
@@ -488,17 +497,16 @@ function BrowseContent() {
 
       const sorted = sortResults(filtered);
 
-      // ── Track total count for SavedPanel ──
       const total = (userCount.count || 0) + (extCount.count || 0);
       setTotalCount(total);
 
-      // ── Check if more data exists in DB ──
       const userFetched = userResult.data?.length || 0;
       const extFetched = extResult.data?.length || 0;
       setHasMoreInDB(
-        userFetched >= DB_PAGE_SIZE || extFetched >= DB_PAGE_SIZE
+        userFetched >= effectivePageSize ||
+          extFetched >= effectivePageSize
       );
-      setDbOffset(DB_PAGE_SIZE);
+      setDbOffset(effectivePageSize);
 
       setListings(sorted);
       setVisibleCount(ITEMS_PER_PAGE);
@@ -515,13 +523,11 @@ function BrowseContent() {
     effectiveLng,
   ]);
 
-  // ── LOAD MORE FROM DB: Fetches next batch when user exhausts loaded data ──
   async function loadMoreFromDB() {
     if (loadingMore || !hasMoreInDB) return;
     setLoadingMore(true);
 
     const { userQuery, extQuery } = buildQueries(dbOffset);
-
     const [userResult, extResult] = await Promise.all([
       userQuery,
       extQuery,
@@ -529,7 +535,6 @@ function BrowseContent() {
 
     const newResults = parseResults(userResult.data, extResult.data);
 
-    // ── Date filter ──
     let filtered = newResults;
     if (dateFilter) {
       filtered = newResults.filter((l) =>
@@ -537,30 +542,25 @@ function BrowseContent() {
       );
     }
 
-    // ── Merge with existing listings and re-sort ──
     const merged = sortResults([...listings, ...filtered]);
     setListings(merged);
 
-    // ── Update pagination state ──
     const userFetched = userResult.data?.length || 0;
     const extFetched = extResult.data?.length || 0;
     setHasMoreInDB(
-      userFetched >= DB_PAGE_SIZE || extFetched >= DB_PAGE_SIZE
+      userFetched >= effectivePageSize ||
+        extFetched >= effectivePageSize
     );
-    setDbOffset((prev) => prev + DB_PAGE_SIZE);
+    setDbOffset((prev) => prev + effectivePageSize);
 
-    // ── Show the next page of results ──
     setVisibleCount((prev) => prev + ITEMS_PER_PAGE);
     setLoadingMore(false);
   }
 
-  // ── "Load More" handler: show more from loaded data, or fetch from DB ──
   function handleLoadMore() {
     if (visibleCount < listings.length) {
-      // Still have loaded data to show
       setVisibleCount((prev) => prev + ITEMS_PER_PAGE);
     } else if (hasMoreInDB) {
-      // Need to fetch more from database
       loadMoreFromDB();
     }
   }
@@ -679,10 +679,8 @@ function BrowseContent() {
         </div>
       )}
 
-      {/* ══════════ 3-PANEL LAYOUT: Filter | Listings | Saved ══════════ */}
       <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-6">
         <div className="flex gap-6">
-          {/* ── Left Sidebar: Filters ── */}
           <FilterSidebar
             selectedCategory={selectedCategory}
             onCategoryChange={handleCategoryChange}
@@ -699,9 +697,7 @@ function BrowseContent() {
             isLoggedIn={!!currentUserId}
           />
 
-          {/* ── Center: Listings ── */}
           <div className="flex-1 min-w-0">
-            {/* Search bar */}
             <div className="mb-4">
               <div className="relative">
                 <i
@@ -724,7 +720,6 @@ function BrowseContent() {
               </div>
             </div>
 
-            {/* Route Planner CTA */}
             <Link href="/route-planner" className="block mb-5">
               <div className="bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#388E3C] rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all group cursor-pointer">
                 <div className="flex items-center gap-3 min-w-0">
@@ -739,8 +734,8 @@ function BrowseContent() {
                       Plan Your Yard Sale Route
                     </p>
                     <p className="text-white/75 text-xs sm:text-sm truncate">
-                      Map multiple stops, optimize your drive, and never
-                      miss a deal
+                      Map multiple stops, optimize your drive, and never miss a
+                      deal
                     </p>
                   </div>
                 </div>
@@ -760,7 +755,6 @@ function BrowseContent() {
               </div>
             </Link>
 
-            {/* Results summary */}
             {hasFilters && (
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-gray-500">
@@ -796,7 +790,6 @@ function BrowseContent() {
               </div>
             )}
 
-            {/* Listings grid */}
             {loading || (distance < 999 && !isLocationReady) ? (
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
                 {[...Array(6)].map((_, i) => (
@@ -890,7 +883,6 @@ function BrowseContent() {
             )}
           </div>
 
-          {/* ── Right Sidebar: Saved Sales ── */}
           <SavedPanel
             userId={currentUserId}
             totalListingsNearby={totalCount || listings.length}
@@ -898,7 +890,6 @@ function BrowseContent() {
         </div>
       </div>
 
-      {/* ══════════ BOTTOM CTA (centered) ══════════ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#388E3C] rounded-2xl p-6 md:p-10 text-white text-center">
           <h2 className="text-xl md:text-2xl font-bold mb-2">
@@ -911,10 +902,7 @@ function BrowseContent() {
             href="/route-planner"
             className="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#2E7D32] rounded-xl font-bold hover:bg-green-50 transition-colors"
           >
-            <i
-              className="fa-solid fa-route"
-              aria-hidden="true"
-            />
+            <i className="fa-solid fa-route" aria-hidden="true" />
             Open Route Planner
           </Link>
         </div>
