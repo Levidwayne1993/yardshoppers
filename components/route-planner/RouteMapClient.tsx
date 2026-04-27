@@ -140,27 +140,32 @@ function FitBounds({
   const map = useMap();
 
   useEffect(() => {
-    // If user searched a city/state, fly there
+    // 1. Manual city/state search — fly there
     if (searchCenter) {
       map.flyTo([searchCenter.lat, searchCenter.lng], 12, { duration: 1.5 });
       return;
     }
 
-    if (listings.length === 0 && userLat && userLng) {
-      map.setView([userLat, userLng], 12);
+    // 2. User location known — always center on them (~50mi radius)
+    //    Zoom 9 ≈ 50 miles at US latitudes. Professional, local, not spammy.
+    if (userLat && userLng) {
+      map.setView([userLat, userLng], 9);
       return;
     }
+
+    // 3. No user location — fit all listings (fallback only)
     if (listings.length > 0) {
       const bounds = L.latLngBounds(
         listings.map((l) => [l.latitude, l.longitude] as [number, number])
       );
-      if (userLat && userLng) bounds.extend([userLat, userLng]);
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
     }
   }, [listings, userLat, userLng, searchCenter, map]);
 
   return null;
 }
+
+
 
 /* ── Props ── */
 interface RouteMapClientProps {
