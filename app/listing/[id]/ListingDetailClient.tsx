@@ -1,13 +1,7 @@
 // ============================================================
 // FILE: app/listing/[id]/ListingDetailClient.tsx
-// PLACE AT: app/listing/[id]/ListingDetailClient.tsx (REPLACE)
-//
-// WHAT CHANGED: Added sanitizeDescription() helper that strips
-// raw URLs, HTML tags, and excess whitespace from listing
-// descriptions. Added "Show more / Show less" toggle for long
-// descriptions. Everything else is IDENTICAL to your current file.
+// UPDATED: Hide empty ratings + comments on external/aggregated listings
 // ============================================================
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -49,40 +43,33 @@ interface Listing {
 }
 
 // ============================================
-// NEW: DESCRIPTION SANITIZER
+// DESCRIPTION SANITIZER
 // Strips raw URLs, HTML tags, and excess whitespace
 // so scraped descriptions display cleanly.
 // ============================================
 function sanitizeDescription(raw: string): string {
   let text = raw;
-
-  // Strip HTML tags (e.g. <img>, <a href="...">, <br>, etc.)
+  // Strip HTML tags
   text = text.replace(/<[^>]*>/g, "");
-
-  // Strip raw URLs (http://, https://, www.)
+  // Strip raw URLs
   text = text.replace(/https?:\/\/[^\s)]+/gi, "");
   text = text.replace(/www\.[^\s)]+/gi, "");
-
-  // Decode common HTML entities that might be in scraped text
+  // Decode common HTML entities
   text = text.replace(/&amp;/g, "&");
   text = text.replace(/&lt;/g, "<");
   text = text.replace(/&gt;/g, ">");
   text = text.replace(/&quot;/g, '"');
   text = text.replace(/&#39;/g, "'");
   text = text.replace(/&nbsp;/g, " ");
-
   // Collapse 3+ consecutive newlines into 2
   text = text.replace(/\n{3,}/g, "\n\n");
-
   // Remove lines that are ONLY whitespace
   text = text
     .split("\n")
     .map((line) => line.trimEnd())
     .join("\n");
-
   // Trim leading/trailing whitespace
   text = text.trim();
-
   return text;
 }
 
@@ -135,7 +122,6 @@ function buildJsonLd(listing: Listing, hasRealSeller: boolean) {
         addressCountry: "US",
       },
     };
-
     if (listing.latitude && listing.longitude) {
       garageSale.location.geo = {
         "@type": "GeoCoordinates",
@@ -228,10 +214,10 @@ export default function ListingDetailClient({
   const [hostAvgRating, setHostAvgRating] = useState<number | null>(null);
   const [hostTotalRatings, setHostTotalRatings] = useState<number>(0);
 
-  // NEW: state for "Show more / Show less" toggle on long descriptions
+  // State for "Show more / Show less" toggle on long descriptions
   const [showFullDescription, setShowFullDescription] = useState(false);
 
-  // Track whether this listing has a real user-seller (for Message Seller, Boost, etc.)
+  // Track whether this listing has a real user-seller
   const [hasRealSeller, setHasRealSeller] = useState(false);
 
   useEffect(() => {
@@ -271,11 +257,7 @@ export default function ListingDetailClient({
         }
       }
 
-      // ============================================================
-      // SHADOWBAN CHECK: If this listing is shadowbanned, hide it
-      // from everyone EXCEPT the shadowbanned user who posted it.
-      // The shadowbanned user still sees their own listing normally.
-      // ============================================================
+      // Shadowban check
       if (data && data.is_shadowbanned && data.user_id !== u?.id) {
         data = null;
         setHasRealSeller(false);
@@ -307,7 +289,8 @@ export default function ListingDetailClient({
             end_time: null,
             sale_time_start: extData.sale_time_start || null,
             sale_time_end: extData.sale_time_end || null,
-            created_at: extData.collected_at || extData.created_at || "",
+            created_at:
+              extData.collected_at || extData.created_at || "",
             user_id: "",
             is_boosted: false,
             profiles: null,
@@ -348,13 +331,11 @@ export default function ListingDetailClient({
           .eq("user_id", u.id)
           .eq("listing_id", listingId)
           .maybeSingle();
-
         setSaved(!!s);
       }
 
       setLoading(false);
     }
-
     load();
   }, [listingId]);
 
@@ -364,20 +345,17 @@ export default function ListingDetailClient({
 
   async function toggleSave() {
     if (!user) return;
-
     if (saved) {
       await supabase
         .from("saved_listings")
         .delete()
         .eq("user_id", user.id)
         .eq("listing_id", listingId);
-
       setSaved(false);
     } else {
       await supabase
         .from("saved_listings")
         .insert({ user_id: user.id, listing_id: listingId });
-
       setSaved(true);
     }
   }
@@ -442,10 +420,12 @@ export default function ListingDetailClient({
   }
 
   const photos = listing.listing_photos || [];
-  const displayAddress = listing.street_address || listing.address || "";
+  const displayAddress =
+    listing.street_address || listing.address || "";
   const showAddress =
     displayAddress &&
-    displayAddress.toLowerCase().trim() !== listing.city?.toLowerCase().trim();
+    displayAddress.toLowerCase().trim() !==
+      listing.city?.toLowerCase().trim();
   const location = [
     showAddress ? displayAddress : "",
     listing.city,
@@ -461,12 +441,15 @@ export default function ListingDetailClient({
       : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 
   const saleDay = listing.sale_date
-    ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
+    ? new Date(listing.sale_date + "T00:00:00").toLocaleDateString(
+        "en-US",
+        {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }
+      )
     : null;
 
   function formatTime(timeStr: string | null | undefined): string | null {
@@ -487,10 +470,11 @@ export default function ListingDetailClient({
   const formattedStart = formatTime(rawStart);
   const formattedEnd = formatTime(rawEnd);
 
-  const isOwner = user && listing.user_id && listing.user_id === user.id;
+  const isOwner =
+    user && listing.user_id && listing.user_id === user.id;
   const jsonLdItems = buildJsonLd(listing, hasRealSeller);
 
-  // NEW: Sanitize the description and determine if it's long enough for truncation
+  // Sanitize the description and determine if it's long enough for truncation
   const cleanDescription = listing.description
     ? sanitizeDescription(listing.description)
     : "";
@@ -499,7 +483,9 @@ export default function ListingDetailClient({
     cleanDescription.length > DESCRIPTION_TRUNCATE_LENGTH;
   const displayDescription =
     isLongDescription && !showFullDescription
-      ? cleanDescription.slice(0, DESCRIPTION_TRUNCATE_LENGTH).trimEnd() + "…"
+      ? cleanDescription
+          .slice(0, DESCRIPTION_TRUNCATE_LENGTH)
+          .trimEnd() + "\u2026"
       : cleanDescription;
 
   return (
@@ -575,7 +561,6 @@ export default function ListingDetailClient({
                 <p className="text-sm text-ys-600">No photos available</p>
               </div>
             )}
-
             {photos.length > 1 && (
               <div
                 className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm"
@@ -584,7 +569,6 @@ export default function ListingDetailClient({
                 {activePhoto + 1} / {photos.length}
               </div>
             )}
-
             {photos.length > 1 && (
               <>
                 <button
@@ -652,7 +636,7 @@ export default function ListingDetailClient({
             </div>
           )}
 
-          {/* UPDATED: About This Sale — now uses sanitized description + show more/less */}
+          {/* About This Sale — sanitized description + show more/less */}
           {cleanDescription && (
             <section className="mt-8 bg-white border border-gray-100 rounded-2xl p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-3">
@@ -666,7 +650,9 @@ export default function ListingDetailClient({
               </p>
               {isLongDescription && (
                 <button
-                  onClick={() => setShowFullDescription(!showFullDescription)}
+                  onClick={() =>
+                    setShowFullDescription(!showFullDescription)
+                  }
                   className="mt-2 text-sm font-semibold text-ys-800 hover:text-ys-900 transition"
                 >
                   {showFullDescription ? "Show less" : "Show more"}
@@ -675,14 +661,16 @@ export default function ListingDetailClient({
             </section>
           )}
 
-          {/* Ratings — shown for ALL listings */}
-          {listing.user_id ? (
-            <RatingSection listingId={listing.id} hostId={listing.user_id} />
-          ) : (
-            <RatingSection listingId={listing.id} hostId="" />
+          {/* ── FIX: Ratings + Comments — only for real seller listings ── */}
+          {hasRealSeller && listing.user_id && (
+            <>
+              <RatingSection
+                listingId={listing.id}
+                hostId={listing.user_id}
+              />
+              <CommentsSection listingId={listing.id} />
+            </>
           )}
-
-          <CommentsSection listingId={listing.id} />
         </div>
 
         <div className="lg:col-span-2">
@@ -712,7 +700,9 @@ export default function ListingDetailClient({
                       : "bg-gray-50 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200"
                   }`}
                   aria-label={
-                    saved ? "Unsave this listing" : "Save this listing"
+                    saved
+                      ? "Unsave this listing"
+                      : "Save this listing"
                   }
                 >
                   <i
@@ -787,10 +777,12 @@ export default function ListingDetailClient({
                       />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Time</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        Time
+                      </p>
                       <p className="text-sm text-gray-500">
                         {formattedStart}
-                        {formattedEnd ? ` – ${formattedEnd}` : ""}
+                        {formattedEnd ? ` \u2013 ${formattedEnd}` : ""}
                       </p>
                     </div>
                   </div>
@@ -867,7 +859,7 @@ export default function ListingDetailClient({
               )}
             </div>
 
-            {/* Posted by section — same look for ALL listings */}
+            {/* Posted by section */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">
                 Posted by
@@ -881,7 +873,8 @@ export default function ListingDetailClient({
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900">
-                    {listing.profiles?.display_name || "YardShoppers Seller"}
+                    {listing.profiles?.display_name ||
+                      "YardShoppers Seller"}
                   </p>
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-gray-500">
@@ -960,7 +953,9 @@ export default function ListingDetailClient({
       {showMessageModal && listing && hasRealSeller && (
         <MessageModal
           receiverId={listing.user_id}
-          receiverName={listing.profiles?.display_name || "Seller"}
+          receiverName={
+            listing.profiles?.display_name || "Seller"
+          }
           listingId={listing.id}
           listingTitle={listing.title}
           onClose={() => setShowMessageModal(false)}
