@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
+const SYSTEM_ID = "__yardshoppers__";
+
 interface Message {
   id: string;
-  sender_id: string;
+  sender_id: string | null;
   receiver_id: string;
   listing_id: string | null;
   content: string;
@@ -20,6 +22,7 @@ interface Conversation {
   lastTime: string;
   unreadCount: number;
   listingTitle: string | null;
+  isSystem: boolean;
 }
 
 export default function MessagesPage() {
@@ -64,7 +67,14 @@ export default function MessagesPage() {
     const partnerMap = new Map<string, { msgs: Message[]; unread: number }>();
 
     for (const msg of messages) {
-      const partnerId = msg.sender_id === uid ? msg.receiver_id : msg.sender_id;
+      // System messages have NULL sender_id → group under SYSTEM_ID
+      const partnerId =
+        msg.sender_id === null
+          ? SYSTEM_ID
+          : msg.sender_id === uid
+            ? msg.receiver_id
+            : msg.sender_id;
+
       if (!partnerMap.has(partnerId)) {
         partnerMap.set(partnerId, { msgs: [], unread: 0 });
       }
@@ -75,14 +85,19 @@ export default function MessagesPage() {
       }
     }
 
-    const partnerIds = Array.from(partnerMap.keys());
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .in("id", partnerIds);
-
+    // Fetch profiles only for real users, not the system partner
+    const partnerIds = Array.from(partnerMap.keys()).filter(
+      (id) => id !== SYSTEM_ID
+    );
     const profileMap = new Map<string, string>();
-    profiles?.forEach((p) => profileMap.set(p.id, p.full_name || "Anonymous"));
+
+    if (partnerIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", partnerIds);
+      profiles?.forEach((p) => profileMap.set(p.id, p.full_name || "Anonymous"));
+    }
 
     // Get listing titles for context
     const listingIds = [
@@ -105,13 +120,17 @@ export default function MessagesPage() {
     partnerMap.forEach((entry, partnerId) => {
       const latest = entry.msgs[0];
       const listingId = latest.listing_id;
+      const isSystem = partnerId === SYSTEM_ID;
       convos.push({
         partnerId,
-        partnerName: profileMap.get(partnerId) || "Anonymous",
+        partnerName: isSystem
+          ? "YardShoppers"
+          : profileMap.get(partnerId) || "Anonymous",
         lastMessage: latest.content,
         lastTime: latest.created_at,
         unreadCount: entry.unread,
         listingTitle: listingId ? listingMap.get(listingId) || null : null,
+        isSystem,
       });
     });
 
@@ -128,30 +147,57 @@ export default function MessagesPage() {
     setActivePartner(partnerId);
     setShowSidebar(false);
 
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .or(
-        `and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`
-      )
-      .order("created_at", { ascending: true });
+    if (partnerId === SYSTEM_ID) {
+      // System messages: sender_id IS NULL, receiver_id = current user
+      const { data } = await supabase
+        .from("messages")
+        .select("*")
+        .is("sender_id", null)
+        .eq("receiver_id", userId)
+        .order("created_at", { ascending: true });
 
-    if (data) {
-      setThread(data);
-      // Mark unread messages as read
-      const unreadIds = data
-        .filter((m) => m.receiver_id === userId && !m.is_read)
-        .map((m) => m.id);
-      if (unreadIds.length > 0) {
-        await supabase
-          .from("messages")
-          .update({ is_read: true })
-          .in("id", unreadIds);
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.partnerId === partnerId ? { ...c, unreadCount: 0 } : c
-          )
-        );
+      if (data) {
+        setThread(data);
+        const unreadIds = data
+          .filter((m) => !m.is_read)
+          .map((m) => m.id);
+        if (unreadIds.length > 0) {
+          await supabase
+            .from("messages")
+            .update({ is_read: true })
+            .in("id", unreadIds);
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.partnerId === SYSTEM_ID ? { ...c, unreadCount: 0 } : c
+            )
+          );
+        }
+      }
+    } else {
+      const { data } = await supabase
+        .from("messages")
+        .select("*")
+        .or(
+          `and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`
+        )
+        .order("created_at", { ascending: true });
+
+      if (data) {
+        setThread(data);
+        const unreadIds = data
+          .filter((m) => m.receiver_id === userId && !m.is_read)
+          .map((m) => m.id);
+        if (unreadIds.length > 0) {
+          await supabase
+            .from("messages")
+            .update({ is_read: true })
+            .in("id", unreadIds);
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.partnerId === partnerId ? { ...c, unreadCount: 0 } : c
+            )
+          );
+        }
       }
     }
 
@@ -211,6 +257,7 @@ export default function MessagesPage() {
   };
 
   const activeConvo = conversations.find((c) => c.partnerId === activePartner);
+  const isSystemThread = activeConvo?.isSystem ?? false;
 
   if (loading) {
     return (
@@ -258,9 +305,15 @@ export default function MessagesPage() {
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-11 h-11 rounded-full bg-[#2E7D32] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        {convo.partnerName[0]?.toUpperCase() || "?"}
-                      </div>
+                      {convo.isSystem ? (
+                        <div className="w-11 h-11 rounded-full bg-amber-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                          <i className="fa-solid fa-tag"></i>
+                        </div>
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-[#2E7D32] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                          {convo.partnerName[0]?.toUpperCase() || "?"}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-semibold text-gray-900 truncate">
@@ -307,17 +360,29 @@ export default function MessagesPage() {
                   >
                     <i className="fa-solid fa-arrow-left"></i>
                   </button>
-                  <div className="w-9 h-9 rounded-full bg-[#2E7D32] flex items-center justify-center text-white font-bold text-sm">
-                    {activeConvo.partnerName[0]?.toUpperCase() || "?"}
-                  </div>
+                  {isSystemThread ? (
+                    <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white text-base">
+                      <i className="fa-solid fa-tag"></i>
+                    </div>
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-[#2E7D32] flex items-center justify-center text-white font-bold text-sm">
+                      {activeConvo.partnerName[0]?.toUpperCase() || "?"}
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm font-semibold text-gray-900">
                       {activeConvo.partnerName}
                     </p>
-                    {activeConvo.listingTitle && (
+                    {isSystemThread ? (
                       <p className="text-xs text-gray-400">
-                        {activeConvo.listingTitle}
+                        System notifications
                       </p>
+                    ) : (
+                      activeConvo.listingTitle && (
+                        <p className="text-xs text-gray-400">
+                          {activeConvo.listingTitle}
+                        </p>
+                      )
                     )}
                   </div>
                 </div>
@@ -326,6 +391,7 @@ export default function MessagesPage() {
                 <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                   {thread.map((msg) => {
                     const isMine = msg.sender_id === userId;
+                    const isSystem = msg.sender_id === null;
                     return (
                       <div
                         key={msg.id}
@@ -335,9 +401,17 @@ export default function MessagesPage() {
                           className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
                             isMine
                               ? "bg-[#2E7D32] text-white rounded-br-md"
-                              : "bg-gray-100 text-gray-800 rounded-bl-md"
+                              : isSystem
+                                ? "bg-amber-50 border border-amber-200 text-gray-800 rounded-bl-md"
+                                : "bg-gray-100 text-gray-800 rounded-bl-md"
                           }`}
                         >
+                          {isSystem && (
+                            <p className="text-xs font-semibold text-amber-600 mb-1">
+                              <i className="fa-solid fa-tag mr-1"></i>
+                              YardShoppers
+                            </p>
+                          )}
                           <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                           <p
                             className={`text-[10px] mt-1 ${
@@ -356,32 +430,34 @@ export default function MessagesPage() {
                   <div ref={bottomRef} />
                 </div>
 
-                {/* Reply Input */}
-                <div className="px-4 py-3 border-t border-gray-100">
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      value={reply}
-                      onChange={(e) => setReply(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Type a message..."
-                      maxLength={2000}
-                      rows={1}
-                      className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent resize-none max-h-32"
-                      style={{ minHeight: "42px" }}
-                    />
-                    <button
-                      onClick={handleSend}
-                      disabled={sending || !reply.trim()}
-                      className="bg-[#2E7D32] text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                    >
-                      {sending ? (
-                        <i className="fa-solid fa-spinner fa-spin text-sm"></i>
-                      ) : (
-                        <i className="fa-solid fa-paper-plane text-sm"></i>
-                      )}
-                    </button>
+                {/* Reply Input — hidden for system threads */}
+                {!isSystemThread && (
+                  <div className="px-4 py-3 border-t border-gray-100">
+                    <div className="flex items-end gap-2">
+                      <textarea
+                        value={reply}
+                        onChange={(e) => setReply(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Type a message..."
+                        maxLength={2000}
+                        rows={1}
+                        className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#2E7D32] focus:border-transparent resize-none max-h-32"
+                        style={{ minHeight: "42px" }}
+                      />
+                      <button
+                        onClick={handleSend}
+                        disabled={sending || !reply.trim()}
+                        className="bg-[#2E7D32] text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                      >
+                        {sending ? (
+                          <i className="fa-solid fa-spinner fa-spin text-sm"></i>
+                        ) : (
+                          <i className="fa-solid fa-paper-plane text-sm"></i>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center text-center px-6">
