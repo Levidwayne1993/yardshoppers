@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -14,7 +14,6 @@ interface ListingCtx {
   title: string;
   user_id: string;
   is_boosted: boolean;
-  is_shadowbanned: boolean;
   is_external: boolean;
 }
 
@@ -30,24 +29,34 @@ export default function AdminFloatingBar() {
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
-        setIsAdmin(true);
-      }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const email = session?.user?.email?.toLowerCase() || "";
+      setIsAdmin(ADMIN_EMAILS.includes(email));
     });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const email = session?.user?.email?.toLowerCase() || "";
+      setIsAdmin(ADMIN_EMAILS.includes(email));
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Detect if we're on a listing page and fetch context
   useEffect(() => {
+    if (!isAdmin) return;
     const m = pathname.match(/^\/listing\/(.+)$/);
     if (m) fetchCtx(m[1]);
     else setListing(null);
-  }, [pathname]);
+  }, [pathname, isAdmin]);
 
   const fetchCtx = async (id: string) => {
     const { data: internal } = await supabase
       .from("listings")
-      .select("id, title, user_id, is_boosted, is_shadowbanned")
+      .select("id, title, user_id, is_boosted")
       .eq("id", id)
       .single();
 
@@ -55,7 +64,6 @@ export default function AdminFloatingBar() {
       setListing({
         ...internal,
         is_boosted: internal.is_boosted || false,
-        is_shadowbanned: internal.is_shadowbanned || false,
         is_external: false,
       });
       return;
@@ -73,7 +81,6 @@ export default function AdminFloatingBar() {
         title: ext.title || "External Sale",
         user_id: "",
         is_boosted: false,
-        is_shadowbanned: false,
         is_external: true,
       });
     }
@@ -111,30 +118,6 @@ export default function AdminFloatingBar() {
       }
     } catch {
       flash("\u274c Failed to boost");
-    }
-    setBusy(null);
-  };
-
-  const handleShadowban = async () => {
-    if (!listing || listing.is_external) return;
-    setBusy("shadow");
-    const next = !listing.is_shadowbanned;
-    try {
-      const token = await getToken();
-      const res = await fetch("/api/admin/shadowban", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ listingId: listing.id, shadowban: next }),
-      });
-      if (res.ok) {
-        setListing((p) => (p ? { ...p, is_shadowbanned: next } : null));
-        flash(next ? "\uD83D\uDC7B Shadowbanned" : "\u2705 Unshadowbanned");
-      }
-    } catch {
-      flash("\u274c Failed");
     }
     setBusy(null);
   };
@@ -219,23 +202,6 @@ export default function AdminFloatingBar() {
                   </div>
                 )}
 
-                {!listing.is_external && (
-                  <button
-                    onClick={handleShadowban}
-                    disabled={busy === "shadow"}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 ${
-                      listing.is_shadowbanned
-                        ? "bg-green-700 hover:bg-green-600 text-white"
-                        : "bg-gray-700 hover:bg-gray-600 text-gray-200"
-                    }`}
-                  >
-                    <i
-                      className={`fa-solid ${busy === "shadow" ? "fa-spinner fa-spin" : "fa-ghost"} text-xs`}
-                    />
-                    {listing.is_shadowbanned ? "Remove Shadowban" : "Shadowban"}
-                  </button>
-                )}
-
                 <button
                   onClick={handleDelete}
                   disabled={busy === "delete"}
@@ -249,7 +215,7 @@ export default function AdminFloatingBar() {
               </>
             ) : (
               <p className="text-xs text-gray-400 py-2">
-                Navigate to a listing to see context actions here.
+                Navigate to a listing to see actions here.
               </p>
             )}
 

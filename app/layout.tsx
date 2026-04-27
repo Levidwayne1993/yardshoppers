@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // FILE: app/layout.tsx
 // PLACE AT: app/layout.tsx  (REPLACE your existing layout.tsx)
 // WHAT CHANGED:
@@ -24,12 +24,12 @@ const poppins = Poppins({
   display: "swap",
 });
 
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-XXXXXXX";
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-P3N8VNGV";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.yardshoppers.com"),
   title: {
-    default: "YardShoppers — Discover Yard Sales Near You",
+    default: "YardShoppers â€” Discover Yard Sales Near You",
     template: "%s | YardShoppers",
   },
   description:
@@ -72,7 +72,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://www.yardshoppers.com",
     siteName: "YardShoppers",
-    title: "YardShoppers — Discover Yard Sales Near You",
+    title: "YardShoppers â€” Discover Yard Sales Near You",
     description:
       "Find amazing yard sales, garage sales, and estate sales in your area. Post your sale for free and reach thousands of local buyers.",
     images: [
@@ -80,13 +80,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "YardShoppers — Discover Yard Sales Near You",
+        alt: "YardShoppers â€” Discover Yard Sales Near You",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "YardShoppers — Discover Yard Sales Near You",
+    title: "YardShoppers â€” Discover Yard Sales Near You",
     description:
       "Find amazing yard sales, garage sales, and estate sales in your area. Post your sale for free and reach thousands of local buyers.",
     images: ["/og-image.png"],
@@ -166,7 +166,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#15803d" />
         <meta name="geo.region" content="US" />
 
-        {/* ── NEW: GTM Consent Mode v2 defaults (MUST come BEFORE GTM script) ── */}
+        {/* â”€â”€ NEW: GTM Consent Mode v2 defaults (MUST come BEFORE GTM script) â”€â”€ */}
         {/* This sets all consent categories to "denied" by default.              */}
         {/* If the user previously accepted cookies, it immediately updates       */}
         {/* consent to "granted" before GTM fires any tags.                       */}
@@ -196,7 +196,7 @@ export default function RootLayout({
           }}
         />
 
-        {/* ── Google Tag Manager (head) ── */}
+        {/* â”€â”€ Google Tag Manager (head) â”€â”€ */}
         <Script
           id="gtm-script"
           strategy="afterInteractive"
@@ -242,7 +242,7 @@ export default function RootLayout({
       </head>
 
       <body className="font-sans bg-white text-gray-900 min-h-screen flex flex-col">
-        {/* ── Google Tag Manager (noscript fallback) ── */}
+        {/* â”€â”€ Google Tag Manager (noscript fallback) â”€â”€ */}
         <noscript>
           <iframe
             src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
