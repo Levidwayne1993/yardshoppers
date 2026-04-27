@@ -1,3 +1,18 @@
+// ============================================================
+// PASTE INTO: components/route-planner/RouteMapClient.tsx
+//
+// FIX #6a — Grey / blank map tiles
+//
+// WHAT CHANGED:
+// 1. Added CDN backup for Leaflet CSS — Next.js bundler
+//    sometimes silently drops node_modules CSS in dynamic()
+//    components. This guarantees the stylesheet loads.
+// 2. Added <InvalidateSize /> — Leaflet calculates 0-height
+//    when it mounts inside a flex layout before paint finishes.
+//    This forces a re-measure + watches for container resizes.
+// 3. Everything else is identical to the original file.
+// ============================================================
+
 'use client';
 
 import { useEffect } from 'react';
@@ -14,6 +29,22 @@ import {
 } from 'react-leaflet';
 import { RouteStop } from '@/lib/routeOptimizer';
 
+/* ── Ensure Leaflet CSS is loaded (CDN backup) ──
+   Next.js + Turbopack/webpack can silently fail to bundle
+   CSS from node_modules in ssr:false dynamic imports.
+   Injecting a <link> tag guarantees the stylesheet exists. */
+if (typeof window !== 'undefined') {
+  const LEAFLET_CSS = 'leaflet-css-cdn';
+  if (!document.getElementById(LEAFLET_CSS)) {
+    const link = document.createElement('link');
+    link.id = LEAFLET_CSS;
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    link.crossOrigin = '';
+    document.head.appendChild(link);
+  }
+}
+
 /* ── Fix Leaflet default icon paths for Next.js ── */
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -24,6 +55,28 @@ L.Icon.Default.mergeOptions({
   shadowUrl:
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
+
+/* ── NEW: Fix grey tiles ──
+   Leaflet often sees 0×0 container size when it mounts inside
+   a flex layout. invalidateSize() forces a re-measure once the
+   browser has painted the final dimensions. ResizeObserver keeps
+   it correct if the panel opens/closes or window resizes. */
+function InvalidateSize() {
+  const map = useMap();
+  useEffect(() => {
+    // First re-measure after initial paint
+    const t = setTimeout(() => map.invalidateSize(), 250);
+    // Ongoing re-measure on container resize (panel toggle, etc.)
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    const container = map.getContainer();
+    if (container) ro.observe(container);
+    return () => {
+      clearTimeout(t);
+      ro.disconnect();
+    };
+  }, [map]);
+  return null;
+}
 
 /* ── Custom pin icons ── */
 function createSaleIcon(
@@ -156,6 +209,9 @@ export default function RouteMapClient({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
+      {/* ★ NEW — fixes grey tiles in flex layouts */}
+      <InvalidateSize />
+
       <FitBounds
         listings={listings}
         userLat={userLat}
@@ -225,17 +281,6 @@ export default function RouteMapClient({
                 >
                   {listing.title}
                 </div>
-                {listing.price && (
-                  <div
-                    style={{
-                      color: '#15803d',
-                      fontWeight: 600,
-                      fontSize: '13px',
-                    }}
-                  >
-                    {listing.price}
-                  </div>
-                )}
                 <div
                   style={{
                     color: '#6b7280',

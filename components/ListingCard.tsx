@@ -78,9 +78,7 @@ export default function ListingCard({
     e.stopPropagation();
     if (!currentUserId || saveBusy) return;
     setSaveBusy(true);
-
     if (saved) {
-      // Unsave
       await supabase
         .from("saved_listings")
         .delete()
@@ -88,7 +86,6 @@ export default function ListingCard({
         .eq("listing_id", listing.id);
       setSaved(false);
     } else {
-      // Save
       await supabase
         .from("saved_listings")
         .upsert(
@@ -97,8 +94,6 @@ export default function ListingCard({
         );
       setSaved(true);
     }
-
-    // Notify SavedPanel to refresh
     window.dispatchEvent(new Event("ys-saved-change"));
     setSaveBusy(false);
   }
@@ -149,7 +144,6 @@ export default function ListingCard({
     </div>
   );
 
-  // ── A11Y FIX: Heart button now has aria-label ──
   const heartButton = (
     <button
       onClick={
@@ -161,7 +155,9 @@ export default function ListingCard({
               setSaved(!saved);
             }
       }
-      aria-label={saved ? "Remove from saved listings" : "Save this listing"}
+      aria-label={
+        saved ? "Remove from saved listings" : "Save this listing"
+      }
       className={`absolute bottom-3 left-3 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm ${
         saved
           ? "bg-red-500 text-white"
@@ -184,8 +180,10 @@ export default function ListingCard({
             : "border-gray-100 shadow-sm"
         }`}
       >
-        {/* All listings use internal Link to detail page */}
-        <Link href={`/listing/${listing.id}`} className="block relative">
+        <Link
+          href={`/listing/${listing.id}`}
+          className="block relative"
+        >
           <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
             {coverPhoto ? (
               <Image
@@ -196,12 +194,27 @@ export default function ListingCard({
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center h-full bg-ys-50">
-                <i
-                  className="fa-solid fa-tag text-3xl text-ys-300 mb-1"
-                  aria-hidden="true"
-                />
-                <p className="text-xs text-ys-400">No photo</p>
+              /* ── FIX #11: Yard sale placeholder graphic ──
+                 Instead of just "No photo" text, show a friendly
+                 yard sale themed placeholder with icons */
+              <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-ys-50 to-green-50">
+                <div className="flex items-center gap-3 mb-2 opacity-40">
+                  <i
+                    className="fa-solid fa-couch text-2xl text-ys-600"
+                    aria-hidden="true"
+                  />
+                  <i
+                    className="fa-solid fa-tag text-3xl text-ys-500"
+                    aria-hidden="true"
+                  />
+                  <i
+                    className="fa-solid fa-box-open text-2xl text-ys-600"
+                    aria-hidden="true"
+                  />
+                </div>
+                <p className="text-xs font-semibold text-ys-400 tracking-wide uppercase">
+                  Yard Sale
+                </p>
               </div>
             )}
 
@@ -238,11 +251,8 @@ export default function ListingCard({
             </h3>
           </Link>
 
-          {listing.price && (
-            <p className="text-lg font-extrabold text-ys-800 mt-1">
-              {listing.price}
-            </p>
-          )}
+          {/* FIX #13: Completely removed price display from listing cards.
+              No more $0 showing up. */}
 
           {(listing.city || listing.state) && (
             <p className="text-sm text-gray-500 mt-1.5 flex items-center gap-1.5">

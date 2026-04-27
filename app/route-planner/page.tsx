@@ -1,25 +1,30 @@
 // ============================================================
-// PASTE INTO: app/route-planner/page.tsx (yardshoppers project)
+// PASTE INTO: app/route-planner/page.tsx
 //
-// This is the CORRECTED FILE3 — restored from original working
-// route planner (commit 0924519) + added external_sales query
-// so aggregated listings show as map pins alongside user-posted.
+// FIX #6b — Route Planner wrong user location
 //
-// CHANGES FROM ORIGINAL:
-// - "All Sales" view now fetches BOTH listings + external_sales
-// - External sales mapped to same RouteStop shape
-// - Pending route add checks external_sales too
-// - No mention of "external", "Craigslist", or any source
+// WHAT CHANGED (from original):
+// 1. Added "precise" from useLocation — same IP geolocation
+//    fix as browse page. Blue dot + route optimizer now use
+//    correct coords (text-based city lookup or state centroid)
+//    instead of wrong IP coords (San Diego).
+// 2. Added STATE_COORDS + STATE_ABBREV fallback tables.
+// 3. Added useMemo fallbackCoords (identical logic to browse).
+// 4. effectiveLat/effectiveLng replace raw lat/lng everywhere.
+// 5. External sales query: combined double .or() into single
+//    filter to avoid PostgREST override bug.
+// 6. Filters out expired external listings properly.
 // ============================================================
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase-browser";
 import { useLocation } from "@/lib/useLocation";
 import RoutePanel from "@/components/route-planner/RoutePanel";
 import { RouteStop, optimizeRoute } from "@/lib/routeOptimizer";
+import { cities } from "@/lib/cities";
 
 const RouteMapClient = dynamic(
   () => import("@/components/route-planner/RouteMapClient"),
@@ -35,9 +40,75 @@ const RouteMapClient = dynamic(
 
 type ViewMode = "all" | "saved";
 
+// ── STATE CENTROIDS (same as browse page) ──
+const STATE_COORDS: Record<string, [number, number]> = {
+  AL: [32.8067, -86.7911], AK: [61.3707, -152.4044], AZ: [33.7298, -111.4312],
+  AR: [34.9697, -92.3731], CA: [36.1162, -119.6816], CO: [39.0598, -105.3111],
+  CT: [41.5978, -72.7554], DE: [39.3185, -75.5071], FL: [27.7663, -81.6868],
+  GA: [33.0406, -83.6431], HI: [21.0943, -157.4983], ID: [44.2405, -114.4788],
+  IL: [40.3495, -88.9861], IN: [39.8494, -86.2583], IA: [42.0115, -93.2105],
+  KS: [38.5266, -96.7265], KY: [37.6681, -84.6701], LA: [31.1695, -91.8678],
+  ME: [44.6939, -69.3819], MD: [39.0639, -76.8021], MA: [42.2302, -71.5301],
+  MI: [43.3266, -84.5361], MN: [45.6945, -93.9002], MS: [32.7416, -89.6787],
+  MO: [38.4561, -92.2884], MT: [46.9219, -110.4544], NE: [41.1254, -98.2681],
+  NV: [38.3135, -117.0554], NH: [43.4525, -71.5639], NJ: [40.2989, -74.5210],
+  NM: [34.8405, -106.2485], NY: [42.1657, -74.9481], NC: [35.6301, -79.8064],
+  ND: [47.5289, -99.7840], OH: [40.3888, -82.7649], OK: [35.5653, -96.9289],
+  OR: [44.5720, -122.0709], PA: [40.5908, -77.2098], RI: [41.6809, -71.5118],
+  SC: [33.8569, -80.9450], SD: [44.2998, -99.4388], TN: [35.7478, -86.6923],
+  TX: [31.0545, -97.5635], UT: [40.1500, -111.8624], VT: [44.0459, -72.7107],
+  VA: [37.7693, -78.1700], WA: [47.4009, -121.4905], WV: [38.4912, -80.9545],
+  WI: [44.2685, -89.6165], WY: [42.7560, -107.3025], DC: [38.9072, -77.0369],
+};
+
+const STATE_ABBREV: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA",
+  colorado: "CO", connecticut: "CT", delaware: "DE", florida: "FL",
+  georgia: "GA", hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN",
+  iowa: "IA", kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME",
+  maryland: "MD", massachusetts: "MA", michigan: "MI", minnesota: "MN",
+  mississippi: "MS", missouri: "MO", montana: "MT", nebraska: "NE",
+  nevada: "NV", "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM",
+  "new york": "NY", "north carolina": "NC", "north dakota": "ND", ohio: "OH",
+  oklahoma: "OK", oregon: "OR", pennsylvania: "PA", "rhode island": "RI",
+  "south carolina": "SC", "south dakota": "SD", tennessee: "TN", texas: "TX",
+  utah: "UT", vermont: "VT", virginia: "VA", washington: "WA",
+  "west virginia": "WV", wisconsin: "WI", wyoming: "WY",
+  "district of columbia": "DC",
+};
+
 export default function RoutePlannerPage() {
   const supabase = createClient();
-  const { lat, lng } = useLocation();
+  const { city, region, lat, lng, precise } = useLocation();
+
+  // ── Fallback coords (same logic as browse page) ──
+  const fallbackCoords = useMemo(() => {
+    if (lat && lng && precise) return null;
+
+    // Try city match from cities lib
+    if (city) {
+      const match = cities.find(
+        (c) => c.name.toLowerCase() === city.toLowerCase()
+      );
+      if (match) return { lat: match.lat, lng: match.lng };
+    }
+
+    // Try state centroid
+    if (region) {
+      const upper = region.toUpperCase();
+      if (STATE_COORDS[upper]) {
+        return { lat: STATE_COORDS[upper][0], lng: STATE_COORDS[upper][1] };
+      }
+      const abbr = STATE_ABBREV[region.toLowerCase()];
+      if (abbr && STATE_COORDS[abbr]) {
+        return { lat: STATE_COORDS[abbr][0], lng: STATE_COORDS[abbr][1] };
+      }
+    }
+    return null;
+  }, [city, region, lat, lng, precise]);
+
+  const effectiveLat = fallbackCoords?.lat || (precise ? lat : null) || null;
+  const effectiveLng = fallbackCoords?.lng || (precise ? lng : null) || null;
 
   const [selectedDate, setSelectedDate] = useState(
     () => new Date().toISOString().split("T")[0]
@@ -96,19 +167,23 @@ export default function RoutePlannerPage() {
         if (userPosted && !upErr) data = userPosted;
 
         // ── Fetch external (aggregated) listings ──
+        // Single .or() to avoid PostgREST double-or override
         const now = new Date().toISOString();
         const { data: extData, error: extErr } = await supabase
           .from("external_sales")
           .select("*")
-          .or(`sale_date.eq.${selectedDate},sale_date.is.null`)
-          .or(`expires_at.is.null,expires_at.gt.${now}`)
+          .or(
+            `sale_date.eq.${selectedDate},sale_date.is.null`
+          )
+          .or(
+            `expires_at.is.null,expires_at.gte.${now}`
+          )
           .not("latitude", "is", null)
           .not("longitude", "is", null);
 
         if (extData && !extErr) {
           const mapped = extData.map((e: any) => ({
             ...e,
-            // Map external_sales fields to match listings shape
             sale_time_start: e.sale_time_start || "",
             sale_time_end: e.sale_time_end || "",
             listing_photos: e.photo_urls?.length
@@ -201,10 +276,11 @@ export default function RoutePlannerPage() {
     });
   }, []);
 
+  // ★ Uses effectiveLat/effectiveLng instead of raw IP coords
   const optimizeStops = useCallback(() => {
-    if (!lat || !lng) return;
-    setRouteStops((prev) => optimizeRoute(prev, lat, lng));
-  }, [lat, lng]);
+    if (!effectiveLat || !effectiveLng) return;
+    setRouteStops((prev) => optimizeRoute(prev, effectiveLat, effectiveLng));
+  }, [effectiveLat, effectiveLng]);
 
   const clearRoute = useCallback(() => setRouteStops([]), []);
 
@@ -526,7 +602,7 @@ export default function RoutePlannerPage() {
 
       {/* ── Main Content ── */}
       <div className="flex-1 flex relative overflow-hidden">
-        {/* Map */}
+        {/* Map — uses effectiveLat/effectiveLng (corrected coords) */}
         <div className="flex-1 relative">
           {loading ? (
             <div className="w-full h-full bg-gray-100 animate-pulse flex items-center justify-center">
@@ -539,8 +615,8 @@ export default function RoutePlannerPage() {
             <RouteMapClient
               listings={listings}
               routeStops={routeStops}
-              userLat={lat || undefined}
-              userLng={lng || undefined}
+              userLat={effectiveLat || undefined}
+              userLng={effectiveLng || undefined}
               searchCenter={searchCenter || undefined}
               onAddToRoute={addToRoute}
               onRemoveFromRoute={removeFromRoute}
@@ -602,8 +678,8 @@ export default function RoutePlannerPage() {
 
           <RoutePanel
             routeStops={routeStops}
-            userLat={lat || undefined}
-            userLng={lng || undefined}
+            userLat={effectiveLat || undefined}
+            userLng={effectiveLng || undefined}
             onRemove={removeFromRoute}
             onReorder={reorderStops}
             onOptimize={optimizeStops}

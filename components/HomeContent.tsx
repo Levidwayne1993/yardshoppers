@@ -1,16 +1,8 @@
 // ============================================================
 // FILE: components/HomeContent.tsx
-// PLACE AT: components/HomeContent.tsx  (REPLACE your existing file)
-// WHAT CHANGED:
-//   - When initialListings is empty (which it now always is),
-//     the component auto-fetches on mount with loading=true
-//   - Hero section renders INSTANTLY (static HTML, no data needed)
-//   - Skeleton shimmer shows for listings while Supabase loads
-//   - Data appears in ~500ms after hydration
-//   - Removed the hasInteracted gate for initial fetch
-//   - TrendingSection + CategoryGrid still lazy-loaded
+// FIX #8: Removed "$1.99" price from "Why Sellers Love YardShoppers"
+// Also: uses matchesDateFilter which now excludes past sales
 // ============================================================
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -69,9 +61,7 @@ function getDistanceMiles(
   const dLng = toRad(lng2 - lng1);
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -133,7 +123,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
     requestPreciseLocation,
   } = useLocation();
 
-  // ── Start loading=true so skeletons show while data loads ──
   const [listings, setListings] = useState<any[]>(initialListings);
   const [loading, setLoading] = useState(initialListings.length === 0);
   const [search, setSearch] = useState("");
@@ -143,7 +132,7 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
     "ys-filter-category",
     ""
   );
-  const [distance, setDistance] = usePersistedState("ys-filter-distance", 50);
+  const [distance, setDistance] = usePersistedState("ys-filter-distance", 100);
   const [dateFilter, setDateFilter] = usePersistedState(
     "ys-filter-date",
     ""
@@ -176,11 +165,19 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
     async function fetchListings() {
       setLoading(true);
 
+      const now = new Date().toISOString();
+      const today = new Date().toISOString().split("T")[0];
+
       let userQuery = supabase
         .from("listings")
         .select("*, listing_photos(*)");
       userQuery = userQuery.eq("is_shadowbanned", false);
-      let extQuery = supabase.from("external_sales").select("*");
+
+      let extQuery = supabase
+        .from("external_sales")
+        .select("*")
+        .or(`expires_at.is.null,expires_at.gt.${now}`)
+        .or(`sale_date.is.null,sale_date.gte.${today}`);
 
       if (debouncedSearch.trim()) {
         const term = `%${debouncedSearch.trim()}%`;
@@ -219,11 +216,9 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
       userQuery = userQuery
         .order("is_boosted", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
-
       extQuery = extQuery
         .order("collected_at", { ascending: false })
         .limit(50);
-
       userQuery = userQuery.limit(50);
 
       const [userResult, extResult] = await Promise.all([
@@ -244,10 +239,20 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
 
       let results = [...userListings, ...externalListings];
 
+      // Always filter out past sales
       if (dateFilter) {
         results = results.filter((l) =>
           matchesDateFilter(l.sale_date, dateFilter)
         );
+      } else {
+        // Even with no date filter selected, exclude ended sales
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+        results = results.filter((l) => {
+          if (!l.sale_date) return true;
+          const saleDate = new Date(l.sale_date + "T00:00:00");
+          return saleDate >= todayDate;
+        });
       }
 
       const hasLocation = !!(lat && lng);
@@ -287,6 +292,7 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
       setListings(results.slice(0, 12));
       setLoading(false);
     }
+
     fetchListings();
   }, [debouncedSearch, selectedCategory, dateFilter, distance, lat, lng]);
 
@@ -318,8 +324,8 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
             <span className="text-ys-300">Near You</span>
           </h1>
           <p className="text-ys-100 text-lg mb-2 max-w-xl mx-auto">
-            Find amazing deals in your neighborhood. Browse, save, and visit
-            yard sales happening right now.
+            Find amazing deals in your neighborhood. Browse, save, and
+            visit yard sales happening right now.
           </p>
           {(city || region) && (
             <p className="text-ys-300 text-sm mb-8">
@@ -330,7 +336,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
               {[city, region].filter(Boolean).join(", ")}
             </p>
           )}
-
           <div className="max-w-2xl mx-auto">
             <div className="relative">
               <i
@@ -472,6 +477,7 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
           </div>
         </section>
 
+        {/* ── FIX #8: Removed "$1.99" from boost description ── */}
         <section className="mt-10 bg-gradient-to-br from-ys-50 via-white to-amber-50 border border-ys-200 rounded-3xl p-8 sm:p-10">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
             Why Sellers Love YardShoppers
@@ -500,8 +506,7 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
                 Boost for More Eyes
               </h3>
               <p className="text-sm text-gray-500">
-                Get up to 25x more views with optional boost tiers starting
-                at just $1.99.
+                Get up to 25x more views with optional boost tiers.
               </p>
             </div>
             <div className="text-center">

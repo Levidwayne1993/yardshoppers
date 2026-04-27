@@ -14,7 +14,6 @@ const poppins = Poppins({
   display: "swap",
 });
 
-// ── FIXED: was "GTM-GTM-P3N8VNGV" (double prefix — completely broken) ──
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-P3N8VNGV";
 
 export const metadata: Metadata = {
@@ -159,7 +158,10 @@ export default function RootLayout({
 
         {/* ── DNS prefetch for Font Awesome + GTM ── */}
         <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
-        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link
+          rel="dns-prefetch"
+          href="https://www.googletagmanager.com"
+        />
 
         {/* ── GTM Consent Mode v2 defaults (MUST come BEFORE GTM script) ── */}
         <script
@@ -203,25 +205,22 @@ export default function RootLayout({
           }}
         />
 
-        {/* ── Font Awesome async (non-render-blocking) ── */}
+        {/* ── FIX #3: Font Awesome — LOAD NORMALLY ──
+             The old code used media="print" + onLoad="this.media='all'"
+             but onLoad as a string doesn't work in React/Next.js JSX.
+             The stylesheet stayed as media="print" forever = icons never
+             rendered on screen. Just load it normally. ── */}
         <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-          media="print"
-          // @ts-ignore
-          onLoad="this.media='all'"
           crossOrigin="anonymous"
         />
-        <noscript>
-          <link
-            rel="stylesheet"
-            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-          />
-        </noscript>
 
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd),
+          }}
         />
       </head>
 

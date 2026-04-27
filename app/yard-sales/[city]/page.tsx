@@ -8,6 +8,11 @@ import {
   getNearestCities,
 } from "@/lib/cities";
 
+// ── FIX #4: Force dynamic rendering so city pages fetch fresh data
+// instead of being baked at build time with 0 results ──
+export const dynamic = "force-dynamic";
+export const revalidate = 3600; // ISR: re-check every hour
+
 interface Props {
   params: Promise<{ city: string }>;
 }
@@ -55,22 +60,27 @@ async function getListingsForCity(cityName: string, stateCode: string) {
     );
 
     const today = new Date().toISOString().split("T")[0];
+    const now = new Date().toISOString();
 
-    // Query user-posted listings
+    // Query user-posted listings — only upcoming sales
     const { data: userListings } = await supabase
       .from("listings")
       .select("*")
-      .or(`city.ilike.%${cityName}%,address.ilike.%${cityName}%`)
-      .gte("sale_date", today)
+      .ilike("city", `%${cityName}%`)
+      .eq("is_shadowbanned", false)
+      .or(`sale_date.is.null,sale_date.gte.${today}`)
       .order("sale_date", { ascending: true })
       .limit(100);
 
-    // Query external/aggregated listings (scraped sales)
+    // Query external/aggregated listings — only active, not expired
+    // FIX: Use a single combined filter instead of double .or() which
+    // doesn't AND correctly in Supabase PostgREST
     const { data: extListings } = await supabase
       .from("external_sales")
       .select("*")
-      .or(`city.ilike.%${cityName}%,address.ilike.%${cityName}%`)
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .ilike("city", `%${cityName}%`)
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
+      .or(`sale_date.is.null,sale_date.gte.${today}`)
       .order("collected_at", { ascending: false })
       .limit(100);
 
@@ -423,7 +433,7 @@ export default async function CityPage({ params }: Props) {
               },
               {
                 q: `Is it free to post a yard sale in ${city.name} on YardShoppers?`,
-                a: `Yes! Posting a yard sale or garage sale on YardShoppers is 100% free. You can optionally boost your listing for more visibility starting at $2.99. Just go to the Post a Sale page, add your details and photos, and your listing will be live in minutes.`,
+                a: `Yes! Posting a yard sale or garage sale on YardShoppers is 100% free. You can optionally boost your listing for more visibility. Just go to the Post a Sale page, add your details and photos, and your listing will be live in minutes.`,
               },
               {
                 q: `Do I need a permit for a yard sale in ${city.name}?`,

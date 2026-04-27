@@ -12,6 +12,9 @@ export function matchesDateFilter(saleDate: string | null | undefined, filter: s
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const sale = new Date(saleDate + 'T00:00:00');
 
+  // FIX #5: Always exclude past sales regardless of filter
+  if (sale < today) return false;
+
   switch (filter) {
     case 'today':
       return sale.getTime() === today.getTime();
@@ -63,8 +66,9 @@ const CATEGORY_OPTIONS = [
   { name: 'Free Stuff', icon: 'fa-gift', value: 'Free Stuff' },
 ];
 
+// FIX #5: Removed "All Dates" — users can only see today forward
 const DATE_OPTIONS = [
-  { label: 'All Dates', value: '', icon: 'fa-calendar' },
+  { label: 'Upcoming', value: '', icon: 'fa-calendar' },
   { label: 'Today', value: 'today', icon: 'fa-calendar-day' },
   { label: 'Tomorrow', value: 'tomorrow', icon: 'fa-calendar-plus' },
   { label: 'This Weekend', value: 'weekend', icon: 'fa-calendar-week' },
@@ -123,7 +127,6 @@ export default function FilterSidebar({
           <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
             Location
           </h3>
-          {/* A11Y FIX: aria-label on icon-text button */}
           <button
             onClick={() => {
               onRequestLocation();
@@ -132,12 +135,18 @@ export default function FilterSidebar({
             aria-label="Update your location"
             className="text-xs text-green-700 hover:text-green-800 font-semibold flex items-center gap-1"
           >
-            <i className="fa-solid fa-location-crosshairs text-[10px]" aria-hidden="true" />
+            <i
+              className="fa-solid fa-location-crosshairs text-[10px]"
+              aria-hidden="true"
+            />
             Update
           </button>
         </div>
         <div className="flex items-center gap-2.5 bg-green-50 border border-green-100 rounded-xl px-3.5 py-2.5">
-          <i className="fa-solid fa-location-dot text-green-600 text-sm" aria-hidden="true" />
+          <i
+            className="fa-solid fa-location-dot text-green-600 text-sm"
+            aria-hidden="true"
+          />
           <span className="text-sm font-semibold text-green-800 truncate">
             {locationLabel}
           </span>
@@ -151,7 +160,11 @@ export default function FilterSidebar({
         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">
           Radius
         </h3>
-        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Search radius">
+        <div
+          className="grid grid-cols-3 gap-1.5"
+          role="group"
+          aria-label="Search radius"
+        >
           {DISTANCE_OPTIONS.map((opt) => (
             <button
               key={opt.label}
@@ -176,7 +189,11 @@ export default function FilterSidebar({
         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
           Date
         </h3>
-        <div className="space-y-0.5" role="group" aria-label="Date filter">
+        <div
+          className="space-y-0.5"
+          role="group"
+          aria-label="Date filter"
+        >
           {DATE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -193,7 +210,9 @@ export default function FilterSidebar({
             >
               <i
                 className={`fa-regular ${opt.icon} w-4 text-center text-sm ${
-                  selectedDate === opt.value ? 'text-green-600' : 'text-gray-400'
+                  selectedDate === opt.value
+                    ? 'text-green-600'
+                    : 'text-gray-400'
                 }`}
                 aria-hidden="true"
               />
@@ -210,7 +229,11 @@ export default function FilterSidebar({
         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
           Categories
         </h3>
-        <div className="space-y-0.5" role="group" aria-label="Category filter">
+        <div
+          className="space-y-0.5"
+          role="group"
+          aria-label="Category filter"
+        >
           {CATEGORY_OPTIONS.map((cat) => (
             <button
               key={cat.value}
@@ -227,7 +250,9 @@ export default function FilterSidebar({
             >
               <i
                 className={`fa-solid ${cat.icon} w-4 text-center text-sm ${
-                  selectedCategory === cat.value ? 'text-green-600' : 'text-gray-400'
+                  selectedCategory === cat.value
+                    ? 'text-green-600'
+                    : 'text-gray-400'
                 }`}
                 aria-hidden="true"
               />
@@ -250,7 +275,10 @@ export default function FilterSidebar({
             onClick={() => setMobileOpen(false)}
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-gray-700 hover:bg-gray-50 font-medium transition-all"
           >
-            <i className="fa-solid fa-route w-4 text-center text-sm text-gray-400" aria-hidden="true" />
+            <i
+              className="fa-solid fa-route w-4 text-center text-sm text-gray-400"
+              aria-hidden="true"
+            />
             Route Planner
           </Link>
           {isLoggedIn && (
@@ -260,7 +288,10 @@ export default function FilterSidebar({
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-gray-700 hover:bg-gray-50 font-medium transition-all"
               >
-                <i className="fa-solid fa-heart w-4 text-center text-sm text-gray-400" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-heart w-4 text-center text-sm text-gray-400"
+                  aria-hidden="true"
+                />
                 Saved Sales
               </Link>
               <Link
@@ -268,7 +299,10 @@ export default function FilterSidebar({
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-gray-700 hover:bg-gray-50 font-medium transition-all"
               >
-                <i className="fa-solid fa-plus-circle w-4 text-center text-sm text-gray-400" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-plus-circle w-4 text-center text-sm text-gray-400"
+                  aria-hidden="true"
+                />
                 Post a Sale
               </Link>
               <Link
@@ -276,7 +310,10 @@ export default function FilterSidebar({
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-gray-700 hover:bg-gray-50 font-medium transition-all"
               >
-                <i className="fa-solid fa-envelope w-4 text-center text-sm text-gray-400" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-envelope w-4 text-center text-sm text-gray-400"
+                  aria-hidden="true"
+                />
                 Messages
               </Link>
             </>
@@ -289,15 +326,16 @@ export default function FilterSidebar({
   return (
     <>
       {/* ===== DESKTOP SIDEBAR ===== */}
-      {/* A11Y FIX: aria-label on aside landmark */}
-      <aside className="hidden lg:block w-[260px] flex-shrink-0" aria-label="Filters">
+      <aside
+        className="hidden lg:block w-[260px] flex-shrink-0"
+        aria-label="Filters"
+      >
         <div className="sticky top-[80px] bg-white rounded-2xl border border-gray-200/80 shadow-sm max-h-[calc(100vh-100px)] overflow-y-auto">
           {sidebarContent}
         </div>
       </aside>
 
       {/* ===== MOBILE FILTER FAB ===== */}
-      {/* A11Y FIX: aria-label on FAB */}
       <button
         onClick={() => setMobileOpen(true)}
         aria-label="Open filters"
@@ -322,16 +360,21 @@ export default function FilterSidebar({
           <div className="relative w-[300px] max-w-[85vw] bg-white shadow-2xl overflow-y-auto">
             <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-100 px-4 py-3 flex items-center justify-between z-10">
               <h2 className="font-bold text-lg text-gray-900 flex items-center gap-2">
-                <i className="fa-solid fa-sliders text-green-600" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-sliders text-green-600"
+                  aria-hidden="true"
+                />
                 Filters
               </h2>
-              {/* A11Y FIX: aria-label on close button */}
               <button
                 onClick={() => setMobileOpen(false)}
                 aria-label="Close filters"
                 className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
               >
-                <i className="fa-solid fa-xmark text-sm" aria-hidden="true" />
+                <i
+                  className="fa-solid fa-xmark text-sm"
+                  aria-hidden="true"
+                />
               </button>
             </div>
             {sidebarContent}
