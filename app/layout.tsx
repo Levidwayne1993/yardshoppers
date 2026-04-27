@@ -67,7 +67,8 @@ export const metadata: Metadata = {
       "Find amazing yard sales, garage sales, and estate sales in your area. Post your sale for free and reach thousands of local buyers.",
     images: [
       {
-        url: "/og-image.png",
+        url: "https://www.yardshoppers.com/og-image.png",
+
         width: 1200,
         height: 630,
         alt: "YardShoppers — Discover Yard Sales Near You",
@@ -79,7 +80,7 @@ export const metadata: Metadata = {
     title: "YardShoppers — Discover Yard Sales Near You",
     description:
       "Find amazing yard sales, garage sales, and estate sales in your area. Post your sale for free and reach thousands of local buyers.",
-    images: ["/og-image.png"],
+    images: ["https://www.yardshoppers.com/og-image.png"],
     creator: "@yardshoppers",
   },
   robots: {
