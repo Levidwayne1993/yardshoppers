@@ -15,6 +15,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageViewTracker from "@/components/PageViewTracker";
 import CookieConsent from "@/components/CookieConsent";
+import AdminFloatingBar from "@/components/AdminFloatingBar";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -253,6 +254,7 @@ export default function RootLayout({
 
         <PageViewTracker />
         <Navbar />
+        <AdminFloatingBar />
         <main className="flex-1">{children}</main>
         <Footer />
         <CookieConsent />
