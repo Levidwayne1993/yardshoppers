@@ -1,7 +1,6 @@
 // ============================================================
 // FILE: components/HomeContent.tsx
-// FIX #8: Removed "$1.99" price from "Why Sellers Love YardShoppers"
-// Also: uses matchesDateFilter which now excludes past sales
+// UPDATED: Default distance changed from 100 to 50
 // ============================================================
 "use client";
 
@@ -128,7 +127,8 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
     "ys-filter-category",
     ""
   );
-  const [distance, setDistance] = usePersistedState("ys-filter-distance", 100);
+  // ── FIX: Default radius 50mi instead of 100 ──
+  const [distance, setDistance] = usePersistedState("ys-filter-distance", 50);
   const [dateFilter, setDateFilter] = usePersistedState(
     "ys-filter-date",
     ""
@@ -160,7 +160,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
 
     async function fetchListings() {
       setLoading(true);
-
       const now = new Date().toISOString();
       const today = new Date().toISOString().split("T")[0];
 
@@ -202,6 +201,7 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
           .lte("latitude", lat + deg)
           .gte("longitude", lng - deg)
           .lte("longitude", lng + deg);
+
         extQuery = extQuery
           .gte("latitude", lat - deg)
           .lte("latitude", lat + deg)
@@ -212,9 +212,11 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
       userQuery = userQuery
         .order("is_boosted", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
+
       extQuery = extQuery
         .order("collected_at", { ascending: false })
         .limit(50);
+
       userQuery = userQuery.limit(50);
 
       const [userResult, extResult] = await Promise.all([
@@ -257,6 +259,7 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
       if (useNearestSort) {
         const boosted = results.filter((l: any) => l.is_boosted);
         const nonBoosted = results.filter((l: any) => !l.is_boosted);
+
         const sortByDistance = (a: any, b: any) => {
           const distA =
             a.latitude && a.longitude
@@ -268,18 +271,21 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
               : Infinity;
           return distA - distB;
         };
+
         boosted.sort(sortByDistance);
         nonBoosted.sort(sortByDistance);
         results = [...boosted, ...nonBoosted];
       } else {
         const boosted = results.filter((l: any) => l.is_boosted);
         const nonBoosted = results.filter((l: any) => !l.is_boosted);
+
         const sortByNewest = (a: any, b: any) => {
           return (
             new Date(b.created_at).getTime() -
             new Date(a.created_at).getTime()
           );
         };
+
         boosted.sort(sortByNewest);
         nonBoosted.sort(sortByNewest);
         results = [...boosted, ...nonBoosted];
@@ -316,12 +322,13 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center relative z-10">
           <h1 className="text-3xl sm:text-5xl font-extrabold mb-3 leading-tight">
-            Discover Yard Sales <br />
+            Discover Yard Sales
+            <br />
             <span className="text-ys-300">Near You</span>
           </h1>
           <p className="text-ys-100 text-lg mb-2 max-w-xl mx-auto">
-            Find amazing deals in your neighborhood. Browse, save, and
-            visit yard sales happening right now.
+            Find amazing deals in your neighborhood. Browse, save, and visit
+            yard sales happening right now.
           </p>
           {(city || region) && (
             <p className="text-ys-300 text-sm mb-8">
@@ -332,41 +339,43 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
               {[city, region].filter(Boolean).join(", ")}
             </p>
           )}
-                      <div className="max-w-2xl mx-auto">
-              <form
-                onSubmit={(e) => { e.preventDefault(); }}
-                className="relative flex items-center"
-              >
-                <i
-                  className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10"
-                  aria-hidden="true"
-                />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search for furniture, electronics, toys, or a city/state..."
-                  aria-label="Search yard sales"
-                  className="w-full pl-11 pr-28 py-3.5 bg-white text-gray-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-400 shadow-lg"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 px-5 py-2 bg-ys-700 hover:bg-ys-800 text-white rounded-lg font-semibold text-sm transition-all"
-                >
-                  Search
-                </button>
-              </form>
 
-              {/* Route Planner — visible immediately */}
-              <Link
-                href="/route-planner"
-                className="mt-4 inline-flex items-center gap-2 px-5 py-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white border border-white/30 rounded-full font-semibold text-sm transition-all"
+          <div className="max-w-2xl mx-auto">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+              }}
+              className="relative flex items-center"
+            >
+              <i
+                className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10"
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search for furniture, electronics, toys, or a city/state..."
+                aria-label="Search yard sales"
+                className="w-full pl-11 pr-28 py-3.5 bg-white text-gray-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-400 shadow-lg"
+              />
+              <button
+                type="submit"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 px-5 py-2 bg-ys-700 hover:bg-ys-800 text-white rounded-lg font-semibold text-sm transition-all"
               >
-                <i className="fa-solid fa-route" aria-hidden="true" />
-                Plan Your Route — Hit Multiple Sales in One Trip
-              </Link>
-            </div>
+                Search
+              </button>
+            </form>
 
+            {/* Route Planner — visible immediately */}
+            <Link
+              href="/route-planner"
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white border border-white/30 rounded-full font-semibold text-sm transition-all"
+            >
+              <i className="fa-solid fa-route" aria-hidden="true" />
+              Plan Your Route — Hit Multiple Sales in One Trip
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -457,14 +466,13 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
         </div>
       </div>
 
-            {/* ══════════ TRENDING + FOOTER CTA ══════════ */}
+      {/* ══════════ TRENDING + FOOTER CTA ══════════ */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <TrendingSection />
 
         {/* ── How It Works + Seller CTA (single clean section) ── */}
         <section className="mt-10 mb-12" id="how-it-works">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
             {/* Left: How It Works */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
               <h2 className="text-lg font-bold text-gray-900 mb-6">
@@ -493,15 +501,22 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
                 ].map((step, i) => (
                   <div key={step.title} className="flex items-start gap-4">
                     <div className="relative">
-                      <div className={`w-10 h-10 ${step.color.split(' ')[0]} rounded-xl flex items-center justify-center shrink-0`}>
-                        <i className={`fa-solid ${step.icon} text-sm ${step.color.split(' ')[1]}`} aria-hidden="true" />
+                      <div
+                        className={`w-10 h-10 ${step.color.split(" ")[0]} rounded-xl flex items-center justify-center shrink-0`}
+                      >
+                        <i
+                          className={`fa-solid ${step.icon} text-sm ${step.color.split(" ")[1]}`}
+                          aria-hidden="true"
+                        />
                       </div>
                       {i < 2 && (
                         <div className="absolute top-10 left-1/2 -translate-x-1/2 w-px h-5 bg-gray-200" />
                       )}
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900 text-sm">{step.title}</h3>
+                      <h3 className="font-bold text-gray-900 text-sm">
+                        {step.title}
+                      </h3>
                       <p className="text-sm text-gray-500">{step.desc}</p>
                     </div>
                   </div>
@@ -536,11 +551,18 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
                   },
                 ].map((item) => (
                   <div key={item.title} className="flex items-start gap-3">
-                    <div className={`w-9 h-9 ${item.color.split(' ')[0]} rounded-lg flex items-center justify-center shrink-0 mt-0.5`}>
-                      <i className={`fa-solid ${item.icon} text-xs ${item.color.split(' ')[1]}`} aria-hidden="true" />
+                    <div
+                      className={`w-9 h-9 ${item.color.split(" ")[0]} rounded-lg flex items-center justify-center shrink-0 mt-0.5`}
+                    >
+                      <i
+                        className={`fa-solid ${item.icon} text-xs ${item.color.split(" ")[1]}`}
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900 text-sm">{item.title}</h3>
+                      <h3 className="font-bold text-gray-900 text-sm">
+                        {item.title}
+                      </h3>
                       <p className="text-sm text-gray-500">{item.desc}</p>
                     </div>
                   </div>
@@ -551,16 +573,17 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
                   href="/post"
                   className="inline-flex items-center gap-2 px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-bold text-sm transition-all hover:shadow-lg"
                 >
-                  <i className="fa-solid fa-plus text-xs" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-plus text-xs"
+                    aria-hidden="true"
+                  />
                   Post Your Yard Sale — Free
                 </Link>
               </div>
             </div>
-
           </div>
         </section>
       </div>
     </div>
   );
 }
-
