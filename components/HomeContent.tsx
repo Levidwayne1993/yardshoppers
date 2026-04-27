@@ -332,22 +332,41 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
               {[city, region].filter(Boolean).join(", ")}
             </p>
           )}
-          <div className="max-w-2xl mx-auto">
-            <div className="relative">
-              <i
-                className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                aria-hidden="true"
-              />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search for furniture, electronics, toys, or a city/state..."
-                aria-label="Search yard sales"
-                className="w-full pl-11 pr-4 py-3.5 bg-white text-gray-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-400 shadow-lg"
-              />
+                      <div className="max-w-2xl mx-auto">
+              <form
+                onSubmit={(e) => { e.preventDefault(); }}
+                className="relative flex items-center"
+              >
+                <i
+                  className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10"
+                  aria-hidden="true"
+                />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search for furniture, electronics, toys, or a city/state..."
+                  aria-label="Search yard sales"
+                  className="w-full pl-11 pr-28 py-3.5 bg-white text-gray-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ys-400 shadow-lg"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 px-5 py-2 bg-ys-700 hover:bg-ys-800 text-white rounded-lg font-semibold text-sm transition-all"
+                >
+                  Search
+                </button>
+              </form>
+
+              {/* Route Planner — visible immediately */}
+              <Link
+                href="/route-planner"
+                className="mt-4 inline-flex items-center gap-2 px-5 py-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white border border-white/30 rounded-full font-semibold text-sm transition-all"
+              >
+                <i className="fa-solid fa-route" aria-hidden="true" />
+                Plan Your Route — Hit Multiple Sales in One Trip
+              </Link>
             </div>
-          </div>
+
         </div>
       </section>
 
@@ -441,26 +460,6 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
             {/* ══════════ TRENDING + FOOTER CTA ══════════ */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <TrendingSection />
-
-        {/* ── Slim Route Planner Banner ── */}
-        <section className="mt-10 flex flex-col sm:flex-row items-center gap-4 bg-gradient-to-r from-ys-50 to-emerald-50 border border-ys-200 rounded-2xl px-6 py-5">
-          <div className="w-11 h-11 bg-ys-100 rounded-xl flex items-center justify-center shrink-0">
-            <i className="fa-solid fa-route text-lg text-ys-700" aria-hidden="true" />
-          </div>
-          <div className="flex-1 text-center sm:text-left">
-            <h2 className="text-base font-bold text-gray-900">Plan Your Route</h2>
-            <p className="text-sm text-gray-500">
-              Hit multiple sales in one trip — map the most efficient route.
-            </p>
-          </div>
-          <Link
-            href="/route-planner"
-            className="inline-flex items-center gap-2 px-5 py-2 bg-ys-700 hover:bg-ys-800 text-white rounded-full font-semibold text-sm transition-all hover:shadow-md shrink-0"
-          >
-            <i className="fa-solid fa-map-location-dot" aria-hidden="true" />
-            Open Route Planner
-          </Link>
-        </section>
 
         {/* ── How It Works + Seller CTA (single clean section) ── */}
         <section className="mt-10 mb-12" id="how-it-works">
