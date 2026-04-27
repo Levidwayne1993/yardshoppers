@@ -1,21 +1,26 @@
-"use server";
-
-import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
   .split(",")
   .map((e: string) => e.trim().toLowerCase())
   .filter(Boolean);
 
-export async function POST(req: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies });
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function POST(req: Request) {
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.replace("Bearer ", "");
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || !ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
+    error: authErr,
+  } = await supabase.auth.getUser(token);
+
+  if (authErr || !user || !ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

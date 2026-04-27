@@ -45,7 +45,6 @@ export default function AdminFloatingBar() {
   }, [pathname]);
 
   const fetchCtx = async (id: string) => {
-    // Try internal listings first
     const { data: internal } = await supabase
       .from("listings")
       .select("id, title, user_id, is_boosted, is_shadowbanned")
@@ -62,7 +61,6 @@ export default function AdminFloatingBar() {
       return;
     }
 
-    // Try external_sales
     const { data: ext } = await supabase
       .from("external_sales")
       .select("id, title")
@@ -81,6 +79,11 @@ export default function AdminFloatingBar() {
     }
   };
 
+  const getToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || "";
+  };
+
   const flash = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
@@ -90,9 +93,13 @@ export default function AdminFloatingBar() {
     if (!listing || listing.is_external) return;
     setBusy("boost");
     try {
+      const token = await getToken();
       const res = await fetch("/api/admin/boost", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ listingId: listing.id }),
       });
       const data = await res.json();
@@ -113,9 +120,13 @@ export default function AdminFloatingBar() {
     setBusy("shadow");
     const next = !listing.is_shadowbanned;
     try {
+      const token = await getToken();
       const res = await fetch("/api/admin/shadowban", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ listingId: listing.id, shadowban: next }),
       });
       if (res.ok) {
@@ -134,9 +145,13 @@ export default function AdminFloatingBar() {
     if (!confirm(msg)) return;
     setBusy("delete");
     try {
+      const token = await getToken();
       const res = await fetch("/api/admin/delete-listing", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           listingId: listing.id,
           isExternal: listing.is_external,
@@ -156,17 +171,15 @@ export default function AdminFloatingBar() {
 
   return (
     <>
-      {/* Toast notification */}
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-gray-900 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium animate-bounce">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-gray-900 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium">
           {toast}
         </div>
       )}
 
-      {/* Floating button + panel */}
       <div className="fixed bottom-20 md:bottom-6 right-4 z-[60]">
         {expanded && (
-          <div className="mb-3 bg-gray-900 text-white rounded-2xl shadow-2xl p-4 w-72 space-y-2 animate-in slide-in-from-bottom-2">
+          <div className="mb-3 bg-gray-900 text-white rounded-2xl shadow-2xl p-4 w-72 space-y-2">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
                 <i className="fa-solid fa-shield-halved mr-1" />
@@ -187,7 +200,6 @@ export default function AdminFloatingBar() {
                   {listing.title}
                 </p>
 
-                {/* Boost (internal only) */}
                 {!listing.is_external && !listing.is_boosted && (
                   <button
                     onClick={handleBoost}
@@ -207,7 +219,6 @@ export default function AdminFloatingBar() {
                   </div>
                 )}
 
-                {/* Shadowban (internal only) */}
                 {!listing.is_external && (
                   <button
                     onClick={handleShadowban}
@@ -225,7 +236,6 @@ export default function AdminFloatingBar() {
                   </button>
                 )}
 
-                {/* Delete (both internal + external) */}
                 <button
                   onClick={handleDelete}
                   disabled={busy === "delete"}
@@ -243,7 +253,6 @@ export default function AdminFloatingBar() {
               </p>
             )}
 
-            {/* Always-available links */}
             <div className="border-t border-gray-700 pt-2 mt-1 space-y-2">
               <a
                 href="/admin/bulk-import"
@@ -263,7 +272,6 @@ export default function AdminFloatingBar() {
           </div>
         )}
 
-        {/* FAB button */}
         <button
           onClick={() => setExpanded(!expanded)}
           className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all ${
