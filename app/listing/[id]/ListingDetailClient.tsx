@@ -144,7 +144,7 @@ function buildJsonLd(listing: Listing, hasRealSeller: boolean) {
     "@type": "Organization",
     name: hasRealSeller
       ? listing.profiles?.display_name || "YardShoppers Seller"
-      : "YardShoppers Seller",
+      : "YardShoppers",
     url: "https://www.yardshoppers.com",
   };
 
@@ -874,7 +874,7 @@ export default function ListingDetailClient({
                 <div>
                   <p className="font-semibold text-gray-900">
                     {listing.profiles?.display_name ||
-                      "YardShoppers Seller"}
+                      (hasRealSeller ? "YardShoppers Seller" : "YardShoppers")}
                   </p>
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-gray-500">
@@ -911,6 +911,30 @@ export default function ListingDetailClient({
                 </div>
               )}
             </div>
+
+            {/* Promo banner — only on aggregated/external listings */}
+            {!hasRealSeller && (
+              <div className="bg-gradient-to-r from-ys-50 to-green-50 border border-ys-200 rounded-2xl p-5 text-center">
+                <p className="text-sm text-gray-700 mb-3">
+                  <i
+                    className="fa-solid fa-comments text-ys-600 mr-2"
+                    aria-hidden="true"
+                  />
+                  <span className="font-semibold">Hosting a yard sale?</span>{" "}
+                  Post it on YardShoppers and buyers can message you directly!
+                </p>
+                <Link
+                  href="/post"
+                  className="inline-flex items-center gap-2 bg-ys-800 hover:bg-ys-900 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all hover:shadow-lg"
+                >
+                  <i
+                    className="fa-solid fa-plus text-xs"
+                    aria-hidden="true"
+                  />
+                  Post Your Sale
+                </Link>
+              </div>
+            )}
 
             <p className="text-center">
               <button
