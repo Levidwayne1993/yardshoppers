@@ -22,10 +22,6 @@ const TrendingSection = dynamic(
   () => import("@/components/TrendingSection"),
   { ssr: false }
 );
-const CategoryGrid = dynamic(
-  () => import("@/components/CategoryGrid"),
-  { ssr: false }
-);
 
 const supabase = createClient();
 
@@ -442,165 +438,130 @@ export default function HomeContent({ initialListings }: HomeContentProps) {
         </div>
       </div>
 
-      {/* ══════════ TRENDING + BELOW ══════════ */}
+            {/* ══════════ TRENDING + FOOTER CTA ══════════ */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <TrendingSection />
-        <CategoryGrid />
 
-        <section className="mt-12 bg-gradient-to-r from-ys-50 to-emerald-50 border border-ys-200 rounded-3xl p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row items-center gap-5">
-            <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center shrink-0">
-              <i
-                className="fa-solid fa-route text-2xl text-ys-700"
-                aria-hidden="true"
-              />
-            </div>
-            <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-lg font-bold text-gray-900 mb-1">
-                Plan Your Route
+        {/* ── Slim Route Planner Banner ── */}
+        <section className="mt-10 flex flex-col sm:flex-row items-center gap-4 bg-gradient-to-r from-ys-50 to-emerald-50 border border-ys-200 rounded-2xl px-6 py-5">
+          <div className="w-11 h-11 bg-ys-100 rounded-xl flex items-center justify-center shrink-0">
+            <i className="fa-solid fa-route text-lg text-ys-700" aria-hidden="true" />
+          </div>
+          <div className="flex-1 text-center sm:text-left">
+            <h2 className="text-base font-bold text-gray-900">Plan Your Route</h2>
+            <p className="text-sm text-gray-500">
+              Hit multiple sales in one trip — map the most efficient route.
+            </p>
+          </div>
+          <Link
+            href="/route-planner"
+            className="inline-flex items-center gap-2 px-5 py-2 bg-ys-700 hover:bg-ys-800 text-white rounded-full font-semibold text-sm transition-all hover:shadow-md shrink-0"
+          >
+            <i className="fa-solid fa-map-location-dot" aria-hidden="true" />
+            Open Route Planner
+          </Link>
+        </section>
+
+        {/* ── How It Works + Seller CTA (single clean section) ── */}
+        <section className="mt-10 mb-12" id="how-it-works">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            {/* Left: How It Works */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">
+                How YardShoppers Works
               </h2>
-              <p className="text-sm text-gray-600">
-                Hit multiple sales in one trip. Map out the most efficient
-                route and never miss a deal on your way.
-              </p>
+              <div className="space-y-5">
+                {[
+                  {
+                    icon: "fa-magnifying-glass",
+                    color: "bg-ys-100 text-ys-700",
+                    title: "Search",
+                    desc: "Find yard sales near you by location, category, or keyword.",
+                  },
+                  {
+                    icon: "fa-heart",
+                    color: "bg-rose-100 text-rose-600",
+                    title: "Save",
+                    desc: "Save your favorites and plan which sales to hit.",
+                  },
+                  {
+                    icon: "fa-map-location-dot",
+                    color: "bg-blue-100 text-blue-600",
+                    title: "Visit",
+                    desc: "Get directions and head out to score amazing deals.",
+                  },
+                ].map((step, i) => (
+                  <div key={step.title} className="flex items-start gap-4">
+                    <div className="relative">
+                      <div className={`w-10 h-10 ${step.color.split(' ')[0]} rounded-xl flex items-center justify-center shrink-0`}>
+                        <i className={`fa-solid ${step.icon} text-sm ${step.color.split(' ')[1]}`} aria-hidden="true" />
+                      </div>
+                      {i < 2 && (
+                        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-px h-5 bg-gray-200" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-sm">{step.title}</h3>
+                      <p className="text-sm text-gray-500">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <Link
-              href="/route-planner"
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-ys-700 hover:bg-ys-800 text-white rounded-full font-semibold text-sm transition-all hover:shadow-lg shrink-0"
-            >
-              <i
-                className="fa-solid fa-map-location-dot"
-                aria-hidden="true"
-              />
-              Open Route Planner
-            </Link>
-          </div>
-        </section>
 
-        {/* ── FIX #8: Removed "$1.99" from boost description ── */}
-        <section className="mt-10 bg-gradient-to-br from-ys-50 via-white to-amber-50 border border-ys-200 rounded-3xl p-8 sm:p-10">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
-            Why Sellers Love YardShoppers
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto mb-8">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <i
-                  className="fa-solid fa-check text-lg text-green-600"
-                  aria-hidden="true"
-                />
+            {/* Right: Seller pitch */}
+            <div className="bg-gradient-to-br from-ys-50 via-white to-emerald-50 border border-ys-200 rounded-2xl p-6 sm:p-8 flex flex-col">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">
+                Selling? It&apos;s Free.
+              </h2>
+              <div className="space-y-4 flex-1">
+                {[
+                  {
+                    icon: "fa-check",
+                    color: "bg-green-100 text-green-600",
+                    title: "Free to Post",
+                    desc: "List your yard sale in under 2 minutes — no fees, no catch.",
+                  },
+                  {
+                    icon: "fa-rocket",
+                    color: "bg-amber-100 text-amber-600",
+                    title: "Boost for More Eyes",
+                    desc: "Get up to 25x more views with optional boost tiers.",
+                  },
+                  {
+                    icon: "fa-map-location-dot",
+                    color: "bg-blue-100 text-blue-600",
+                    title: "Route Planner Ready",
+                    desc: "Buyers plan trips around your sale — boosted listings get priority.",
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="flex items-start gap-3">
+                    <div className={`w-9 h-9 ${item.color.split(' ')[0]} rounded-lg flex items-center justify-center shrink-0 mt-0.5`}>
+                      <i className={`fa-solid ${item.icon} text-xs ${item.color.split(' ')[1]}`} aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-sm">{item.title}</h3>
+                      <p className="text-sm text-gray-500">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">Free to Post</h3>
-              <p className="text-sm text-gray-500">
-                List your yard sale in under 2 minutes — no fees, no catch.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <i
-                  className="fa-solid fa-rocket text-lg text-amber-600"
-                  aria-hidden="true"
-                />
+              <div className="mt-6">
+                <Link
+                  href="/post"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-bold text-sm transition-all hover:shadow-lg"
+                >
+                  <i className="fa-solid fa-plus text-xs" aria-hidden="true" />
+                  Post Your Yard Sale — Free
+                </Link>
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">
-                Boost for More Eyes
-              </h3>
-              <p className="text-sm text-gray-500">
-                Get up to 25x more views with optional boost tiers.
-              </p>
             </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <i
-                  className="fa-solid fa-map-location-dot text-lg text-blue-600"
-                  aria-hidden="true"
-                />
-              </div>
-              <h3 className="font-bold text-gray-900 mb-1">
-                Route Planner Ready
-              </h3>
-              <p className="text-sm text-gray-500">
-                Buyers plan trips around your sale — boosted listings get
-                priority pins.
-              </p>
-            </div>
-          </div>
-          <div className="text-center">
-            <Link
-              href="/post"
-              className="inline-flex items-center gap-2 px-8 py-3 bg-ys-800 hover:bg-ys-900 text-white rounded-full font-bold transition-all hover:shadow-lg"
-            >
-              <i
-                className="fa-solid fa-plus text-sm"
-                aria-hidden="true"
-              />
-              Post Your Yard Sale — Free
-            </Link>
-          </div>
-        </section>
 
-        <section className="mt-16 mb-8" id="how-it-works">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
-            How YardShoppers Works
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
-            {[
-              {
-                icon: "fa-magnifying-glass",
-                title: "Search",
-                desc: "Find yard sales near you by location, category, or keyword.",
-              },
-              {
-                icon: "fa-heart",
-                title: "Save",
-                desc: "Save your favorite listings and plan your yard sale route.",
-              },
-              {
-                icon: "fa-map-location-dot",
-                title: "Visit",
-                desc: "Get directions and head out to find amazing deals!",
-              },
-            ].map((step) => (
-              <div key={step.title} className="text-center">
-                <div className="w-14 h-14 bg-ys-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <i
-                    className={`fa-solid ${step.icon} text-xl text-ys-700`}
-                    aria-hidden="true"
-                  />
-                </div>
-                <h3 className="font-bold text-gray-900 mb-1">
-                  {step.title}
-                </h3>
-                <p className="text-sm text-gray-500">{step.desc}</p>
-              </div>
-            ))}
           </div>
-        </section>
-
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          {[
-            { icon: "fa-dollar-sign", label: "Free to Browse" },
-            { icon: "fa-location-crosshairs", label: "Location Based" },
-            { icon: "fa-bolt", label: "Instant Posting" },
-            { icon: "fa-shield-halved", label: "Secure & Private" },
-          ].map((trust) => (
-            <div
-              key={trust.label}
-              className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl"
-            >
-              <div className="w-9 h-9 bg-ys-100 rounded-lg flex items-center justify-center shrink-0">
-                <i
-                  className={`fa-solid ${trust.icon} text-sm text-ys-700`}
-                  aria-hidden="true"
-                />
-              </div>
-              <span className="text-sm font-semibold text-gray-700">
-                {trust.label}
-              </span>
-            </div>
-          ))}
         </section>
       </div>
     </div>
   );
 }
+
