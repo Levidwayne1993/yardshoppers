@@ -198,7 +198,7 @@ export default function OutreachPage() {
         const email = log.email_to.toLowerCase();
         if (!historyMap[email]) historyMap[email] = [];
         historyMap[email].push({
-          sent_at: log.sent_at || log.created_at,
+          sent_at: log.sent_at,
           sent_by_email: log.sent_by_email || 'Unknown admin',
           category: log.category || 'Unknown',
           email_subject: log.email_subject || 'No subject',
