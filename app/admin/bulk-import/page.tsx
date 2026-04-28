@@ -96,7 +96,8 @@ export default function BulkImportPage() {
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setIsAdmin(user?.email === 'levistocks93@gmail.com');
+      const adminEmails = ['levistocks93@gmail.com', 'admin@yardshoppers.com', 'erwin-levi@outlook.com', 'gary.w.erwin@gmail.com'];
+      setIsAdmin(adminEmails.includes(user?.email || ''));
       setAuthLoading(false);
     })();
   }, [supabase]);
