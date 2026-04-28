@@ -181,6 +181,7 @@ export default function OutreachPage() {
 
   // ---- NEW: Inline editing state ----
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [showDrafts, setShowDrafts] = useState(false);
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
 
@@ -765,15 +766,22 @@ export default function OutreachPage() {
         {/* ========== STEP 1: SELECT CATEGORY ========== */}
         {step === 'category' && (
           <div className="space-y-8">
-            {/* Saved Drafts Section */}
+            {/* Saved Drafts Toggle */}
             {savedDrafts.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <div className="px-6 py-4 bg-blue-50 border-b">
-                  <h2 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
-                    💾 Saved Drafts ({savedDrafts.length})
-                  </h2>
-                  <p className="text-sm text-blue-700 mt-1">Resume a previously saved outreach batch</p>
-                </div>
+                <button
+                  onClick={() => setShowDrafts(!showDrafts)}
+                  className="w-full px-6 py-4 bg-blue-50 border-b flex items-center justify-between hover:bg-blue-100 transition"
+                >
+                  <div>
+                    <h2 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+                      💾 Saved Drafts ({savedDrafts.length})
+                    </h2>
+                    <p className="text-sm text-blue-700 mt-1">Resume a previously saved outreach batch</p>
+                  </div>
+                  <span className="text-blue-400 text-xl">{showDrafts ? '▲' : '▼'}</span>
+                </button>
+                {showDrafts && (
                 <div className="divide-y">
                   {savedDrafts.map(draft => (
                     <div key={draft.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
@@ -815,6 +823,7 @@ export default function OutreachPage() {
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             )}
 
