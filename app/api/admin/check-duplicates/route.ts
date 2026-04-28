@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
 
     // ---- Verify admin ----
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user || user.email !== 'levistocks93@gmail.com') {
+    const adminEmails = ['levistocks93@gmail.com', 'admin@yardshoppers.com', 'erwin-levi@outlook.com', 'gary.w.erwin@gmail.com'];
+    if (!user || !adminEmails.includes(user.email || '')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
