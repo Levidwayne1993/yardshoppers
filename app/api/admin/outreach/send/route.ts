@@ -7,7 +7,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-// Admin email(s) allowed to use outreach
 const ADMIN_EMAILS = [
   'levistocks93@gmail.com',
   'admin@yardshoppers.com',
@@ -33,7 +32,6 @@ async function getAuthUser(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth check
     const user = await getAuthUser(request);
     if (!user || !ADMIN_EMAILS.includes(user.email || '')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -46,6 +44,9 @@ export async function POST(request: NextRequest) {
       emailBody,
       fromName,
       replyTo,
+      // New fields for send history
+      category,
+      organizationName,
     } = body;
 
     if (!to || !subject || !emailBody) {
@@ -55,7 +56,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use environment variables for SMTP config
     const smtpHost = process.env.SMTP_HOST || 'smtp.hostinger.com';
     const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
     const smtpEmail = process.env.SMTP_EMAIL || '';
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     if (!smtpEmail || !smtpPassword) {
       return NextResponse.json(
-        { error: 'SMTP credentials not configured. Add SMTP_EMAIL and SMTP_PASSWORD to environment variables.' },
+        { error: 'SMTP credentials not configured.' },
         { status: 500 }
       );
     }
@@ -71,16 +71,12 @@ export async function POST(request: NextRequest) {
     const senderName = fromName || 'Levi & Gary Erwin — YardShoppers';
     const senderReplyTo = replyTo || smtpEmail;
 
-    // Use nodemailer to send
     const nodemailer = await import('nodemailer');
     const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
       secure: smtpPort === 465,
-      auth: {
-        user: smtpEmail,
-        pass: smtpPassword,
-      },
+      auth: { user: smtpEmail, pass: smtpPassword },
     });
 
     await transporter.sendMail({
@@ -91,7 +87,13 @@ export async function POST(request: NextRequest) {
       replyTo: senderReplyTo,
     });
 
-    return NextResponse.json({ success: true, to });
+    return NextResponse.json({
+      success: true,
+      to,
+      sentByEmail: user.email,
+      category: category || null,
+      organizationName: organizationName || null,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Outreach send error:', message);
