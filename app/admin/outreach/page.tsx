@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase-browser';
 import { OUTREACH_CATEGORIES, generateEmail } from '@/lib/outreach-templates';
+import { getResearchPrompt } from '@/lib/research-prompts';
 import * as XLSX from 'xlsx';
 
 // ---- Types ----
@@ -111,6 +112,10 @@ export default function OutreachPage() {
 
   // Campaign
   const [campaignId, setCampaignId] = useState<string | null>(null);
+
+  // Research prompt
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Admin check
   useEffect(() => {
@@ -407,6 +412,44 @@ export default function OutreachPage() {
                 </>
               )}
             </label>
+
+            {/* Research Prompt Section */}
+            <div className="mt-6 border border-blue-200 rounded-xl bg-blue-50 overflow-hidden">
+              <button
+                onClick={() => setShowPrompt(!showPrompt)}
+                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-blue-100 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🤖</span>
+                  <div>
+                    <div className="font-semibold text-[#1B4332] text-sm">Need to gather contacts? Use this Copilot script</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Copy this prompt into Copilot Chat to find emails for {OUTREACH_CATEGORIES.find(c => c.id === selectedCategory)?.label}</div>
+                  </div>
+                </div>
+                <span className="text-gray-400 text-lg">{showPrompt ? '▲' : '▼'}</span>
+              </button>
+
+              {showPrompt && (
+                <div className="px-5 pb-5">
+                  <div className="bg-white rounded-lg border p-4 text-sm whitespace-pre-wrap font-mono leading-relaxed text-gray-700">
+                    {getResearchPrompt(selectedCategory)}
+                  </div>
+                  <div className="flex items-center gap-3 mt-3">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(getResearchPrompt(selectedCategory));
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="px-4 py-2 bg-[#2D6A4F] text-white text-sm font-semibold rounded-lg hover:bg-[#1B4332] transition flex items-center gap-2"
+                    >
+                      {copied ? '✅ Copied!' : '📋 Copy to Clipboard'}
+                    </button>
+                    <span className="text-xs text-gray-500">Paste this into Copilot Chat, replace [TYPE YOUR CITY HERE] and [STATE], then upload the Excel file it gives you</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
