@@ -36,6 +36,8 @@ interface Contact {
   history: SendHistory[];
   flagged: boolean;
   approved: boolean;
+  customSubject: string;
+  customBody: string;
 }
 
 interface SendResult {
@@ -43,6 +45,17 @@ interface SendResult {
   name: string;
   status: 'sent' | 'failed' | 'skipped';
   error?: string;
+}
+
+interface SavedDraft {
+  id: string;
+  category: string;
+  file_name: string;
+  total_contacts: number;
+  notes: string;
+  admin_email: string;
+  created_at: string;
+  updated_at: string;
 }
 
 type Step = 'category' | 'upload' | 'preview' | 'review' | 'sending' | 'complete';
@@ -99,6 +112,8 @@ function mapColumns(rows: Record<string, string>[]): Contact[] {
       history: [],
       flagged: false,
       approved: false,
+      customSubject: '',
+      customBody: '',
     };
   });
 }
@@ -155,6 +170,20 @@ export default function OutreachPage() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // ---- NEW: Draft state ----
+  const [savedDrafts, setSavedDrafts] = useState<SavedDraft[]>([]);
+  const [loadingDrafts, setLoadingDrafts] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [draftNotes, setDraftNotes] = useState('');
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
+
+  // ---- NEW: Inline editing state ----
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editSubject, setEditSubject] = useState('');
+  const [editBody, setEditBody] = useState('');
+
   // Admin check
   useEffect(() => {
     (async () => {
@@ -171,6 +200,22 @@ export default function OutreachPage() {
     })();
   }, [supabase]);
 
+  // ---- Load saved drafts on mount ----
+  const loadSavedDrafts = useCallback(async () => {
+    setLoadingDrafts(true);
+    const { data } = await supabase
+      .from('outreach_campaigns')
+      .select('id, category, file_name, total_contacts, notes, admin_email, created_at, updated_at')
+      .eq('status', 'draft')
+      .order('updated_at', { ascending: false });
+    setSavedDrafts((data as SavedDraft[]) || []);
+    setLoadingDrafts(false);
+  }, [supabase]);
+
+  useEffect(() => {
+    if (isAdmin) loadSavedDrafts();
+  }, [isAdmin, loadSavedDrafts]);
+
   // ---- Check send history for uploaded contacts ----
   const checkHistory = useCallback(async (parsedContacts: Contact[]) => {
     setHistoryLoading(true);
@@ -183,7 +228,6 @@ export default function OutreachPage() {
       return parsedContacts;
     }
 
-    // Query outreach_logs for all matching emails
     const { data: logs } = await supabase
       .from('outreach_logs')
       .select('email_to, sent_by_email, category, email_subject, status, organization_name, sent_at')
@@ -191,7 +235,6 @@ export default function OutreachPage() {
       .eq('status', 'sent')
       .order('sent_at', { ascending: false });
 
-    // Build a map of email -> history records
     const historyMap: Record<string, SendHistory[]> = {};
     if (logs) {
       for (const log of logs) {
@@ -208,7 +251,6 @@ export default function OutreachPage() {
       }
     }
 
-    // Attach history to contacts and flag duplicates
     const updatedContacts = parsedContacts.map(c => {
       const emailHistory = historyMap[c.email.toLowerCase()] || [];
       return {
@@ -219,7 +261,6 @@ export default function OutreachPage() {
       };
     });
 
-    // Sort: valid + no history first, valid + flagged last
     updatedContacts.sort((a, b) => {
       if (!a.valid && b.valid) return 1;
       if (a.valid && !b.valid) return -1;
@@ -243,12 +284,12 @@ export default function OutreachPage() {
       const withHistory = await checkHistory(mapped);
       setContacts(withHistory);
       setPreviewIndex(0);
-      // If there are flagged contacts, go to review step first
+      setLoadedDraftId(null);
       const hasFlagged = withHistory.some(c => c.valid && c.flagged);
       setStep(hasFlagged ? 'review' : 'preview');
     } catch (err) {
       console.error('Parse error:', err);
-      alert('Failed to parse spreadsheet. Make sure it\'s a valid .xlsx file.');
+      alert('Failed to parse spreadsheet. Make sure it is a valid .xlsx file.');
     }
   }, [checkHistory]);
 
@@ -268,6 +309,7 @@ export default function OutreachPage() {
       const withHistory = await checkHistory(mapped);
       setContacts(withHistory);
       setPreviewIndex(0);
+      setLoadedDraftId(null);
       const hasFlagged = withHistory.some(c => c.valid && c.flagged);
       setStep(hasFlagged ? 'review' : 'preview');
     } catch (err) {
@@ -284,19 +326,206 @@ export default function OutreachPage() {
     }));
   };
 
-  // ---- Approve all flagged ----
   const approveAll = () => {
     setContacts(prev => prev.map(c => c.flagged ? { ...c, approved: true } : c));
   };
 
-  // ---- Reject all flagged ----
   const rejectAll = () => {
     setContacts(prev => prev.map(c => c.flagged ? { ...c, approved: false } : c));
   };
 
-  // ---- Send emails ----
+  // ============================================================
+  // SAVE DRAFT
+  // ============================================================
+  const saveDraft = useCallback(async () => {
+    setSavingDraft(true);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (loadedDraftId) {
+      // Update existing draft
+      await supabase.from('outreach_campaigns').update({
+        category: selectedCategory,
+        file_name: fileName,
+        total_contacts: contacts.filter(c => c.valid).length,
+        notes: draftNotes,
+        admin_email: user?.email || adminEmail,
+        status: 'draft',
+        updated_at: new Date().toISOString(),
+      }).eq('id', loadedDraftId);
+
+      // Delete old contacts and re-insert
+      await supabase.from('outreach_contacts').delete().eq('campaign_id', loadedDraftId);
+
+      const contactRows = contacts.filter(c => c.valid).map(c => ({
+        campaign_id: loadedDraftId,
+        organization_name: c.name,
+        email: c.email,
+        city: c.city,
+        region: c.region,
+        org_type: c.orgType,
+        phone: c.phone,
+        notes: c.notes,
+        status: 'pending',
+        custom_subject: c.customSubject || null,
+        custom_body: c.customBody || null,
+      }));
+
+      if (contactRows.length > 0) {
+        await supabase.from('outreach_contacts').insert(contactRows);
+      }
+    } else {
+      // Create new draft
+      const { data: campaign } = await supabase.from('outreach_campaigns').insert({
+        category: selectedCategory,
+        file_name: fileName,
+        total_contacts: contacts.filter(c => c.valid).length,
+        notes: draftNotes,
+        admin_email: user?.email || adminEmail,
+        status: 'draft',
+      }).select().single();
+
+      if (campaign) {
+        setLoadedDraftId(campaign.id);
+
+        const contactRows = contacts.filter(c => c.valid).map(c => ({
+          campaign_id: campaign.id,
+          organization_name: c.name,
+          email: c.email,
+          city: c.city,
+          region: c.region,
+          org_type: c.orgType,
+          phone: c.phone,
+          notes: c.notes,
+          status: 'pending',
+          custom_subject: c.customSubject || null,
+          custom_body: c.customBody || null,
+        }));
+
+        if (contactRows.length > 0) {
+          await supabase.from('outreach_contacts').insert(contactRows);
+        }
+      }
+    }
+
+    setSavingDraft(false);
+    setDraftSaved(true);
+    setShowSaveModal(false);
+    setTimeout(() => setDraftSaved(false), 3000);
+    await loadSavedDrafts();
+  }, [supabase, selectedCategory, fileName, contacts, draftNotes, adminEmail, loadedDraftId, loadSavedDrafts]);
+
+  // ============================================================
+  // LOAD DRAFT
+  // ============================================================
+  const loadDraft = useCallback(async (draft: SavedDraft) => {
+    setHistoryLoading(true);
+
+    // Load contacts from DB
+    const { data: dbContacts } = await supabase
+      .from('outreach_contacts')
+      .select('*')
+      .eq('campaign_id', draft.id)
+      .order('created_at', { ascending: true });
+
+    if (!dbContacts || dbContacts.length === 0) {
+      alert('No contacts found in this draft.');
+      setHistoryLoading(false);
+      return;
+    }
+
+    // Convert DB contacts to Contact type
+    const parsedContacts: Contact[] = dbContacts.map((c, i) => ({
+      row: i + 2,
+      name: c.organization_name || '',
+      email: c.email || '',
+      city: c.city || '',
+      region: c.region || '',
+      orgType: c.org_type || 'HOA',
+      phone: c.phone || '',
+      notes: c.notes || '',
+      valid: isValidEmail(c.email || ''),
+      history: [],
+      flagged: false,
+      approved: false,
+      customSubject: c.custom_subject || '',
+      customBody: c.custom_body || '',
+    }));
+
+    // Re-check history
+    const withHistory = await checkHistory(parsedContacts);
+
+    setSelectedCategory(draft.category);
+    setFileName(draft.file_name || 'Loaded from draft');
+    setContacts(withHistory);
+    setDraftNotes(draft.notes || '');
+    setLoadedDraftId(draft.id);
+    setPreviewIndex(0);
+    setHistoryLoading(false);
+
+    const hasFlagged = withHistory.some(c => c.valid && c.flagged);
+    setStep(hasFlagged ? 'review' : 'preview');
+  }, [supabase, checkHistory]);
+
+  // ============================================================
+  // DELETE DRAFT
+  // ============================================================
+  const deleteDraft = useCallback(async (draftId: string) => {
+    if (!confirm('Delete this saved draft? This cannot be undone.')) return;
+    await supabase.from('outreach_contacts').delete().eq('campaign_id', draftId);
+    await supabase.from('outreach_campaigns').delete().eq('id', draftId);
+    await loadSavedDrafts();
+  }, [supabase, loadSavedDrafts]);
+
+  // ============================================================
+  // INLINE EDITING
+  // ============================================================
+  const startEditing = (index: number) => {
+    const c = contacts[index];
+    if (!c) return;
+    const { subject, body } = generateEmail(selectedCategory, c.name, c.city, c.orgType);
+    setEditSubject(c.customSubject || subject);
+    setEditBody(c.customBody || body);
+    setEditingIndex(index);
+  };
+
+  const saveEditing = () => {
+    if (editingIndex === null) return;
+    setContacts(prev => prev.map((c, i) => {
+      if (i === editingIndex) {
+        return { ...c, customSubject: editSubject, customBody: editBody };
+      }
+      return c;
+    }));
+    setEditingIndex(null);
+    setEditSubject('');
+    setEditBody('');
+  };
+
+  const cancelEditing = () => {
+    setEditingIndex(null);
+    setEditSubject('');
+    setEditBody('');
+  };
+
+  const resetToDefault = () => {
+    if (editingIndex === null) return;
+    const c = contacts[editingIndex];
+    const { subject, body } = generateEmail(selectedCategory, c.name, c.city, c.orgType);
+    setEditSubject(subject);
+    setEditBody(body);
+    // Also clear custom fields so it uses the template
+    setContacts(prev => prev.map((ct, i) => {
+      if (i === editingIndex) {
+        return { ...ct, customSubject: '', customBody: '' };
+      }
+      return ct;
+    }));
+  };
+
+  // ============================================================
+  // SEND EMAILS
+  // ============================================================
   const sendAllEmails = useCallback(async () => {
-    // Build send list: valid + not flagged first, then valid + flagged + approved
     const newContacts = contacts.filter(c => c.valid && !c.flagged);
     const approvedContacts = contacts.filter(c => c.valid && c.flagged && c.approved);
     const skippedContacts = contacts.filter(c => c.valid && c.flagged && !c.approved);
@@ -309,36 +538,49 @@ export default function OutreachPage() {
     setSendProgress({ current: 0, total: sendList.length });
     setResults([]);
 
-    // Create campaign in Supabase
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: campaign } = await supabase.from('outreach_campaigns').insert({
-      category: selectedCategory,
-      file_name: fileName,
-      total_contacts: sendList.length,
-      status: 'sending',
-      created_by: user?.id,
-    }).select().single();
 
-    if (campaign) setCampaignId(campaign.id);
+    // Create or update campaign
+    let activeCampaignId = loadedDraftId;
 
-    // Insert all contacts into outreach_contacts
-    if (campaign) {
-      await supabase.from('outreach_contacts').insert(
-        sendList.map(c => ({
-          campaign_id: campaign.id,
-          organization_name: c.name,
-          email: c.email,
-          city: c.city,
-          region: c.region,
-          org_type: c.orgType,
-          phone: c.phone,
-          notes: c.notes,
-          status: 'pending',
-        }))
-      );
+    if (loadedDraftId) {
+      await supabase.from('outreach_campaigns').update({
+        total_contacts: sendList.length,
+        status: 'sending',
+        updated_at: new Date().toISOString(),
+      }).eq('id', loadedDraftId);
+    } else {
+      const { data: campaign } = await supabase.from('outreach_campaigns').insert({
+        category: selectedCategory,
+        file_name: fileName,
+        total_contacts: sendList.length,
+        status: 'sending',
+        created_by: user?.id,
+        admin_email: adminEmail,
+      }).select().single();
+
+      if (campaign) {
+        activeCampaignId = campaign.id;
+        setCampaignId(campaign.id);
+
+        await supabase.from('outreach_contacts').insert(
+          sendList.map(c => ({
+            campaign_id: campaign.id,
+            organization_name: c.name,
+            email: c.email,
+            city: c.city,
+            region: c.region,
+            org_type: c.orgType,
+            phone: c.phone,
+            notes: c.notes,
+            status: 'pending',
+            custom_subject: c.customSubject || null,
+            custom_body: c.customBody || null,
+          }))
+        );
+      }
     }
 
-    // Pre-populate skipped results
     const allResults: SendResult[] = skippedContacts.map(c => ({
       email: c.email,
       name: c.name,
@@ -350,7 +592,9 @@ export default function OutreachPage() {
 
     for (let i = 0; i < sendList.length; i++) {
       const c = sendList[i];
-      const { subject, body } = generateEmail(selectedCategory, c.name, c.city, c.orgType);
+      const defaultEmail = generateEmail(selectedCategory, c.name, c.city, c.orgType);
+      const subject = c.customSubject || defaultEmail.subject;
+      const body = c.customBody || defaultEmail.body;
 
       try {
         const res = await fetch('/api/admin/outreach/send', {
@@ -373,15 +617,14 @@ export default function OutreachPage() {
         sentCount++;
         allResults.push({ email: c.email, name: c.name, status: 'sent' });
 
-        // Log to outreach_logs with full history data
-        if (campaign) {
+        if (activeCampaignId) {
           await supabase.from('outreach_contacts')
             .update({ status: 'sent', sent_at: new Date().toISOString() })
-            .eq('campaign_id', campaign.id)
+            .eq('campaign_id', activeCampaignId)
             .eq('email', c.email);
 
           await supabase.from('outreach_logs').insert({
-            campaign_id: campaign.id,
+            campaign_id: activeCampaignId,
             email_to: c.email,
             email_subject: subject,
             status: 'sent',
@@ -396,14 +639,14 @@ export default function OutreachPage() {
         failCount++;
         allResults.push({ email: c.email, name: c.name, status: 'failed', error: message });
 
-        if (campaign) {
+        if (activeCampaignId) {
           await supabase.from('outreach_contacts')
             .update({ status: 'failed', error_message: message })
-            .eq('campaign_id', campaign.id)
+            .eq('campaign_id', activeCampaignId)
             .eq('email', c.email);
 
           await supabase.from('outreach_logs').insert({
-            campaign_id: campaign.id,
+            campaign_id: activeCampaignId,
             email_to: c.email,
             email_subject: subject,
             status: 'failed',
@@ -419,25 +662,23 @@ export default function OutreachPage() {
       setSendProgress({ current: i + 1, total: sendList.length });
       setResults([...allResults]);
 
-      // 45-second delay between emails (skip after last)
       if (i < sendList.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 45000));
       }
     }
 
-    // Update campaign
-    if (campaign) {
+    if (activeCampaignId) {
       await supabase.from('outreach_campaigns').update({
         sent_count: sentCount,
         failed_count: failCount,
         status: 'completed',
         updated_at: new Date().toISOString(),
-      }).eq('id', campaign.id);
+      }).eq('id', activeCampaignId);
     }
 
     setIsSending(false);
     setStep('complete');
-  }, [contacts, selectedCategory, fileName, supabase, adminEmail]);
+  }, [contacts, selectedCategory, fileName, supabase, adminEmail, loadedDraftId]);
 
   // ---- Computed ----
   const validContacts = contacts.filter(c => c.valid);
@@ -449,7 +690,10 @@ export default function OutreachPage() {
 
   const previewContact = validContacts[previewIndex] || validContacts[0];
   const previewEmail = previewContact
-    ? generateEmail(selectedCategory, previewContact.name, previewContact.city, previewContact.orgType)
+    ? {
+        subject: previewContact.customSubject || generateEmail(selectedCategory, previewContact.name, previewContact.city, previewContact.orgType).subject,
+        body: previewContact.customBody || generateEmail(selectedCategory, previewContact.name, previewContact.city, previewContact.orgType).body,
+      }
     : null;
 
   // ---- Auth gate ----
@@ -511,25 +755,95 @@ export default function OutreachPage() {
           })}
         </div>
 
+        {/* Draft saved toast */}
+        {draftSaved && (
+          <div className="fixed top-6 right-6 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 flex items-center gap-2 animate-bounce">
+            ✅ Draft saved successfully!
+          </div>
+        )}
+
         {/* ========== STEP 1: SELECT CATEGORY ========== */}
         {step === 'category' && (
-          <div className="bg-white rounded-xl shadow-sm border p-8">
-            <h2 className="text-xl font-semibold text-[#1B4332] mb-2">Select Outreach Category</h2>
-            <p className="text-gray-500 text-sm mb-6">Choose the type of organization you are reaching out to. Each category uses a tailored email template.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {OUTREACH_CATEGORIES.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => { setSelectedCategory(cat.id); setStep('upload'); }}
-                  className={`p-5 rounded-xl border-2 text-left transition hover:shadow-md hover:border-[#40916C] ${
-                    selectedCategory === cat.id ? 'border-[#2D6A4F] bg-green-50' : 'border-gray-200'
-                  }`}
-                >
-                  <div className="text-2xl mb-2">{cat.icon}</div>
-                  <div className="font-semibold text-[#1B4332]">{cat.label}</div>
-                  <div className="text-sm text-gray-500 mt-1">{cat.description}</div>
-                </button>
-              ))}
+          <div className="space-y-8">
+            {/* Saved Drafts Section */}
+            {savedDrafts.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                <div className="px-6 py-4 bg-blue-50 border-b">
+                  <h2 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+                    💾 Saved Drafts ({savedDrafts.length})
+                  </h2>
+                  <p className="text-sm text-blue-700 mt-1">Resume a previously saved outreach batch</p>
+                </div>
+                <div className="divide-y">
+                  {savedDrafts.map(draft => (
+                    <div key={draft.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{OUTREACH_CATEGORIES.find(c => c.id === draft.category)?.icon || '📋'}</span>
+                          <div>
+                            <div className="font-semibold text-[#1B4332]">
+                              {getCategoryLabel(draft.category)}
+                              <span className="text-gray-400 font-normal text-sm ml-2">({draft.total_contacts} contacts)</span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Saved {formatDate(draft.updated_at)} by {draft.admin_email || 'Unknown'}
+                              {draft.file_name && <span className="ml-2">• {draft.file_name}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        {draft.notes && (
+                          <div className="mt-2 ml-8 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                            📝 {draft.notes}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => loadDraft(draft)}
+                          disabled={historyLoading}
+                          className="px-4 py-2 bg-[#2D6A4F] text-white text-sm font-semibold rounded-lg hover:bg-[#1B4332] transition disabled:opacity-50"
+                        >
+                          {historyLoading ? 'Loading...' : '📂 Resume'}
+                        </button>
+                        <button
+                          onClick={() => deleteDraft(draft.id)}
+                          className="px-3 py-2 text-red-500 text-sm hover:bg-red-50 rounded-lg transition"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {loadingDrafts && (
+              <div className="flex items-center justify-center py-4 gap-2 text-gray-500">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2D6A4F]" />
+                Loading saved drafts...
+              </div>
+            )}
+
+            {/* Category Grid */}
+            <div className="bg-white rounded-xl shadow-sm border p-8">
+              <h2 className="text-xl font-semibold text-[#1B4332] mb-2">Select Outreach Category</h2>
+              <p className="text-gray-500 text-sm mb-6">Choose the type of organization you are reaching out to. Each category uses a tailored email template.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {OUTREACH_CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => { setSelectedCategory(cat.id); setStep('upload'); }}
+                    className={`p-5 rounded-xl border-2 text-left transition hover:shadow-md hover:border-[#40916C] ${
+                      selectedCategory === cat.id ? 'border-[#2D6A4F] bg-green-50' : 'border-gray-200'
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">{cat.icon}</div>
+                    <div className="font-semibold text-[#1B4332]">{cat.label}</div>
+                    <div className="text-sm text-gray-500 mt-1">{cat.description}</div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -614,7 +928,6 @@ export default function OutreachPage() {
         {/* ========== STEP 3: REVIEW FLAGGED CONTACTS ========== */}
         {step === 'review' && (
           <div className="space-y-6">
-            {/* Summary Banner */}
             <div className="bg-amber-50 border border-amber-300 rounded-xl p-6">
               <div className="flex items-start gap-4">
                 <div className="text-3xl">⚠️</div>
@@ -628,7 +941,6 @@ export default function OutreachPage() {
               </div>
             </div>
 
-            {/* Summary cards */}
             <div className="grid grid-cols-4 gap-4">
               <div className="bg-white rounded-xl shadow-sm border p-5 text-center">
                 <div className="text-3xl font-bold text-[#1B4332]">{contacts.length}</div>
@@ -648,21 +960,14 @@ export default function OutreachPage() {
               </div>
             </div>
 
-            {/* Flagged Contacts Table */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
               <div className="px-5 py-3 bg-amber-50 border-b flex items-center justify-between">
                 <h3 className="font-semibold text-amber-800">⚠️ Review Previously Contacted ({flaggedContacts.length})</h3>
                 <div className="flex gap-2">
-                  <button
-                    onClick={approveAll}
-                    className="px-3 py-1.5 text-xs font-semibold bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition"
-                  >
+                  <button onClick={approveAll} className="px-3 py-1.5 text-xs font-semibold bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition">
                     ✅ Approve All
                   </button>
-                  <button
-                    onClick={rejectAll}
-                    className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition"
-                  >
+                  <button onClick={rejectAll} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition">
                     ❌ Skip All
                   </button>
                 </div>
@@ -700,12 +1005,8 @@ export default function OutreachPage() {
                           </td>
                           <td className="px-3 py-2 font-medium">{c.name}</td>
                           <td className="px-3 py-2 text-gray-600">{c.email}</td>
-                          <td className="px-3 py-2 text-gray-500 text-xs">
-                            {lastSend ? formatDate(lastSend.sent_at) : '—'}
-                          </td>
-                          <td className="px-3 py-2 text-gray-500 text-xs">
-                            {lastSend?.sent_by_email || '—'}
-                          </td>
+                          <td className="px-3 py-2 text-gray-500 text-xs">{lastSend ? formatDate(lastSend.sent_at) : '—'}</td>
+                          <td className="px-3 py-2 text-gray-500 text-xs">{lastSend?.sent_by_email || '—'}</td>
                           <td className="px-3 py-2">
                             {lastSend && (
                               <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
@@ -729,7 +1030,6 @@ export default function OutreachPage() {
               </div>
             </div>
 
-            {/* Action buttons */}
             <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border p-5">
               <button
                 onClick={() => { setStep('upload'); setContacts([]); setFileName(''); }}
@@ -749,6 +1049,434 @@ export default function OutreachPage() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ========== STEP 4: PREVIEW & SEND ========== */}
+        {step === 'preview' && (
+          <div className="space-y-6">
+            {/* Summary Row */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl shadow-sm border p-5 text-center">
+                <div className="text-3xl font-bold text-[#1B4332]">{contacts.length}</div>
+                <div className="text-sm text-gray-500 mt-1">Total Contacts</div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-xl shadow-sm p-5 text-center">
+                <div className="text-3xl font-bold text-green-700">{validContacts.length}</div>
+                <div className="text-sm text-green-600 mt-1">Valid Emails</div>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-xl shadow-sm p-5 text-center">
+                <div className="text-3xl font-bold text-red-700">{invalidContacts.length}</div>
+                <div className="text-sm text-red-600 mt-1">Skipped</div>
+              </div>
+            </div>
+
+            {/* Contacts Table with Edit Button */}
+            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+              <div className="px-5 py-3 bg-green-50 border-b flex items-center justify-between">
+                <h3 className="font-semibold text-[#1B4332]">✅ Valid Contacts ({validContacts.length})</h3>
+                <div className="text-xs text-gray-500">Click ✏️ Edit to customize any email before sending</div>
+              </div>
+              <div className="overflow-auto max-h-64">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Organization</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Email</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">City</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Type</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Edited</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {validContacts.map((c, i) => {
+                      const originalIdx = contacts.indexOf(c);
+                      const hasCustom = !!(c.customSubject || c.customBody);
+                      return (
+                        <tr
+                          key={i}
+                          className={`border-t cursor-pointer transition ${
+                            previewIndex === i ? 'bg-green-50' : 'hover:bg-gray-50'
+                          } ${hasCustom ? 'border-l-4 border-l-blue-400' : ''}`}
+                          onClick={() => setPreviewIndex(i)}
+                        >
+                          <td className="px-3 py-2 font-medium">{c.name}</td>
+                          <td className="px-3 py-2 text-gray-600">{c.email}</td>
+                          <td className="px-3 py-2 text-gray-500">{c.city}</td>
+                          <td className="px-3 py-2 text-gray-500">{c.orgType}</td>
+                          <td className="px-3 py-2">
+                            {hasCustom && (
+                              <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                ✏️ Custom
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); startEditing(originalIdx); }}
+                              className="px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition"
+                            >
+                              ✏️ Edit
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Skipped Contacts */}
+            {invalidContacts.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                <div className="px-5 py-3 bg-red-50 border-b">
+                  <h3 className="font-semibold text-red-800">❌ Skipped — Invalid or Missing Email ({invalidContacts.length})</h3>
+                </div>
+                <div className="overflow-auto max-h-40">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs text-gray-500">Row</th>
+                        <th className="px-3 py-2 text-left text-xs text-gray-500">Organization</th>
+                        <th className="px-3 py-2 text-left text-xs text-gray-500">Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invalidContacts.map((c, i) => (
+                        <tr key={i} className="border-t">
+                          <td className="px-3 py-2 text-gray-500">#{c.row}</td>
+                          <td className="px-3 py-2">{c.name || '(empty)'}</td>
+                          <td className="px-3 py-2 text-red-600">{c.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Email Preview */}
+            {previewEmail && previewContact && (
+              <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                <div className="px-5 py-3 bg-gray-50 border-b flex items-center justify-between">
+                  <h3 className="font-semibold text-[#1B4332]">📧 Email Preview</h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPreviewIndex(Math.max(0, previewIndex - 1))}
+                      disabled={previewIndex === 0}
+                      className="px-2 py-1 text-sm rounded border hover:bg-gray-100 disabled:opacity-30"
+                    >
+                      ← Prev
+                    </button>
+                    <span className="text-sm text-gray-500">{previewIndex + 1} of {validContacts.length}</span>
+                    <button
+                      onClick={() => setPreviewIndex(Math.min(validContacts.length - 1, previewIndex + 1))}
+                      disabled={previewIndex >= validContacts.length - 1}
+                      className="px-2 py-1 text-sm rounded border hover:bg-gray-100 disabled:opacity-30"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+                <div className="p-5">
+                  {previewContact.customSubject || previewContact.customBody ? (
+                    <div className="mb-3 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 inline-flex items-center gap-1">
+                      ✏️ This email has been customized
+                    </div>
+                  ) : null}
+                  <div className="space-y-1 text-sm mb-4">
+                    <div><span className="text-gray-500 font-medium">To:</span> {previewContact.email}</div>
+                    <div><span className="text-gray-500 font-medium">From:</span> Levi & Gary Erwin — YardShoppers &lt;admin@yardshoppers.com&gt;</div>
+                    <div><span className="text-gray-500 font-medium">Subject:</span> {previewEmail.subject}</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-5 text-sm whitespace-pre-wrap leading-relaxed border">
+                    {previewEmail.body}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border p-5">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    const hasFlagged = contacts.some(c => c.valid && c.flagged);
+                    setStep(hasFlagged ? 'review' : 'upload');
+                  }}
+                  className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={() => setShowSaveModal(true)}
+                  className="px-5 py-2.5 border-2 border-blue-300 bg-blue-50 text-blue-800 rounded-lg text-sm font-semibold hover:bg-blue-100 transition flex items-center gap-2"
+                >
+                  💾 Save for Later
+                </button>
+              </div>
+              <button
+                onClick={sendAllEmails}
+                disabled={totalToSend === 0}
+                className="px-8 py-3 bg-[#2D6A4F] text-white rounded-xl font-bold text-lg hover:bg-[#1B4332] transition shadow-md disabled:opacity-50"
+              >
+                📤 Send {totalToSend} Email{totalToSend !== 1 ? 's' : ''}
+                <span className="block text-xs font-normal opacity-80">~{Math.ceil(totalToSend * 45 / 60)} min estimated</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========== INLINE EDIT MODAL ========== */}
+        {editingIndex !== null && contacts[editingIndex] && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="px-6 py-4 bg-blue-50 border-b flex items-center justify-between shrink-0">
+                <div>
+                  <h3 className="font-bold text-lg text-[#1B4332]">✏️ Edit Email</h3>
+                  <p className="text-sm text-gray-500">{contacts[editingIndex].name} — {contacts[editingIndex].email}</p>
+                </div>
+                <button
+                  onClick={cancelEditing}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 text-xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Subject Line</label>
+                  <input
+                    type="text"
+                    value={editSubject}
+                    onChange={(e) => setEditSubject(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Email Body</label>
+                  <textarea
+                    value={editBody}
+                    onChange={(e) => setEditBody(e.target.value)}
+                    rows={18}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none resize-y"
+                  />
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between shrink-0">
+                <button
+                  onClick={resetToDefault}
+                  className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                >
+                  🔄 Reset to Template
+                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={cancelEditing}
+                    className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveEditing}
+                    className="px-6 py-2.5 bg-[#2D6A4F] text-white text-sm font-semibold rounded-lg hover:bg-[#1B4332] transition"
+                  >
+                    ✅ Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========== SAVE DRAFT MODAL ========== */}
+        {showSaveModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+              <div className="px-6 py-4 bg-blue-50 border-b">
+                <h3 className="font-bold text-lg text-[#1B4332]">💾 Save Draft for Later</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Save this batch of {validContacts.length} contacts so you or another admin can come back and send later.
+                </p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Note <span className="font-normal text-gray-400">(what is this draft waiting for?)</span>
+                  </label>
+                  <textarea
+                    value={draftNotes}
+                    onChange={(e) => setDraftNotes(e.target.value)}
+                    placeholder="e.g., Waiting for SPF/DKIM setup before sending. Or: Need to review emails for churches over 500 members."
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none resize-none"
+                  />
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600 space-y-1">
+                  <div><span className="font-medium">Category:</span> {getCategoryLabel(selectedCategory)}</div>
+                  <div><span className="font-medium">File:</span> {fileName}</div>
+                  <div><span className="font-medium">Valid contacts:</span> {validContacts.length}</div>
+                  <div><span className="font-medium">Custom edits:</span> {contacts.filter(c => c.customSubject || c.customBody).length} emails edited</div>
+                  <div><span className="font-medium">Saved by:</span> {adminEmail}</div>
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowSaveModal(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveDraft}
+                  disabled={savingDraft}
+                  className="px-6 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  {savingDraft ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      Saving...
+                    </>
+                  ) : (
+                    '💾 Save Draft'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========== STEP 5: SENDING ========== */}
+        {step === 'sending' && (
+          <div className="bg-white rounded-xl shadow-sm border p-8">
+            <h2 className="text-xl font-semibold text-[#1B4332] mb-6 text-center">
+              {isSending ? '📤 Sending Emails...' : '✅ Sending Complete'}
+            </h2>
+
+            <div className="max-w-md mx-auto mb-8">
+              <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
+                <span>{sendProgress.current} of {sendProgress.total}</span>
+                <span>{Math.round((sendProgress.current / Math.max(sendProgress.total, 1)) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                <div
+                  className="bg-[#2D6A4F] h-full rounded-full transition-all duration-500"
+                  style={{ width: `${(sendProgress.current / Math.max(sendProgress.total, 1)) * 100}%` }}
+                />
+              </div>
+              {isSending && (
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  45-second delay between emails to protect deliverability. Please keep this tab open.
+                </p>
+              )}
+            </div>
+
+            {results.length > 0 && (
+              <div className="overflow-auto max-h-64 rounded-lg border">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Status</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Organization</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Email</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((r, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="px-3 py-2">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            r.status === 'sent' ? 'bg-green-100 text-green-800'
+                              : r.status === 'skipped' ? 'bg-gray-100 text-gray-600'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {r.status === 'sent' ? '✅ Sent' : r.status === 'skipped' ? '⏭️ Skipped' : '❌ Failed'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 font-medium">{r.name}</td>
+                        <td className="px-3 py-2 text-gray-600">{r.email}</td>
+                        <td className="px-3 py-2 text-gray-500 text-xs">{r.error || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========== STEP 6: COMPLETE ========== */}
+        {step === 'complete' && (
+          <div className="bg-white rounded-xl shadow-sm border p-8 text-center">
+            <div className="text-5xl mb-4">🎉</div>
+            <h2 className="text-2xl font-bold text-[#1B4332] mb-2">Outreach Complete!</h2>
+            <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto my-6">
+              <div className="bg-green-50 rounded-xl p-4">
+                <div className="text-2xl font-bold text-green-700">{results.filter(r => r.status === 'sent').length}</div>
+                <div className="text-xs text-green-600 mt-1">Sent</div>
+              </div>
+              <div className="bg-red-50 rounded-xl p-4">
+                <div className="text-2xl font-bold text-red-700">{results.filter(r => r.status === 'failed').length}</div>
+                <div className="text-xs text-red-600 mt-1">Failed</div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="text-2xl font-bold text-gray-600">{results.filter(r => r.status === 'skipped').length}</div>
+                <div className="text-xs text-gray-500 mt-1">Skipped</div>
+              </div>
+            </div>
+
+            {results.length > 0 && (
+              <div className="overflow-auto max-h-64 rounded-lg border mt-6 text-left">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Status</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Organization</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Email</th>
+                      <th className="px-3 py-2 text-left text-xs text-gray-500">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((r, i) => (
+                      <tr key={i} className="border-t">
+                        <td className="px-3 py-2">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            r.status === 'sent' ? 'bg-green-100 text-green-800'
+                              : r.status === 'skipped' ? 'bg-gray-100 text-gray-600'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {r.status === 'sent' ? '✅ Sent' : r.status === 'skipped' ? '⏭️ Skipped' : '❌ Failed'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 font-medium">{r.name}</td>
+                        <td className="px-3 py-2 text-gray-600">{r.email}</td>
+                        <td className="px-3 py-2 text-gray-500 text-xs">{r.error || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setStep('category');
+                setContacts([]);
+                setFileName('');
+                setResults([]);
+                setPreviewIndex(0);
+                setDraftNotes('');
+                setLoadedDraftId(null);
+                setCampaignId(null);
+                loadSavedDrafts();
+              }}
+              className="mt-8 px-8 py-3 bg-[#2D6A4F] text-white rounded-xl font-semibold hover:bg-[#1B4332] transition"
+            >
+              ← Start New Outreach
+            </button>
           </div>
         )}
 
@@ -777,35 +1505,29 @@ export default function OutreachPage() {
                       <div key={i} className="border rounded-xl p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            h.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+                            h.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}>
-                            {h.status.toUpperCase()}
+                            {h.status === 'sent' ? '✅ Sent' : '❌ Failed'}
                           </span>
                           <span className="text-xs text-gray-400">{formatDate(h.sent_at)}</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-500">Sent by:</span>{' '}
-                            <span className="font-medium">{h.sent_by_email}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Category:</span>{' '}
-                            <span className="font-medium">{getCategoryLabel(h.category)}</span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-gray-500">Subject:</span>{' '}
-                            <span className="font-medium">{h.email_subject}</span>
-                          </div>
+                        <div className="space-y-1 text-sm">
+                          <div><span className="text-gray-500">Sent by:</span> <span className="font-medium">{h.sent_by_email}</span></div>
+                          <div><span className="text-gray-500">Category:</span> <span className="font-medium">{getCategoryLabel(h.category)}</span></div>
+                          <div><span className="text-gray-500">Subject:</span> <span className="font-medium">{h.email_subject}</span></div>
+                          {h.organization_name && (
+                            <div><span className="text-gray-500">Organization:</span> <span className="font-medium">{h.organization_name}</span></div>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              <div className="px-6 py-3 bg-gray-50 border-t text-right">
+              <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
                 <button
                   onClick={() => setHistoryModal(null)}
-                  className="px-5 py-2 bg-[#2D6A4F] text-white rounded-lg text-sm font-semibold hover:bg-[#1B4332] transition"
+                  className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 transition"
                 >
                   Close
                 </button>
@@ -814,262 +1536,6 @@ export default function OutreachPage() {
           </div>
         )}
 
-        {/* ========== STEP 4: PREVIEW & SEND ========== */}
-        {step === 'preview' && (
-          <div className="space-y-6">
-            {/* Summary cards */}
-            <div className="grid grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl shadow-sm border p-5 text-center">
-                <div className="text-3xl font-bold text-[#1B4332]">{contacts.length}</div>
-                <div className="text-sm text-gray-500 mt-1">Total Contacts</div>
-              </div>
-              <div className="bg-green-50 border border-green-200 rounded-xl shadow-sm p-5 text-center">
-                <div className="text-3xl font-bold text-green-700">{newContacts.length}</div>
-                <div className="text-sm text-green-600 mt-1">New Contacts</div>
-              </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-xl shadow-sm p-5 text-center">
-                <div className="text-3xl font-bold text-amber-700">{approvedFlagged.length}</div>
-                <div className="text-sm text-amber-600 mt-1">Re-sends (Approved)</div>
-              </div>
-              <div className="bg-red-50 border border-red-200 rounded-xl shadow-sm p-5 text-center">
-                <div className="text-3xl font-bold text-red-700">{invalidContacts.length}</div>
-                <div className="text-sm text-red-600 mt-1">Skipped</div>
-              </div>
-            </div>
-
-            {/* Contact list */}
-            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-              <div className="px-5 py-3 bg-gray-50 border-b flex items-center justify-between">
-                <h3 className="font-semibold text-[#1B4332]">Sending Queue ({totalToSend})</h3>
-                <span className="text-sm text-gray-500">
-                  {OUTREACH_CATEGORIES.find(c => c.id === selectedCategory)?.icon}{' '}
-                  {OUTREACH_CATEGORIES.find(c => c.id === selectedCategory)?.label}
-                </span>
-              </div>
-              <div className="overflow-auto max-h-72">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-xs text-gray-500">#</th>
-                      <th className="px-3 py-2 text-left text-xs text-gray-500">Organization</th>
-                      <th className="px-3 py-2 text-left text-xs text-gray-500">Email</th>
-                      <th className="px-3 py-2 text-left text-xs text-gray-500">City</th>
-                      <th className="px-3 py-2 text-left text-xs text-gray-500">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {validContacts.filter(c => !c.flagged || c.approved).map((c, i) => (
-                      <tr
-                        key={i}
-                        className={`border-t cursor-pointer transition ${
-                          previewIndex === i ? 'bg-green-50' : c.flagged ? 'bg-amber-50/50 hover:bg-amber-50' : 'hover:bg-gray-50'
-                        }`}
-                        onClick={() => setPreviewIndex(i)}
-                      >
-                        <td className="px-3 py-2 text-gray-400">{i + 1}</td>
-                        <td className="px-3 py-2 font-medium">{c.name}</td>
-                        <td className="px-3 py-2 text-gray-600">{c.email}</td>
-                        <td className="px-3 py-2">{c.city}</td>
-                        <td className="px-3 py-2">
-                          {c.flagged ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
-                              ⚠️ Re-send
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                              ✨ New
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Skipped contacts */}
-            {invalidContacts.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <div className="px-5 py-3 bg-red-50 border-b">
-                  <h3 className="font-semibold text-red-700">Skipped Contacts ({invalidContacts.length})</h3>
-                </div>
-                <div className="overflow-auto max-h-40">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {invalidContacts.map((c, i) => (
-                        <tr key={i} className="border-t">
-                          <td className="px-3 py-2 text-gray-400">Row {c.row}</td>
-                          <td className="px-3 py-2">{c.name}</td>
-                          <td className="px-3 py-2 text-red-600">{c.reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Email preview */}
-            {previewEmail && previewContact && (
-              <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <div className="px-5 py-3 bg-gray-50 border-b flex items-center justify-between">
-                  <h3 className="font-semibold text-[#1B4332]">📧 Email Preview</h3>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setPreviewIndex(Math.max(0, previewIndex - 1))}
-                      disabled={previewIndex === 0}
-                      className="px-2 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-30"
-                    >← Prev</button>
-                    <span className="text-sm text-gray-500">{previewIndex + 1} of {validContacts.length}</span>
-                    <button
-                      onClick={() => setPreviewIndex(Math.min(validContacts.length - 1, previewIndex + 1))}
-                      disabled={previewIndex === validContacts.length - 1}
-                      className="px-2 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-30"
-                    >Next →</button>
-                  </div>
-                </div>
-                <div className="p-5">
-                  {previewContact.flagged && (
-                    <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex items-center gap-2">
-                      ⚠️ This contact was previously emailed on {formatDate(previewContact.history[0]?.sent_at)} by {previewContact.history[0]?.sent_by_email}
-                    </div>
-                  )}
-                  <div className="text-sm text-gray-500 mb-1"><strong>To:</strong> {previewContact.email}</div>
-                  <div className="text-sm text-gray-500 mb-1"><strong>From:</strong> Levi & Gary Erwin — YardShoppers &lt;admin@yardshoppers.com&gt;</div>
-                  <div className="text-sm font-medium mb-3"><strong>Subject:</strong> {previewEmail.subject}</div>
-                  <div className="bg-gray-50 rounded-lg p-4 text-sm whitespace-pre-wrap font-mono leading-relaxed border">
-                    {previewEmail.body}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Action buttons */}
-            <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border p-5">
-              <button
-                onClick={() => {
-                  const hasFlagged = contacts.some(c => c.valid && c.flagged);
-                  setStep(hasFlagged ? 'review' : 'upload');
-                  if (!hasFlagged) { setContacts([]); setFileName(''); }
-                }}
-                className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition"
-              >
-                ← Back
-              </button>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-500">
-                  ~{Math.round((totalToSend * 45) / 60)} min estimated send time
-                </span>
-                <button
-                  onClick={sendAllEmails}
-                  disabled={totalToSend === 0}
-                  className={`px-8 py-3 rounded-lg font-semibold text-white transition flex items-center gap-2 ${
-                    totalToSend > 0
-                      ? 'bg-[#2D6A4F] hover:bg-[#1B4332]'
-                      : 'bg-gray-300 cursor-not-allowed'
-                  }`}
-                >
-                  📤 Send {totalToSend} Emails
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========== STEP 5: SENDING ========== */}
-        {step === 'sending' && (
-          <div className="bg-white rounded-xl shadow-sm border p-8">
-            <h2 className="text-xl font-semibold text-[#1B4332] mb-6">Sending Emails...</h2>
-            <div className="w-full bg-gray-200 rounded-full h-4 mb-4">
-              <div
-                className="bg-[#2D6A4F] h-4 rounded-full transition-all duration-300"
-                style={{ width: `${sendProgress.total > 0 ? (sendProgress.current / sendProgress.total) * 100 : 0}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-sm text-gray-600 mb-6">
-              <span>{sendProgress.current} of {sendProgress.total}</span>
-              <span className="text-green-600">{results.filter(r => r.status === 'sent').length} sent</span>
-              {results.filter(r => r.status === 'failed').length > 0 && (
-                <span className="text-red-600">{results.filter(r => r.status === 'failed').length} failed</span>
-              )}
-              {results.filter(r => r.status === 'skipped').length > 0 && (
-                <span className="text-amber-600">{results.filter(r => r.status === 'skipped').length} skipped (not approved)</span>
-              )}
-            </div>
-
-            <div className="max-h-72 overflow-auto border rounded-lg">
-              <table className="w-full text-sm">
-                <tbody>
-                  {results.map((r, i) => (
-                    <tr key={i} className="border-t">
-                      <td className="px-3 py-2 text-gray-400">{i + 1}</td>
-                      <td className="px-3 py-2 font-medium">{r.name}</td>
-                      <td className="px-3 py-2 text-gray-600">{r.email}</td>
-                      <td className="px-3 py-2">
-                        {r.status === 'sent' ? (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">SENT</span>
-                        ) : r.status === 'skipped' ? (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">SKIPPED</span>
-                        ) : (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">FAILED</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-sm text-gray-400 mt-4">
-              ⏱️ Each email is spaced 45 seconds apart to protect deliverability. Do not close this page.
-            </p>
-          </div>
-        )}
-
-        {/* ========== STEP 6: COMPLETE ========== */}
-        {step === 'complete' && (
-          <div className="bg-white rounded-xl shadow-sm border p-8 text-center">
-            <div className="text-5xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold text-[#1B4332] mb-2">Outreach Complete!</h2>
-            <div className="flex justify-center gap-8 my-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">{results.filter(r => r.status === 'sent').length}</div>
-                <div className="text-sm text-gray-500">Emails Sent</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-amber-600">{results.filter(r => r.status === 'skipped').length}</div>
-                <div className="text-sm text-gray-500">Skipped</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-red-600">{results.filter(r => r.status === 'failed').length}</div>
-                <div className="text-sm text-gray-500">Failed</div>
-              </div>
-            </div>
-
-            {results.filter(r => r.status === 'failed').length > 0 && (
-              <div className="text-left bg-red-50 border border-red-200 rounded-lg p-4 mb-6 max-h-48 overflow-auto text-sm text-red-700">
-                <div className="font-semibold mb-2">Failed Emails:</div>
-                {results.filter(r => r.status === 'failed').map((r, i) => (
-                  <div key={i}>{r.name} ({r.email}): {r.error}</div>
-                ))}
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                setStep('category');
-                setContacts([]);
-                setFileName('');
-                setResults([]);
-                setSendProgress({ current: 0, total: 0 });
-                setCampaignId(null);
-              }}
-              className="bg-[#2D6A4F] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#1B4332] transition"
-            >
-              Start New Campaign
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
