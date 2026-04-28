@@ -8,271 +8,271 @@ export function getResearchPrompt(category: string): string {
   switch (category) {
     // ---- ORIGINAL 13 ----
     case 'hoa':
-      return `Find all Homeowner Associations (HOAs), Condominium Associations (COAs), and HOA Management Companies in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Organization Name, Email Address, City, Region (county or area), Type (HOA, COA, or Management Company), and Phone Number.
+      return `Search for Homeowner Associations (HOAs), Condominium Associations (COAs), and HOA Management Companies in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, Yelp, HOA directory sites, and community association listings to gather results quickly. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Include any contact email you find — leasing office, info@, contact@, or management company emails all count.
 
-Only include organizations where you can find a real, verified email address — no generic or made-up emails. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any organization that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the rest of the county. Don't spend more than a few minutes verifying — speed matters more than perfection. It's okay if some rows are missing a phone number or region.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'property-management':
-      return `Find all Property Management Companies that manage residential communities, apartments, HOAs, or condominiums in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Company Name, Email Address, City, Region (county or area), Type (Property Management), and Phone Number.
+      return `Search for Property Management Companies that manage residential communities, apartments, HOAs, or condominiums in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, Yelp, and property management directories to gather results quickly. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts — info@, office@, leasing@, etc.
 
-Only include companies where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any company that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the rest of the county. Speed matters more than perfection — it's okay if some rows are missing a phone number.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'neighborhood':
-      return `Find all Neighborhood Associations, Community Associations, Civic Associations, and Resident Associations (that are NOT HOAs) in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Association Name, Email Address, City, Region (county or area), Type (Neighborhood Association), and Phone Number.
+      return `Search for Neighborhood Associations, Community Associations, Civic Associations, and Resident Associations (NOT HOAs) in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google search, city government websites, community directories, and Nextdoor-style listings to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include associations where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any association that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Speed matters — don't spend time verifying each email individually.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'church':
-      return `Find all Churches, Mosques, Synagogues, Temples, and Religious Organizations in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Organization Name, Email Address, City, Region (county or area), Type (Church, Mosque, Synagogue, Temple, or Religious Org), and Phone Number.
+      return `Search for Churches, Mosques, Synagogues, Temples, and Religious Organizations in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, church directory sites (like ChurchFinder.com, find-a-church.org), and denomination directories to gather results in bulk. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any email listed on their website or directory listing counts.
 
-Only include organizations where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any organization that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Prioritize speed — grab emails from directory listings rather than visiting each individual website.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'estate-sale':
-      return `Find all Estate Sale Companies, Estate Liquidators, and Estate Auction Companies in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Company Name, Email Address, City, Region (county or area), Type (Estate Sale Company), and Phone Number.
+      return `Search for Estate Sale Companies, Estate Liquidators, and Estate Auction Companies in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, EstateSales.net, EstateSales.org, and Yelp to gather results quickly. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include companies where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any company that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities, the county, then the state. Speed matters — grab emails from directory listings.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'real-estate':
-      return `Find all Real Estate Agencies, Brokerages, and Real Estate Offices in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Agency/Brokerage Name, Email Address, City, Region (county or area), Type (Real Estate Brokerage), and Phone Number. Focus on the office or brokerage email, not individual agent emails.
+      return `Search for Real Estate Agencies, Brokerages, and Real Estate Offices in [TYPE YOUR CITY HERE], [STATE]. Focus on office/brokerage emails, not individual agent emails.
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, Realtor.com office listings, Zillow agent finder, and Yelp to gather results quickly. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Office emails like info@, contact@, or office@ all count.
 
-Only include agencies where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any agency that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Prioritize speed over perfection.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'military':
-      return `Find all Military Bases, Military Installations, MWR (Morale, Welfare & Recreation) Centers, Family Support Centers, and Military Community Service offices in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Installation/Center Name, Email Address, City, Region (county or area), Type (Military Base, MWR, or Family Support), and Phone Number.
+      return `Search for Military Bases, Military Installations, MWR (Morale, Welfare & Recreation) Centers, Family Support Centers, and Military Community Service offices in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use military installation directories, MilitaryINSTALLATIONS.dod.mil, and Google to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any official contact email counts.
 
-Only include installations where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any that do not have a publicly listed email address.
+Find as many as possible. If this city has fewer results, expand statewide. Military bases are limited in number — just find all that exist in the state.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'senior-living':
-      return `Find all Senior Living Communities, Retirement Communities, Assisted Living Facilities, Independent Living Communities, and 55+ Communities in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Community Name, Email Address, City, Region (county or area), Type (Senior Living, Retirement, Assisted Living, or 55+), and Phone Number.
+      return `Search for Senior Living Communities, Retirement Communities, Assisted Living Facilities, Independent Living Communities, and 55+ Communities in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, SeniorLiving.org, A Place for Mom, Caring.com, and Yelp to gather results in bulk. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts — community@, info@, admissions@, etc.
 
-Only include communities where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any community that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Prioritize speed — pull emails from directory listings rather than visiting each website.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'moving':
-      return `Find all Moving Companies, Relocation Services, and Local Movers in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Company Name, Email Address, City, Region (county or area), Type (Moving Company), and Phone Number.
+      return `Search for Moving Companies, Relocation Services, and Local Movers in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, Yelp, MovingCompanyReviews.com, and the Better Business Bureau to gather results quickly. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include companies where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any company that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Speed matters — grab contact info from directory listings.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'storage':
-      return `Find all Self Storage Facilities, Storage Unit Companies, and Mini Storage locations in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Facility Name, Email Address, City, Region (county or area), Type (Self Storage), and Phone Number.
+      return `Search for Self Storage Facilities, Storage Unit Companies, and Mini Storage locations in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, SpareFoot.com, SelfStorage.com, StorageCafe.com, and Yelp to gather results in bulk. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include facilities where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any facility that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Prioritize speed — pull from directory listings.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'school':
-      return `Find all PTA (Parent Teacher Association) and PTO (Parent Teacher Organization) groups at elementary schools, middle schools, and high schools in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: School Name + PTA/PTO, Email Address, City, Region (county or school district), Type (PTA or PTO), and Phone Number.
+      return `Search for PTA (Parent Teacher Association) and PTO (Parent Teacher Organization) groups at elementary, middle, and high schools in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use school district websites, PTA.org chapter finder, Google search, and GreatSchools.org to find them. For each one, collect: Organization Name (School + PTA/PTO), Email, City, Region, Type, Phone. Any PTA/PTO or school office contact email counts.
 
-Only include schools where you can find a real, verified PTA/PTO email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire school district, then the full county. Keep going until you reach at least 100 contacts with verified emails. Skip any school that does not have a publicly listed PTA/PTO email address.
+Find as many as possible. If this city has fewer than 50, expand to the school district, then the county. Prioritize speed — use school district directories that list multiple schools at once.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'parks-rec':
-      return `Find all City Parks and Recreation Departments, County Recreation Departments, and Community Recreation Centers in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Department/Center Name, Email Address, City, Region (county or area), Type (Parks & Recreation), and Phone Number.
+      return `Search for City Parks and Recreation Departments, County Recreation Departments, and Community Recreation Centers in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use city/county government websites and Google to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any department contact email counts.
 
-Only include departments where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any department that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer results, expand to surrounding cities and the county. These are government departments so there are limited numbers — just find all that exist in the area.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'chamber':
-      return `Find all Chamber of Commerce offices, Business Associations, and Local Business Groups in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Chamber/Association Name, Email Address, City, Region (county or area), Type (Chamber of Commerce), and Phone Number.
+      return `Search for Chamber of Commerce offices, Business Associations, and Local Business Groups in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google, the U.S. Chamber of Commerce directory, and ACCE (Association of Chamber of Commerce Executives) to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include chambers where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any chamber that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer results, expand to surrounding cities and the county. Chambers are limited in number — just find all that exist in the area.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     // ============================================================
     // NEW 16 CATEGORIES
     // ============================================================
 
     case 'thrift':
-      return `Find all Thrift Stores, Consignment Shops, Resale Stores, and Secondhand Stores in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Store Name, Email Address, City, Region (county or area), Type (Thrift Store, Consignment Shop, or Resale Store), and Phone Number.
+      return `Search for Thrift Stores, Consignment Shops, Resale Stores, and Secondhand Stores in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, Yelp, and thrift store directories to gather results quickly. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts — store@, info@, shop@, etc.
 
-Only include stores where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any store that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Prioritize speed — pull from directory listings rather than visiting each store's website.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'organizer':
-      return `Find all Professional Organizers, Home Organizers, Decluttering Services, and Downsizing Specialists in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Business Name, Email Address, City, Region (county or area), Type (Professional Organizer or Decluttering Service), and Phone Number.
+      return `Search for Professional Organizers, Home Organizers, Decluttering Services, and Downsizing Specialists in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, Yelp, NAPO.net (National Association of Productivity and Organizing Professionals), and Thumbtack to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include businesses where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any business that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities, the county, then the state. Prioritize speed.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'junk-removal':
-      return `Find all Junk Removal Companies, Hauling Services, and Trash Removal Companies in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Company Name, Email Address, City, Region (county or area), Type (Junk Removal), and Phone Number.
+      return `Search for Junk Removal Companies, Hauling Services, and Trash Removal Companies in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, Yelp, and Thumbtack to gather results quickly. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include companies where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any company that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Prioritize speed — pull from directory listings.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'antique':
-      return `Find all Antique Shops, Antique Dealers, Vintage Stores, and Antique Malls in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Shop/Dealer Name, Email Address, City, Region (county or area), Type (Antique Shop, Vintage Store, or Antique Mall), and Phone Number.
+      return `Search for Antique Shops, Antique Dealers, Vintage Stores, and Antique Malls in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, Yelp, Antiquers.com, and Ruby Lane dealer directories to gather results quickly. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include shops where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any shop that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Prioritize speed.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'probate':
-      return `Find all Probate Attorneys, Estate Planning Attorneys, Estate Settlement Lawyers, and Trust & Estate Law Firms in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Firm/Attorney Name, Email Address, City, Region (county or area), Type (Probate Attorney or Estate Law Firm), and Phone Number.
+      return `Search for Probate Attorneys, Estate Planning Attorneys, Estate Settlement Lawyers, and Trust & Estate Law Firms in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, Avvo.com, FindLaw.com, Justia.com, and your state bar association directory to gather results quickly. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any firm contact email counts.
 
-Only include firms where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any firm that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Prioritize speed — pull from lawyer directories that list emails.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'library':
-      return `Find all Public Libraries, Library Branches, and Community Library Systems in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Library Name, Email Address, City, Region (county or area), Type (Public Library), and Phone Number.
+      return `Search for Public Libraries and Library Branches in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use the city/county library system website and Google to find all branches. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any branch or system contact email counts.
 
-Only include libraries where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any library that does not have a publicly listed email address.
+Find all library branches in the area. If this city has fewer results, expand to the county library system. Libraries are limited in number — just find all that exist.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'community-center':
-      return `Find all Community Centers, Recreation Centers, Civic Centers, and Neighborhood Centers in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Center Name, Email Address, City, Region (county or area), Type (Community Center or Recreation Center), and Phone Number.
+      return `Search for Community Centers, Recreation Centers, Civic Centers, and Neighborhood Centers in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, city government websites, and Yelp to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include centers where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any center that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer results, expand to surrounding cities and the county. Prioritize speed.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'veterans':
-      return `Find all VFW (Veterans of Foreign Wars) Posts, American Legion Posts, DAV (Disabled American Veterans) Chapters, and Veterans Service Organizations in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Post/Chapter Name, Email Address, City, Region (county or area), Type (VFW, American Legion, DAV, or Veterans Org), and Phone Number.
+      return `Search for VFW (Veterans of Foreign Wars) Posts, American Legion Posts, DAV (Disabled American Veterans) Chapters, and Veterans Service Organizations in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use the VFW Post Locator (vfw.org), American Legion Post Finder (legion.org), and Google to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any post contact email counts.
 
-Only include posts where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any post that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer results, expand to the county, then the state. Prioritize speed — use the national organization directories that list posts in bulk.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'civic-clubs':
-      return `Find all Rotary Clubs, Lions Clubs, Kiwanis Clubs, Optimist Clubs, Elks Lodges, and similar civic/service clubs in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Club Name, Email Address, City, Region (county or area), Type (Rotary, Lions, Kiwanis, Elks, or Civic Club), and Phone Number.
+      return `Search for Rotary Clubs, Lions Clubs, Kiwanis Clubs, Optimist Clubs, Elks Lodges, and similar civic/service clubs in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Rotary.org club finder, LionsClubs.org, Kiwanis.org, and Google to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any club contact email counts.
 
-Only include clubs where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any club that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer results, expand to the county, then the state. Prioritize speed — use the national organization directories.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'local-media':
-      return `Find all Local Newspapers, Community Newspapers, Neighborhood Blogs, Community News Websites, and Local Online Publications in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Publication Name, Email Address (editor, news desk, or general contact), City, Region (county or area), Type (Newspaper, Blog, or Online Publication), and Phone Number.
+      return `Search for Local Newspapers, Community Newspapers, Neighborhood Blogs, and Local Online News Publications in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google, USNPL.com (US Newspaper Listing), and local media directories to find them. For each one, collect: Organization Name, Email (editor, newsroom, or general contact), City, Region, Type, Phone. Any editorial or contact email counts.
 
-Only include publications where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any publication that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer results, expand to the county, then the state. Prioritize speed.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'college':
-      return `Find all Colleges, Universities, Community Colleges, and Trade Schools with on-campus or student housing in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: School Name + Housing Office, Email Address (housing office, student affairs, or residence life), City, Region (county or area), Type (University, Community College, or Trade School), and Phone Number.
+      return `Search for Colleges, Universities, Community Colleges, and Trade Schools with student housing in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google, the NCES College Navigator (nces.ed.gov), and school websites to find them. For each one, collect: Organization Name (School + Housing Office), Email (housing office, student affairs, or residence life), City, Region, Type, Phone. Any campus office email counts.
 
-Only include schools where you can find a real, verified email address for the housing or student affairs office. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any school that does not have a publicly listed housing/student affairs email address.
+Find all schools with housing in the area. If this city has fewer results, expand statewide. Schools are limited in number — just find all that exist.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'apartment':
-      return `Find all Apartment Complexes, Apartment Communities, Multifamily Properties, and Leasing Offices in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Property/Complex Name, Email Address (leasing office or property management), City, Region (county or area), Type (Apartment Complex), and Phone Number.
+      return `Search for Apartment Complexes and Apartment Communities in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Apartments.com, ApartmentFinder.com, Zillow rentals, and Google Maps to pull listings in bulk. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any leasing email counts — leasing@, info@, office@, or property management company emails.
 
-Only include properties where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any property that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities and the county. Prioritize speed — pull contact info from apartment listing sites rather than visiting each complex's individual website.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'relocation':
-      return `Find all Corporate Relocation Companies, Employee Relocation Services, Relocation Management Companies, and Destination Services Providers in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Company Name, Email Address, City, Region (county or area), Type (Relocation Service), and Phone Number.
+      return `Search for Corporate Relocation Companies, Employee Relocation Services, and Relocation Management Companies in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google, Worldwide ERC member directory, and Yelp to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include companies where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any company that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer results, expand to the county, then the state. Relocation companies are limited in number — just find all that exist in the area.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'flea-market':
-      return `Find all Flea Markets, Swap Meets, Open-Air Markets, Community Markets, and Bazaars in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Market/Event Name, Email Address (organizer or management), City, Region (county or area), Type (Flea Market, Swap Meet, or Community Market), and Phone Number.
+      return `Search for Flea Markets, Swap Meets, Open-Air Markets, and Community Markets in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, FleaMarketZone.com, Yelp, and Facebook to find them. For each one, collect: Organization Name, Email (organizer or management), City, Region, Type, Phone. Any contact email counts.
 
-Only include markets where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any market that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer results, expand to the county, then the state. Flea markets are limited in number — just find all that exist.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'auction':
-      return `Find all Auction Houses, Auctioneers, Estate Auctioneers, and Online Auction Companies in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Company Name, Email Address, City, Region (county or area), Type (Auction House or Auctioneer), and Phone Number.
+      return `Search for Auction Houses, Auctioneers, and Estate Auctioneers in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use Google Maps, AuctionZip.com, the National Auctioneers Association directory, and Yelp to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any contact email counts.
 
-Only include companies where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any company that does not have a publicly listed email address.
+Find as many as possible. If this city has fewer than 50, expand to surrounding cities, the county, then the state. Prioritize speed — pull from auction directories.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     case 'habitat':
-      return `Find all Habitat for Humanity ReStores, Habitat for Humanity chapters, and similar nonprofit home improvement resale stores in [TYPE YOUR CITY HERE], [STATE]. For each one, provide: Store/Chapter Name, Email Address, City, Region (county or area), Type (Habitat ReStore or Habitat Chapter), and Phone Number.
+      return `Search for Habitat for Humanity ReStores and Habitat for Humanity chapters in [TYPE YOUR CITY HERE], [STATE].
 
-Format the results as a table with these exact columns: Organization Name, Email, City, Region, Type, Phone.
+Use the Habitat.org ReStore locator and Google to find them. For each one, collect: Organization Name, Email, City, Region, Type, Phone. Any store or chapter contact email counts.
 
-Only include locations where you can find a real, verified email address. If you cannot find at least 100 results in this city, expand your search to surrounding cities, then the entire county, then the full state. Keep going until you reach at least 100 contacts with verified emails. Skip any location that does not have a publicly listed email address.
+Find all ReStores and chapters in the area. If this city has fewer results, expand statewide. ReStores are limited in number — just find all that exist.
 
-When you're done, export the table as an Excel (.xlsx) file I can download.`;
+Export the results as an Excel (.xlsx) file I can download.`;
 
     default:
-      return `Find organizations in [TYPE YOUR CITY HERE], [STATE]. Provide: Organization Name, Email, City, Region, Type, Phone. Format as an Excel table. Find at least 100 with verified emails. If there are fewer than 100 in this city, expand the search to surrounding cities, then the county, then the full state.`;
+      return `Search for organizations in [TYPE YOUR CITY HERE], [STATE]. Collect: Organization Name, Email, City, Region, Type, Phone. Use Google Maps and directory sites to gather results quickly. Find as many as possible. Export as an Excel (.xlsx) file.`;
   }
 }
