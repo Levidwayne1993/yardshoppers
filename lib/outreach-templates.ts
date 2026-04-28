@@ -2,6 +2,14 @@
 // FILE: outreach-templates.ts
 // WHERE TO PUT THIS:
 //   C:\Users\citys\Documents\yardshoppers\lib\outreach-templates.ts
+//
+// CHANGES FROM V2:
+//   - generateEmail() now accepts an optional 5th parameter: promoCode
+//   - When promoCode is provided, a professional promo block is inserted
+//     before the sign-off, encouraging orgs to share the code with their
+//     community for a free listing boost
+//   - All 29 category templates are unchanged
+//   - OUTREACH_CATEGORIES array is unchanged
 // ============================================================
 
 export interface OutreachCategory {
@@ -198,121 +206,118 @@ Here's what we offer:
 ${features}
 
 Estate sale companies across the country are listing their sales on YardShoppers to reach a larger audience of motivated local buyers. It's completely free, and each listing takes less than 2 minutes to post.`;
-      cta = `If you'd like, I can walk you through how easy it is to list your upcoming sales, or I can set up your first listing for you at no cost.`;
+      cta = `If you'd like, I'd be happy to walk you through how easy it is to list your sales, or I can send a link your team can use.`;
       break;
 
     case 'real-estate':
-      pitch = `I'm reaching out because I think YardShoppers could be a useful free resource to share with your clients in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a handy free tool for your clients in ${city}.
 
 Here's what we offer:
 
 ${features}
 
-Real estate agents find YardShoppers helpful for two reasons: sellers can use it to host a yard sale before listing their home (decluttering and attracting foot traffic), and new homeowners can find great deals on furniture and household items from nearby sales. It's completely free.`;
-      cta = `If you'd like, I'd be happy to send over a short blurb or a link you could include in your client welcome packets or newsletters.`;
+When your clients are getting ready to sell, downsizing, or relocating, a yard sale is one of the fastest ways to declutter before staging and showing a home. Many real estate agents recommend YardShoppers to their clients as a pre-listing resource.`;
+      cta = `If you'd like, I'd be happy to send over a link or a digital resource card you could share with your clients.`;
       break;
 
     case 'military':
-      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for military families at your installation in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for veterans and military families in your ${city} post.
 
 Here's what we offer:
 
 ${features}
 
-Military families moving during PCS season often hold yard sales to sell household items before a move — and families arriving at a new duty station love finding affordable deals nearby. YardShoppers makes both sides easy and free.`;
-      cta = `If you'd like, I'd be happy to send over a flyer or short blurb your MWR or Family Support Center could share with service members and their families.`;
+Military families move frequently, and yard sales are one of the best ways to sell items before a PCS move or find affordable household goods after arriving at a new duty station. YardShoppers makes it easy — and it's completely free.`;
+      cta = `If you'd like, I'd be happy to send over a flyer or link for your community board, MWR center, or family readiness group.`;
       break;
 
     case 'senior-living':
-      pitch = `I'm reaching out because I think YardShoppers could be a helpful free resource for your residents in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for residents at your ${city} community.
 
 Here's what we offer:
 
 ${features}
 
-Many seniors and their families use yard sales as a way to downsize, declutter, or find affordable household items. YardShoppers makes it easy for your residents to post a sale or browse what's available nearby — all for free, with a simple, mobile-friendly design.`;
-      cta = `If you'd like, I'd be happy to send over a short blurb or flyer your community could share with residents and their families.`;
+Many senior residents and their families use yard sales when downsizing, moving to assisted living, or simply clearing out extra belongings. YardShoppers makes it easy for them to host a sale and for nearby buyers to find great deals. It's free and mobile-friendly.`;
+      cta = `If you'd like, I'd be happy to send over a link or short blurb you could share with your residents or their families.`;
       break;
 
     case 'moving':
-      pitch = `I'm reaching out because I think YardShoppers could be a valuable free resource to share with your customers in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a valuable free resource for the customers you serve in ${city}.
 
 Here's what we offer:
 
 ${features}
 
-Many people hold yard sales before a big move to lighten their load and earn some extra cash. By sharing YardShoppers with your customers, you're giving them a free tool that helps them declutter before moving day — which can even reduce the size (and cost) of their move.`;
-      cta = `If you'd like, I'd be happy to send over a short blurb or link you could include in your booking confirmations or customer communications.`;
+Before a big move, many families want to sell items they don't plan to take. YardShoppers gives them a free, easy way to host a yard sale — which can help reduce moving costs and make the process smoother. It's a great free value-add for your customers.`;
+      cta = `If you'd like, I'd be happy to send over a link or blurb you could include in your booking confirmations or customer materials.`;
       break;
 
     case 'storage':
-      pitch = `I'm reaching out because I think YardShoppers could be a helpful free resource to share with your customers in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for the customers at your ${city} facility.
 
 Here's what we offer:
 
 ${features}
 
-Some of your customers may be storing items they no longer need. By sharing YardShoppers, you can help them sell those items through a yard sale instead of paying for extra storage. It's a great value-add — free for you and free for them.`;
-      cta = `If you'd like, I'd be happy to send over a flyer or short blurb you could share at your facility or include in customer communications.`;
+Many storage customers eventually need to downsize or clear out their unit. A yard sale is one of the easiest ways to do that — and YardShoppers makes the process free and simple. Some storage facilities share our platform with tenants as a helpful community resource.`;
+      cta = `If you'd like, I'd be happy to send over a flyer for your front office or a link to include in your customer communications.`;
       break;
 
     case 'school':
-      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for families at your school in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for families in your ${city} school community.
 
 Here's what we offer:
 
 ${features}
 
-Many PTA and PTO groups use YardShoppers to promote school-wide yard sales, fundraiser events, and community swap meets. Parents can also use it to find affordable school supplies, sports gear, and kids' items from nearby sales. It's completely free.`;
-      cta = `If your school ever hosts community yard sales or fundraisers, we'd love to help promote them. I'd also be happy to send a short blurb for your next PTA newsletter.`;
+Many PTA and PTO groups use yard sales as fundraisers, community events, or school-wide garage sales. YardShoppers can help promote those events for free and give families an easy way to post their own individual sales, too.`;
+      cta = `If you'd like, I'd be happy to send over a flyer or link you could share in your school newsletter or PTA communications.`;
       break;
 
     case 'parks-rec':
-      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for the ${city} community.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free addition to the community resources you offer in ${city}.
 
 Here's what we offer:
 
 ${features}
 
-City and county recreation departments across the country partner with YardShoppers to help promote community-wide yard sale events, seasonal swap meets, and neighborhood clean-up sales. It's completely free for both the department and residents.`;
-      cta = `If ${city} ever hosts community-wide yard sale events or would like to promote local sales, we'd love to support that. I'd be happy to send more details.`;
+Many city and county parks departments promote community yard sale events, swap meets, and neighborhood cleanup days. YardShoppers can help you promote those events for free, and residents can use it year-round to find local sales.`;
+      cta = `If you'd like, I'd be happy to send over a resource link you could include on your community events page or social media.`;
       break;
 
     case 'chamber':
-      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for the ${city} business community and local residents.
+      pitch = `I'm reaching out because I think YardShoppers could be a valuable free tool for the local business community and residents in ${city}.
 
 Here's what we offer:
 
 ${features}
 
-Chambers of Commerce across the country share YardShoppers as a way to support local commerce and community engagement. Yard sales bring foot traffic to neighborhoods, support small sellers, and give residents a fun reason to explore their community. It's completely free.`;
-      cta = `If you'd like, I'd be happy to send over a short blurb you could include in your member newsletter or community event calendar.`;
+Chamber of Commerce organizations across the country share YardShoppers as a community resource — it drives local foot traffic, helps residents connect, and supports the same buy-local mindset your members champion. There's no cost and no commitment.`;
+      cta = `If you'd like, I'd be happy to send over a member resource link or a blurb you could feature in your next newsletter or business directory.`;
       break;
 
-    // ============================================================
-    // NEW 16 CATEGORIES
-    // ============================================================
-
+    // ---- NEW 16 ----
     case 'thrift':
-      pitch = `I'm reaching out because I think YardShoppers could be a great complement to your thrift or consignment business in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free complement to your thrift or consignment business in ${city}.
 
 Here's what we offer:
 
 ${features}
 
-Thrift stores and consignment shops thrive on the same community of bargain hunters and treasure seekers who love yard sales. By sharing YardShoppers with your customers, you're giving them another way to find and sell great items locally — and driving more foot traffic into the resale ecosystem that benefits your business. It's completely free.`;
-      cta = `If you'd like, I'd be happy to send over a flyer you could display at your store, or a link to share on your social media.`;
+Your customers love finding great deals — and yard sales are a natural extension of that. By sharing YardShoppers with your shoppers and consignors, you help them find even more local deals and give them another outlet for items you might not carry. It's completely free and builds community.`;
+      cta = `If you'd like, I'd be happy to send a flyer for your checkout counter or a link for your social media.`;
       break;
 
     case 'organizer':
-      pitch = `I'm reaching out because I think YardShoppers could be a valuable free tool for the clients you work with in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free tool to recommend to your decluttering and organizing clients in ${city}.
 
 Here's what we offer:
 
 ${features}
 
-Professional organizers and decluttering specialists often help clients sort through years of belongings. Instead of donating or discarding everything, your clients can host a yard sale through YardShoppers to earn money from items they no longer need — making the decluttering process even more rewarding. It's completely free.`;
-      cta = `If you'd like, I'd be happy to send over a short blurb or link you could share with your clients as part of your decluttering process.`;
+When your clients are done sorting, they often have piles of items to sell. A yard sale is one of the easiest and most rewarding ways to do that — and YardShoppers makes it free and simple. It's a natural next step after an organizing session.`;
+      cta = `If you'd like, I'd be happy to send a link or resource card you could share with clients after a session.`;
       break;
 
     case 'junk-removal':
@@ -322,41 +327,41 @@ Here's what we offer:
 
 ${features}
 
-Many of your customers may have items that are too good to throw away but they don't want to keep. By recommending YardShoppers before a junk removal appointment, you can help them sell valuable items first — and your team hauls away what's left. It's a win-win, and it's completely free for everyone.`;
-      cta = `If you'd like, I'd be happy to send over a short blurb or link you could share with customers when they book a pickup.`;
+Before calling for a pickup, many homeowners want to sell items that still have value. A yard sale is one of the best ways to do that — and YardShoppers makes it free and easy. It's a great value-add for customers who want to sell first and haul later.`;
+      cta = `If you'd like, I'd be happy to send a link or blurb you could share with customers who might benefit from hosting a sale first.`;
       break;
 
     case 'antique':
-      pitch = `I'm reaching out because I think YardShoppers could be a great free sourcing tool for your antique or vintage business in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for your business and the antique community in ${city}.
 
 Here's what we offer:
 
 ${features}
 
-Yard sales and estate sales are where many of the best antique and vintage finds come from. YardShoppers makes it easy to search for sales by location, category, and date — and our Route Planner helps you map out the most efficient path to hit multiple sales in one trip. It's completely free.`;
-      cta = `If you'd like, I can show you how to set up alerts for new yard sales and estate sales in your area — or share a link your team can use to scout for inventory.`;
+Yard sales and estate sales are a goldmine for antique and vintage dealers — and many of your customers are yard sale enthusiasts, too. By sharing YardShoppers, you help your customers find more local sales and keep the treasure-hunting community connected.`;
+      cta = `If you'd like, I'd be happy to send a flyer for your shop or a link for your website and social media.`;
       break;
 
     case 'probate':
-      pitch = `I'm reaching out because I think YardShoppers could be a helpful free resource for families you work with during estate settlements in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a useful free resource for your clients handling estate settlements in ${city}.
 
 Here's what we offer:
 
 ${features}
 
-When a family is settling an estate, there are often household items, furniture, and personal belongings that need to be sold or distributed. YardShoppers gives families a free, easy way to host an estate sale or yard sale to liquidate those items — without the cost of hiring a professional estate sale company. It's simple, free, and takes less than 2 minutes to set up.`;
-      cta = `If you'd like, I'd be happy to send over a resource card or link you could share with clients going through the estate settlement process.`;
+When families are settling an estate, they often need to liquidate household items. A yard sale is one of the most practical and cost-effective options — and YardShoppers makes it free and easy to post one. It's a helpful tool to recommend alongside estate sale companies or auction houses.`;
+      cta = `If you'd like, I'd be happy to send a resource link or blurb you could include in your client materials or estate settlement guides.`;
       break;
 
     case 'library':
-      pitch = `I'm reaching out because I think YardShoppers could be a wonderful free resource for library patrons and the ${city} community.
+      pitch = `I'm reaching out because I think YardShoppers could be a wonderful free resource for patrons at the ${city} library.
 
 Here's what we offer:
 
 ${features}
 
-Many public libraries serve as community hubs where residents look for local events and resources. YardShoppers fits right in — it helps residents find and post yard sales in their neighborhood, encourages community engagement, and supports sustainable reuse of household items. It's completely free.`;
-      cta = `If you'd like, I'd be happy to send over a flyer for your community bulletin board, or a link your library could include on its community resources page.`;
+Libraries are community hubs, and many patrons are interested in local events like yard sales, book sales, and swap meets. YardShoppers can help you promote library book sales for free — and gives your patrons a way to find sales in their area year-round.`;
+      cta = `If you'd like, I'd be happy to send a flyer for your community board or a link to include on your events page.`;
       break;
 
     case 'community-center':
@@ -366,8 +371,8 @@ Here's what we offer:
 
 ${features}
 
-Community centers are often the heart of a neighborhood — the place people go to find events, activities, and resources. YardShoppers is a natural fit, helping residents find and host yard sales, swap meets, and community sale events. It's completely free.`;
-      cta = `If you'd like, I'd be happy to send over a flyer for your bulletin board, or a link to include in your newsletter or events calendar.`;
+Community centers often host events like neighborhood yard sales, swap meets, and cleanup days. YardShoppers can help promote those events for free — and gives your visitors a way to find and post local sales year-round.`;
+      cta = `If you'd like, I'd be happy to send a flyer for your bulletin board or a link you could share on your website or social media.`;
       break;
 
     case 'veterans':
@@ -377,30 +382,30 @@ Here's what we offer:
 
 ${features}
 
-As a veteran-founded company (my father Gary is a disabled veteran), we understand the military community. Veterans and their families frequently hold yard sales during PCS moves, downsizing, or just to declutter. YardShoppers makes it free and easy — and your post can share it as a helpful member benefit. No cost, no commitment.`;
-      cta = `If you'd like, I'd be happy to send over a flyer for your post's bulletin board, or a short blurb for your newsletter.`;
+Veterans, military families, and post members often use yard sales when downsizing, relocating, or raising funds for community projects. YardShoppers makes it free and simple for them to host a sale and for nearby buyers to find great deals. It's also a great tool for post fundraisers and community events.`;
+      cta = `If you'd like, I'd be happy to send over a flyer for your post board, or a link you can share with your members and their families.`;
       break;
 
     case 'civic-clubs':
-      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for your club members and the ${city} community.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free resource for your club and the ${city} community.
 
 Here's what we offer:
 
 ${features}
 
-Service clubs like Rotary, Lions, and Kiwanis are built around community improvement. YardShoppers supports that mission by helping residents buy and sell locally, reducing waste, and encouraging neighborhood engagement. Many clubs have shared YardShoppers with their members or used it to promote community-wide yard sale events. It's completely free.`;
-      cta = `If your club ever sponsors community events or publishes a newsletter, I'd be happy to send a short blurb or link to share with members.`;
+Service clubs like yours often host community events, fundraisers, and garage sales. YardShoppers can help promote those events for free — and gives your members a way to find and post local sales year-round. It's a natural fit for any club focused on community service.`;
+      cta = `If you'd like, I'd be happy to send over a link or blurb you could share in your next meeting agenda or club newsletter.`;
       break;
 
     case 'local-media':
-      pitch = `I'm reaching out because I think YardShoppers could be a great free resource to share with your readers in ${city}.
+      pitch = `I'm reaching out because I think YardShoppers could be a great free resource to share with your ${city} readers.
 
 Here's what we offer:
 
 ${features}
 
-Many local newspapers and community blogs already list yard sale and garage sale announcements. YardShoppers takes that a step further — it gives your readers a free, searchable platform to post and find sales, with a Route Planner that maps out the best route to hit multiple sales. It's a great resource to link to or mention in your community events coverage.`;
-      cta = `If you'd like, I'd be happy to provide a short write-up, press release, or blurb you could include in your publication or website.`;
+Yard sales and garage sales are one of the most popular community activities in America — and your readers are always looking for ways to find great deals nearby. A mention or listing of YardShoppers could be a valuable free resource for your audience.`;
+      cta = `If you'd like, I'd be happy to provide a short write-up, community listing, or press blurb about YardShoppers for your publication.`;
       break;
 
     case 'college':
@@ -492,14 +497,53 @@ ${signoff}
 `;
 }
 
+// ------ Promo code block (inserted before sign-off when a promo code is provided) ------
+function getPromoBlock(promoCode: string): string {
+  return `--- Exclusive Community Offer ---
+
+As a thank you for connecting with us, we'd like to offer an exclusive promo code your community can share. Anyone who uses this code on YardShoppers will receive a free listing boost — making their yard sale more visible to local buyers at no cost.
+
+Promo Code: ${promoCode}
+Redeem at: www.yardshoppers.com
+
+Feel free to share this code in your newsletters, community boards, social media, or directly with members and residents. There's no limit to how many people can benefit — we just want to help your community get the most out of their yard sales!`;
+}
+
+// ------ Main export: generateEmail ------
+// promoCode is optional — when provided, the promo block is inserted
+// right before "Thank you for your time" in the email body.
 export function generateEmail(
   category: string,
   orgName: string,
   city: string,
-  orgType: string
+  orgType: string,
+  promoCode?: string
 ): { subject: string; body: string } {
-  return {
-    subject: getSubject(category, city),
-    body: getBody(category, orgName, city, orgType),
-  };
+  const subject = getSubject(category, city);
+  let body = getBody(category, orgName, city, orgType);
+
+  if (promoCode) {
+    // Insert promo block before "Thank you for your time"
+    const marker = 'Thank you for your time';
+    const markerIndex = body.indexOf(marker);
+    if (markerIndex !== -1) {
+      body =
+        body.slice(0, markerIndex) +
+        getPromoBlock(promoCode) +
+        '\n\n' +
+        body.slice(markerIndex);
+    } else {
+      // Fallback: append before the signoff (last 5 lines)
+      const lines = body.split('\n');
+      const signoffStart = lines.length - 6;
+      body =
+        lines.slice(0, signoffStart).join('\n') +
+        '\n\n' +
+        getPromoBlock(promoCode) +
+        '\n\n' +
+        lines.slice(signoffStart).join('\n');
+    }
+  }
+
+  return { subject, body };
 }

@@ -38,6 +38,7 @@ interface Contact {
   approved: boolean;
   customSubject: string;
   customBody: string;
+  promoCode?: string;
 }
 
 interface SendResult {
@@ -45,6 +46,7 @@ interface SendResult {
   name: string;
   status: 'sent' | 'failed' | 'skipped';
   error?: string;
+  promoCode?: string;
 }
 
 interface SavedDraft {
@@ -56,6 +58,10 @@ interface SavedDraft {
   admin_email: string;
   created_at: string;
   updated_at: string;
+  promo_enabled: boolean;
+  promo_boost_tier: string;
+  promo_max_uses: number | null;
+  promo_expires_at: string | null;
 }
 
 type Step = 'category' | 'upload' | 'preview' | 'review' | 'sending' | 'complete';
@@ -77,11 +83,9 @@ async function parseXlsx(file: File): Promise<Record<string, string>[]> {
 // ---- Map spreadsheet columns ----
 function mapColumns(rows: Record<string, string>[]): Contact[] {
   if (rows.length === 0) return [];
-
   const headers = Object.keys(rows[0]);
   const find = (keywords: string[]) =>
     headers.find(h => keywords.some(k => h.toLowerCase().includes(k))) || '';
-
   const nameCol = find(['organization name', 'hoa', 'org name', 'name']);
   const emailCol = find(['email']);
   const cityCol = find(['city']);
@@ -89,7 +93,6 @@ function mapColumns(rows: Record<string, string>[]): Contact[] {
   const typeCol = find(['type']);
   const phoneCol = find(['phone']);
   const notesCol = find(['notes', 'address']);
-
   return rows.map((r, i) => {
     const email = (r[emailCol] || '').toString().trim();
     const name = (r[nameCol] || '').toString().trim();
@@ -97,28 +100,20 @@ function mapColumns(rows: Record<string, string>[]): Contact[] {
     let reason: string | undefined;
     if (!email) reason = 'No email';
     else if (!valid) reason = `Bad email: ${email}`;
-
     return {
-      row: i + 2,
-      name,
-      email,
+      row: i + 2, name, email,
       city: (r[cityCol] || '').toString().trim(),
       region: (r[regionCol] || '').toString().trim(),
       orgType: (r[typeCol] || 'HOA').toString().trim(),
       phone: (r[phoneCol] || '').toString().trim(),
       notes: (r[notesCol] || '').toString().trim(),
-      valid,
-      reason,
-      history: [],
-      flagged: false,
-      approved: false,
-      customSubject: '',
-      customBody: '',
+      valid, reason, history: [], flagged: false, approved: false,
+      customSubject: '', customBody: '',
     };
   });
 }
 
-// ---- Format date nicely ----
+// ---- Format date ----
 function formatDate(dateStr: string): string {
   try {
     const d = new Date(dateStr);
@@ -126,14 +121,29 @@ function formatDate(dateStr: string): string {
       month: 'short', day: 'numeric', year: 'numeric',
       hour: 'numeric', minute: '2-digit',
     });
-  } catch {
-    return dateStr;
-  }
+  } catch { return dateStr; }
 }
 
 // ---- Get category label ----
 function getCategoryLabel(catId: string): string {
   return OUTREACH_CATEGORIES.find(c => c.id === catId)?.label || catId;
+}
+
+// ---- Generate unique promo code from org name ----
+function generatePromoCode(orgName: string, category: string): string {
+  // Clean org name: take first word or abbreviation, uppercase, max 10 chars
+  const cleaned = orgName
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 3)
+    .map(w => w.substring(0, 4).toUpperCase())
+    .join('');
+  const short = cleaned.substring(0, 10) || 'ORG';
+  // Add random 3-digit suffix for uniqueness
+  const suffix = Math.floor(100 + Math.random() * 900);
+  const catPrefix = category.substring(0, 3).toUpperCase();
+  return `YS${catPrefix}${short}${suffix}`;
 }
 
 // ============================================================
@@ -170,20 +180,27 @@ export default function OutreachPage() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // ---- NEW: Draft state ----
+  // Draft state
   const [savedDrafts, setSavedDrafts] = useState<SavedDraft[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
+  const [showDrafts, setShowDrafts] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [draftNotes, setDraftNotes] = useState('');
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
 
-  // ---- NEW: Inline editing state ----
+  // Inline editing
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [showDrafts, setShowDrafts] = useState(false);
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
+
+  // ---- PROMO CODE STATE ----
+  const [promoEnabled, setPromoEnabled] = useState(false);
+  const [promoBoostTier, setPromoBoostTier] = useState('spark');
+  const [promoMaxUses, setPromoMaxUses] = useState<string>('10');
+  const [promoExpiresAt, setPromoExpiresAt] = useState('');
+  const [promoGenerating, setPromoGenerating] = useState(false);
 
   // Admin check
   useEffect(() => {
@@ -201,12 +218,12 @@ export default function OutreachPage() {
     })();
   }, [supabase]);
 
-  // ---- Load saved drafts on mount ----
+  // Load saved drafts
   const loadSavedDrafts = useCallback(async () => {
     setLoadingDrafts(true);
     const { data } = await supabase
       .from('outreach_campaigns')
-      .select('id, category, file_name, total_contacts, notes, admin_email, created_at, updated_at')
+      .select('id, category, file_name, total_contacts, notes, admin_email, created_at, updated_at, promo_enabled, promo_boost_tier, promo_max_uses, promo_expires_at')
       .eq('status', 'draft')
       .order('updated_at', { ascending: false });
     setSavedDrafts((data as SavedDraft[]) || []);
@@ -217,51 +234,33 @@ export default function OutreachPage() {
     if (isAdmin) loadSavedDrafts();
   }, [isAdmin, loadSavedDrafts]);
 
-  // ---- Check send history for uploaded contacts ----
+  // Check send history
   const checkHistory = useCallback(async (parsedContacts: Contact[]) => {
     setHistoryLoading(true);
-    const validEmails = parsedContacts
-      .filter(c => c.valid)
-      .map(c => c.email.toLowerCase());
-
-    if (validEmails.length === 0) {
-      setHistoryLoading(false);
-      return parsedContacts;
-    }
-
+    const validEmails = parsedContacts.filter(c => c.valid).map(c => c.email.toLowerCase());
+    if (validEmails.length === 0) { setHistoryLoading(false); return parsedContacts; }
     const { data: logs } = await supabase
       .from('outreach_logs')
       .select('email_to, sent_by_email, category, email_subject, status, organization_name, sent_at')
       .in('email_to', validEmails)
       .eq('status', 'sent')
       .order('sent_at', { ascending: false });
-
     const historyMap: Record<string, SendHistory[]> = {};
     if (logs) {
       for (const log of logs) {
         const email = log.email_to.toLowerCase();
         if (!historyMap[email]) historyMap[email] = [];
         historyMap[email].push({
-          sent_at: log.sent_at,
-          sent_by_email: log.sent_by_email || 'Unknown admin',
-          category: log.category || 'Unknown',
-          email_subject: log.email_subject || 'No subject',
-          status: log.status,
-          organization_name: log.organization_name || '',
+          sent_at: log.sent_at, sent_by_email: log.sent_by_email || 'Unknown admin',
+          category: log.category || 'Unknown', email_subject: log.email_subject || 'No subject',
+          status: log.status, organization_name: log.organization_name || '',
         });
       }
     }
-
     const updatedContacts = parsedContacts.map(c => {
       const emailHistory = historyMap[c.email.toLowerCase()] || [];
-      return {
-        ...c,
-        history: emailHistory,
-        flagged: emailHistory.length > 0,
-        approved: false,
-      };
+      return { ...c, history: emailHistory, flagged: emailHistory.length > 0, approved: false };
     });
-
     updatedContacts.sort((a, b) => {
       if (!a.valid && b.valid) return 1;
       if (a.valid && !b.valid) return -1;
@@ -269,12 +268,11 @@ export default function OutreachPage() {
       if (!a.flagged && b.flagged) return -1;
       return 0;
     });
-
     setHistoryLoading(false);
     return updatedContacts;
   }, [supabase]);
 
-  // ---- File upload handler ----
+  // File upload handler
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -294,15 +292,11 @@ export default function OutreachPage() {
     }
   }, [checkHistory]);
 
-  // ---- Drag & drop ----
+  // Drag & drop
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith('.xlsx')) {
-      alert('Please upload an .xlsx file');
-      return;
-    }
+    if (!file || !file.name.endsWith('.xlsx')) { alert('Please upload an .xlsx file'); return; }
     setFileName(file.name);
     try {
       const rows = await parseXlsx(file);
@@ -313,156 +307,99 @@ export default function OutreachPage() {
       setLoadedDraftId(null);
       const hasFlagged = withHistory.some(c => c.valid && c.flagged);
       setStep(hasFlagged ? 'review' : 'preview');
-    } catch (err) {
-      console.error('Parse error:', err);
-      alert('Failed to parse spreadsheet.');
-    }
+    } catch (err) { console.error('Parse error:', err); alert('Failed to parse spreadsheet.'); }
   }, [checkHistory]);
 
-  // ---- Toggle approval for flagged contact ----
+  // Flagged contact toggles
   const toggleApproval = (index: number) => {
-    setContacts(prev => prev.map((c, i) => {
-      if (i === index) return { ...c, approved: !c.approved };
-      return c;
-    }));
+    setContacts(prev => prev.map((c, i) => i === index ? { ...c, approved: !c.approved } : c));
   };
-
-  const approveAll = () => {
-    setContacts(prev => prev.map(c => c.flagged ? { ...c, approved: true } : c));
-  };
-
-  const rejectAll = () => {
-    setContacts(prev => prev.map(c => c.flagged ? { ...c, approved: false } : c));
-  };
+  const approveAll = () => { setContacts(prev => prev.map(c => c.flagged ? { ...c, approved: true } : c)); };
+  const rejectAll = () => { setContacts(prev => prev.map(c => c.flagged ? { ...c, approved: false } : c)); };
 
   // ============================================================
-  // SAVE DRAFT
+  // SAVE DRAFT (with promo settings)
   // ============================================================
   const saveDraft = useCallback(async () => {
     setSavingDraft(true);
     const { data: { user } } = await supabase.auth.getUser();
+    const draftData = {
+      category: selectedCategory,
+      file_name: fileName,
+      total_contacts: contacts.filter(c => c.valid).length,
+      notes: draftNotes,
+      admin_email: user?.email || adminEmail,
+      status: 'draft',
+      updated_at: new Date().toISOString(),
+      promo_enabled: promoEnabled,
+      promo_boost_tier: promoEnabled ? promoBoostTier : null,
+      promo_max_uses: promoEnabled && promoMaxUses ? parseInt(promoMaxUses) : null,
+      promo_expires_at: promoEnabled && promoExpiresAt ? new Date(promoExpiresAt).toISOString() : null,
+    };
 
     if (loadedDraftId) {
-      // Update existing draft
-      await supabase.from('outreach_campaigns').update({
-        category: selectedCategory,
-        file_name: fileName,
-        total_contacts: contacts.filter(c => c.valid).length,
-        notes: draftNotes,
-        admin_email: user?.email || adminEmail,
-        status: 'draft',
-        updated_at: new Date().toISOString(),
-      }).eq('id', loadedDraftId);
-
-      // Delete old contacts and re-insert
+      await supabase.from('outreach_campaigns').update(draftData).eq('id', loadedDraftId);
       await supabase.from('outreach_contacts').delete().eq('campaign_id', loadedDraftId);
-
       const contactRows = contacts.filter(c => c.valid).map(c => ({
-        campaign_id: loadedDraftId,
-        organization_name: c.name,
-        email: c.email,
-        city: c.city,
-        region: c.region,
-        org_type: c.orgType,
-        phone: c.phone,
-        notes: c.notes,
-        status: 'pending',
-        custom_subject: c.customSubject || null,
-        custom_body: c.customBody || null,
+        campaign_id: loadedDraftId, organization_name: c.name, email: c.email,
+        city: c.city, region: c.region, org_type: c.orgType, phone: c.phone,
+        notes: c.notes, status: 'pending',
+        custom_subject: c.customSubject || null, custom_body: c.customBody || null,
       }));
-
-      if (contactRows.length > 0) {
-        await supabase.from('outreach_contacts').insert(contactRows);
-      }
+      if (contactRows.length > 0) await supabase.from('outreach_contacts').insert(contactRows);
     } else {
-      // Create new draft
-      const { data: campaign } = await supabase.from('outreach_campaigns').insert({
-        category: selectedCategory,
-        file_name: fileName,
-        total_contacts: contacts.filter(c => c.valid).length,
-        notes: draftNotes,
-        admin_email: user?.email || adminEmail,
-        status: 'draft',
-      }).select().single();
-
+      const { data: campaign } = await supabase.from('outreach_campaigns').insert(draftData).select().single();
       if (campaign) {
         setLoadedDraftId(campaign.id);
-
         const contactRows = contacts.filter(c => c.valid).map(c => ({
-          campaign_id: campaign.id,
-          organization_name: c.name,
-          email: c.email,
-          city: c.city,
-          region: c.region,
-          org_type: c.orgType,
-          phone: c.phone,
-          notes: c.notes,
-          status: 'pending',
-          custom_subject: c.customSubject || null,
-          custom_body: c.customBody || null,
+          campaign_id: campaign.id, organization_name: c.name, email: c.email,
+          city: c.city, region: c.region, org_type: c.orgType, phone: c.phone,
+          notes: c.notes, status: 'pending',
+          custom_subject: c.customSubject || null, custom_body: c.customBody || null,
         }));
-
-        if (contactRows.length > 0) {
-          await supabase.from('outreach_contacts').insert(contactRows);
-        }
+        if (contactRows.length > 0) await supabase.from('outreach_contacts').insert(contactRows);
       }
     }
-
     setSavingDraft(false);
     setDraftSaved(true);
     setShowSaveModal(false);
     setTimeout(() => setDraftSaved(false), 3000);
     await loadSavedDrafts();
-  }, [supabase, selectedCategory, fileName, contacts, draftNotes, adminEmail, loadedDraftId, loadSavedDrafts]);
+  }, [supabase, selectedCategory, fileName, contacts, draftNotes, adminEmail, loadedDraftId, loadSavedDrafts, promoEnabled, promoBoostTier, promoMaxUses, promoExpiresAt]);
 
   // ============================================================
-  // LOAD DRAFT
+  // LOAD DRAFT (with promo settings)
   // ============================================================
   const loadDraft = useCallback(async (draft: SavedDraft) => {
     setHistoryLoading(true);
-
-    // Load contacts from DB
     const { data: dbContacts } = await supabase
-      .from('outreach_contacts')
-      .select('*')
-      .eq('campaign_id', draft.id)
-      .order('created_at', { ascending: true });
-
+      .from('outreach_contacts').select('*')
+      .eq('campaign_id', draft.id).order('created_at', { ascending: true });
     if (!dbContacts || dbContacts.length === 0) {
       alert('No contacts found in this draft.');
       setHistoryLoading(false);
       return;
     }
-
-    // Convert DB contacts to Contact type
     const parsedContacts: Contact[] = dbContacts.map((c, i) => ({
-      row: i + 2,
-      name: c.organization_name || '',
-      email: c.email || '',
-      city: c.city || '',
-      region: c.region || '',
-      orgType: c.org_type || 'HOA',
-      phone: c.phone || '',
-      notes: c.notes || '',
-      valid: isValidEmail(c.email || ''),
-      history: [],
-      flagged: false,
-      approved: false,
-      customSubject: c.custom_subject || '',
-      customBody: c.custom_body || '',
+      row: i + 2, name: c.organization_name || '', email: c.email || '',
+      city: c.city || '', region: c.region || '', orgType: c.org_type || 'HOA',
+      phone: c.phone || '', notes: c.notes || '',
+      valid: isValidEmail(c.email || ''), history: [], flagged: false, approved: false,
+      customSubject: c.custom_subject || '', customBody: c.custom_body || '',
     }));
-
-    // Re-check history
     const withHistory = await checkHistory(parsedContacts);
-
     setSelectedCategory(draft.category);
     setFileName(draft.file_name || 'Loaded from draft');
     setContacts(withHistory);
     setDraftNotes(draft.notes || '');
     setLoadedDraftId(draft.id);
     setPreviewIndex(0);
+    // Restore promo settings
+    setPromoEnabled(draft.promo_enabled || false);
+    setPromoBoostTier(draft.promo_boost_tier || 'spark');
+    setPromoMaxUses(draft.promo_max_uses ? String(draft.promo_max_uses) : '10');
+    setPromoExpiresAt(draft.promo_expires_at ? draft.promo_expires_at.substring(0, 16) : '');
     setHistoryLoading(false);
-
     const hasFlagged = withHistory.some(c => c.valid && c.flagged);
     setStep(hasFlagged ? 'review' : 'preview');
   }, [supabase, checkHistory]);
@@ -483,55 +420,70 @@ export default function OutreachPage() {
   const startEditing = (index: number) => {
     const c = contacts[index];
     if (!c) return;
-    const { subject, body } = generateEmail(selectedCategory, c.name, c.city, c.orgType);
+    const { subject, body } = generateEmail(selectedCategory, c.name, c.city, c.orgType, c.promoCode);
     setEditSubject(c.customSubject || subject);
     setEditBody(c.customBody || body);
     setEditingIndex(index);
   };
-
   const saveEditing = () => {
     if (editingIndex === null) return;
-    setContacts(prev => prev.map((c, i) => {
-      if (i === editingIndex) {
-        return { ...c, customSubject: editSubject, customBody: editBody };
-      }
-      return c;
-    }));
-    setEditingIndex(null);
-    setEditSubject('');
-    setEditBody('');
+    setContacts(prev => prev.map((c, i) =>
+      i === editingIndex ? { ...c, customSubject: editSubject, customBody: editBody } : c
+    ));
+    setEditingIndex(null); setEditSubject(''); setEditBody('');
   };
-
-  const cancelEditing = () => {
-    setEditingIndex(null);
-    setEditSubject('');
-    setEditBody('');
-  };
-
+  const cancelEditing = () => { setEditingIndex(null); setEditSubject(''); setEditBody(''); };
   const resetToDefault = () => {
     if (editingIndex === null) return;
     const c = contacts[editingIndex];
-    const { subject, body } = generateEmail(selectedCategory, c.name, c.city, c.orgType);
-    setEditSubject(subject);
-    setEditBody(body);
-    // Also clear custom fields so it uses the template
-    setContacts(prev => prev.map((ct, i) => {
-      if (i === editingIndex) {
-        return { ...ct, customSubject: '', customBody: '' };
-      }
-      return ct;
-    }));
+    const { subject, body } = generateEmail(selectedCategory, c.name, c.city, c.orgType, c.promoCode);
+    setEditSubject(subject); setEditBody(body);
+    setContacts(prev => prev.map((ct, i) =>
+      i === editingIndex ? { ...ct, customSubject: '', customBody: '' } : ct
+    ));
   };
 
   // ============================================================
-  // SEND EMAILS
+  // CREATE PROMO CODE VIA API (uses existing /api/admin/promo)
+  // ============================================================
+  const createPromoCode = useCallback(async (code: string, orgName: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/admin/promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: code.toUpperCase(),
+          description: `Outreach: ${orgName} (${getCategoryLabel(selectedCategory)})`,
+          discount_type: 'free_boost',
+          discount_value: 0,
+          boost_tier: promoBoostTier,
+          duration_days: null,
+          max_uses: promoMaxUses ? parseInt(promoMaxUses) : null,
+          expires_at: promoExpiresAt ? new Date(promoExpiresAt).toISOString() : null,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        // If code already exists, try with different suffix
+        if (err.error === 'Code already exists') return false;
+        console.error('Promo create error:', err.error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('Promo create failed:', err);
+      return false;
+    }
+  }, [selectedCategory, promoBoostTier, promoMaxUses, promoExpiresAt]);
+
+  // ============================================================
+  // SEND EMAILS (with promo code generation)
   // ============================================================
   const sendAllEmails = useCallback(async () => {
     const newContacts = contacts.filter(c => c.valid && !c.flagged);
     const approvedContacts = contacts.filter(c => c.valid && c.flagged && c.approved);
     const skippedContacts = contacts.filter(c => c.valid && c.flagged && !c.approved);
     const sendList = [...newContacts, ...approvedContacts];
-
     if (sendList.length === 0) return;
 
     setIsSending(true);
@@ -540,52 +492,43 @@ export default function OutreachPage() {
     setResults([]);
 
     const { data: { user } } = await supabase.auth.getUser();
-
-    // Create or update campaign
     let activeCampaignId = loadedDraftId;
 
     if (loadedDraftId) {
       await supabase.from('outreach_campaigns').update({
-        total_contacts: sendList.length,
-        status: 'sending',
+        total_contacts: sendList.length, status: 'sending',
         updated_at: new Date().toISOString(),
+        promo_enabled: promoEnabled,
+        promo_boost_tier: promoEnabled ? promoBoostTier : null,
+        promo_max_uses: promoEnabled && promoMaxUses ? parseInt(promoMaxUses) : null,
+        promo_expires_at: promoEnabled && promoExpiresAt ? new Date(promoExpiresAt).toISOString() : null,
       }).eq('id', loadedDraftId);
     } else {
       const { data: campaign } = await supabase.from('outreach_campaigns').insert({
-        category: selectedCategory,
-        file_name: fileName,
-        total_contacts: sendList.length,
-        status: 'sending',
-        created_by: user?.id,
-        admin_email: adminEmail,
+        category: selectedCategory, file_name: fileName,
+        total_contacts: sendList.length, status: 'sending',
+        created_by: user?.id, admin_email: adminEmail,
+        promo_enabled: promoEnabled,
+        promo_boost_tier: promoEnabled ? promoBoostTier : null,
+        promo_max_uses: promoEnabled && promoMaxUses ? parseInt(promoMaxUses) : null,
+        promo_expires_at: promoEnabled && promoExpiresAt ? new Date(promoExpiresAt).toISOString() : null,
       }).select().single();
-
       if (campaign) {
         activeCampaignId = campaign.id;
         setCampaignId(campaign.id);
-
         await supabase.from('outreach_contacts').insert(
           sendList.map(c => ({
-            campaign_id: campaign.id,
-            organization_name: c.name,
-            email: c.email,
-            city: c.city,
-            region: c.region,
-            org_type: c.orgType,
-            phone: c.phone,
-            notes: c.notes,
-            status: 'pending',
-            custom_subject: c.customSubject || null,
-            custom_body: c.customBody || null,
+            campaign_id: campaign.id, organization_name: c.name, email: c.email,
+            city: c.city, region: c.region, org_type: c.orgType, phone: c.phone,
+            notes: c.notes, status: 'pending',
+            custom_subject: c.customSubject || null, custom_body: c.customBody || null,
           }))
         );
       }
     }
 
     const allResults: SendResult[] = skippedContacts.map(c => ({
-      email: c.email,
-      name: c.name,
-      status: 'skipped' as const,
+      email: c.email, name: c.name, status: 'skipped' as const,
     }));
 
     let sentCount = 0;
@@ -593,7 +536,25 @@ export default function OutreachPage() {
 
     for (let i = 0; i < sendList.length; i++) {
       const c = sendList[i];
-      const defaultEmail = generateEmail(selectedCategory, c.name, c.city, c.orgType);
+      let promoCode: string | undefined;
+
+      // Generate promo code if enabled
+      if (promoEnabled) {
+        let code = generatePromoCode(c.name, selectedCategory);
+        let created = await createPromoCode(code, c.name);
+        // Retry with different suffix if code already exists
+        let retries = 0;
+        while (!created && retries < 3) {
+          code = generatePromoCode(c.name, selectedCategory);
+          created = await createPromoCode(code, c.name);
+          retries++;
+        }
+        if (created) {
+          promoCode = code.toUpperCase();
+        }
+      }
+
+      const defaultEmail = generateEmail(selectedCategory, c.name, c.city, c.orgType, promoCode);
       const subject = c.customSubject || defaultEmail.subject;
       const body = c.customBody || defaultEmail.body;
 
@@ -602,67 +563,50 @@ export default function OutreachPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: c.email,
-            subject,
-            emailBody: body,
-            category: selectedCategory,
-            organizationName: c.name,
+            to: c.email, subject, emailBody: body,
+            category: selectedCategory, organizationName: c.name,
           }),
         });
-
         if (!res.ok) {
           const err = await res.json();
           throw new Error(err.error || 'Send failed');
         }
 
         sentCount++;
-        allResults.push({ email: c.email, name: c.name, status: 'sent' });
+        allResults.push({ email: c.email, name: c.name, status: 'sent', promoCode });
 
         if (activeCampaignId) {
           await supabase.from('outreach_contacts')
             .update({ status: 'sent', sent_at: new Date().toISOString() })
-            .eq('campaign_id', activeCampaignId)
-            .eq('email', c.email);
-
+            .eq('campaign_id', activeCampaignId).eq('email', c.email);
           await supabase.from('outreach_logs').insert({
-            campaign_id: activeCampaignId,
-            email_to: c.email,
-            email_subject: subject,
-            status: 'sent',
-            sent_by_email: adminEmail,
-            category: selectedCategory,
-            organization_name: c.name,
-            sent_at: new Date().toISOString(),
+            campaign_id: activeCampaignId, email_to: c.email,
+            email_subject: subject, status: 'sent',
+            sent_by_email: adminEmail, category: selectedCategory,
+            organization_name: c.name, sent_at: new Date().toISOString(),
+            promo_code: promoCode || null,
           });
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         failCount++;
         allResults.push({ email: c.email, name: c.name, status: 'failed', error: message });
-
         if (activeCampaignId) {
           await supabase.from('outreach_contacts')
             .update({ status: 'failed', error_message: message })
-            .eq('campaign_id', activeCampaignId)
-            .eq('email', c.email);
-
+            .eq('campaign_id', activeCampaignId).eq('email', c.email);
           await supabase.from('outreach_logs').insert({
-            campaign_id: activeCampaignId,
-            email_to: c.email,
-            email_subject: subject,
-            status: 'failed',
-            error_message: message,
-            sent_by_email: adminEmail,
-            category: selectedCategory,
-            organization_name: c.name,
-            sent_at: new Date().toISOString(),
+            campaign_id: activeCampaignId, email_to: c.email,
+            email_subject: subject, status: 'failed', error_message: message,
+            sent_by_email: adminEmail, category: selectedCategory,
+            organization_name: c.name, sent_at: new Date().toISOString(),
+            promo_code: promoCode || null,
           });
         }
       }
 
       setSendProgress({ current: i + 1, total: sendList.length });
       setResults([...allResults]);
-
       if (i < sendList.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 45000));
       }
@@ -670,16 +614,13 @@ export default function OutreachPage() {
 
     if (activeCampaignId) {
       await supabase.from('outreach_campaigns').update({
-        sent_count: sentCount,
-        failed_count: failCount,
-        status: 'completed',
-        updated_at: new Date().toISOString(),
+        sent_count: sentCount, failed_count: failCount,
+        status: 'completed', updated_at: new Date().toISOString(),
       }).eq('id', activeCampaignId);
     }
-
     setIsSending(false);
     setStep('complete');
-  }, [contacts, selectedCategory, fileName, supabase, adminEmail, loadedDraftId]);
+  }, [contacts, selectedCategory, fileName, supabase, adminEmail, loadedDraftId, promoEnabled, promoBoostTier, promoMaxUses, promoExpiresAt, createPromoCode]);
 
   // ---- Computed ----
   const validContacts = contacts.filter(c => c.valid);
@@ -692,12 +633,12 @@ export default function OutreachPage() {
   const previewContact = validContacts[previewIndex] || validContacts[0];
   const previewEmail = previewContact
     ? {
-        subject: previewContact.customSubject || generateEmail(selectedCategory, previewContact.name, previewContact.city, previewContact.orgType).subject,
-        body: previewContact.customBody || generateEmail(selectedCategory, previewContact.name, previewContact.city, previewContact.orgType).body,
+        subject: previewContact.customSubject || generateEmail(selectedCategory, previewContact.name, previewContact.city, previewContact.orgType, promoEnabled ? 'EXAMPLE123' : undefined).subject,
+        body: previewContact.customBody || generateEmail(selectedCategory, previewContact.name, previewContact.city, previewContact.orgType, promoEnabled ? 'EXAMPLE123' : undefined).body,
       }
     : null;
 
-  // ---- Auth gate ----
+  // Auth gate
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -705,7 +646,6 @@ export default function OutreachPage() {
       </div>
     );
   }
-
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -737,7 +677,6 @@ export default function OutreachPage() {
             const stepOrder = ['category', 'upload', 'review', 'preview', 'sending', 'complete'];
             const isCurrent = step === s;
             const isPast = stepOrder.indexOf(step) > i;
-
             return (
               <div key={s} className="flex items-center gap-2 flex-1">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
@@ -792,6 +731,9 @@ export default function OutreachPage() {
                             <div className="font-semibold text-[#1B4332]">
                               {getCategoryLabel(draft.category)}
                               <span className="text-gray-400 font-normal text-sm ml-2">({draft.total_contacts} contacts)</span>
+                              {draft.promo_enabled && (
+                                <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">🎟️ Promo Codes</span>
+                              )}
                             </div>
                             <div className="text-xs text-gray-500 mt-0.5">
                               Saved {formatDate(draft.updated_at)} by {draft.admin_email || 'Unknown'}
@@ -806,17 +748,12 @@ export default function OutreachPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={() => loadDraft(draft)}
-                          disabled={historyLoading}
-                          className="px-4 py-2 bg-[#2D6A4F] text-white text-sm font-semibold rounded-lg hover:bg-[#1B4332] transition disabled:opacity-50"
-                        >
+                        <button onClick={() => loadDraft(draft)} disabled={historyLoading}
+                          className="px-4 py-2 bg-[#2D6A4F] text-white text-sm font-semibold rounded-lg hover:bg-[#1B4332] transition disabled:opacity-50">
                           {historyLoading ? 'Loading...' : '📂 Resume'}
                         </button>
-                        <button
-                          onClick={() => deleteDraft(draft.id)}
-                          className="px-3 py-2 text-red-500 text-sm hover:bg-red-50 rounded-lg transition"
-                        >
+                        <button onClick={() => deleteDraft(draft.id)}
+                          className="px-3 py-2 text-red-500 text-sm hover:bg-red-50 rounded-lg transition">
                           🗑️
                         </button>
                       </div>
@@ -840,13 +777,11 @@ export default function OutreachPage() {
               <p className="text-gray-500 text-sm mb-6">Choose the type of organization you are reaching out to. Each category uses a tailored email template.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {OUTREACH_CATEGORIES.map(cat => (
-                  <button
-                    key={cat.id}
+                  <button key={cat.id}
                     onClick={() => { setSelectedCategory(cat.id); setStep('upload'); }}
                     className={`p-5 rounded-xl border-2 text-left transition hover:shadow-md hover:border-[#40916C] ${
                       selectedCategory === cat.id ? 'border-[#2D6A4F] bg-green-50' : 'border-gray-200'
-                    }`}
-                  >
+                    }`}>
                     <div className="text-2xl mb-2">{cat.icon}</div>
                     <div className="font-semibold text-[#1B4332]">{cat.label}</div>
                     <div className="text-sm text-gray-500 mt-1">{cat.description}</div>
@@ -866,17 +801,12 @@ export default function OutreachPage() {
                 <h2 className="text-xl font-semibold text-[#1B4332]">
                   Upload {OUTREACH_CATEGORIES.find(c => c.id === selectedCategory)?.label} Spreadsheet
                 </h2>
-                <p className="text-gray-500 text-sm mt-1">
-                  Required columns: Organization Name, Email, City. Optional: Region, Type, Phone, Notes/Address.
-                </p>
+                <p className="text-gray-500 text-sm mt-1">Required columns: Organization Name, Email, City. Optional: Region, Type, Phone, Notes/Address.</p>
               </div>
             </div>
-
             <label
               className="block border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer hover:border-[#40916C] hover:bg-green-50 transition"
-              onDragOver={e => e.preventDefault()}
-              onDrop={handleDrop}
-            >
+              onDragOver={e => e.preventDefault()} onDrop={handleDrop}>
               <input type="file" accept=".xlsx" onChange={handleFile} className="hidden" />
               <div className="text-4xl mb-3">📂</div>
               {historyLoading ? (
@@ -893,13 +823,10 @@ export default function OutreachPage() {
                 </>
               )}
             </label>
-
-            {/* Research Prompt Section */}
+            {/* Research Prompt */}
             <div className="mt-6 border border-blue-200 rounded-xl bg-blue-50 overflow-hidden">
-              <button
-                onClick={() => setShowPrompt(!showPrompt)}
-                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-blue-100 transition"
-              >
+              <button onClick={() => setShowPrompt(!showPrompt)}
+                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-blue-100 transition">
                 <div className="flex items-center gap-3">
                   <span className="text-xl">🤖</span>
                   <div>
@@ -909,21 +836,17 @@ export default function OutreachPage() {
                 </div>
                 <span className="text-gray-400 text-lg">{showPrompt ? '▲' : '▼'}</span>
               </button>
-
               {showPrompt && (
                 <div className="px-5 pb-5">
                   <div className="bg-white rounded-lg border p-4 text-sm whitespace-pre-wrap font-mono leading-relaxed text-gray-700">
                     {getResearchPrompt(selectedCategory)}
                   </div>
                   <div className="flex items-center gap-3 mt-3">
-                    <button
-                      onClick={() => {
+                    <button onClick={() => {
                         navigator.clipboard.writeText(getResearchPrompt(selectedCategory));
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
+                        setCopied(true); setTimeout(() => setCopied(false), 2000);
                       }}
-                      className="px-4 py-2 bg-[#2D6A4F] text-white text-sm font-semibold rounded-lg hover:bg-[#1B4332] transition flex items-center gap-2"
-                    >
+                      className="px-4 py-2 bg-[#2D6A4F] text-white text-sm font-semibold rounded-lg hover:bg-[#1B4332] transition flex items-center gap-2">
                       {copied ? '✅ Copied!' : '📋 Copy to Clipboard'}
                     </button>
                     <span className="text-xs text-gray-500">Paste this into Copilot Chat, replace [TYPE YOUR CITY HERE] and [STATE], then upload the Excel file it gives you</span>
@@ -944,12 +867,11 @@ export default function OutreachPage() {
                   <h2 className="text-xl font-bold text-amber-800">Previously Contacted Emails Detected</h2>
                   <p className="text-amber-700 mt-1">
                     {flaggedContacts.length} of {validContacts.length} contacts have been emailed before.
-                    Review them below and decide which ones to send again. New contacts ({newContacts.length}) will be sent first automatically.
+                    Review them below. New contacts ({newContacts.length}) will be sent first automatically.
                   </p>
                 </div>
               </div>
             </div>
-
             <div className="grid grid-cols-4 gap-4">
               <div className="bg-white rounded-xl shadow-sm border p-5 text-center">
                 <div className="text-3xl font-bold text-[#1B4332]">{contacts.length}</div>
@@ -968,17 +890,12 @@ export default function OutreachPage() {
                 <div className="text-sm text-red-600 mt-1">Invalid / Skipped</div>
               </div>
             </div>
-
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
               <div className="px-5 py-3 bg-amber-50 border-b flex items-center justify-between">
                 <h3 className="font-semibold text-amber-800">⚠️ Review Previously Contacted ({flaggedContacts.length})</h3>
                 <div className="flex gap-2">
-                  <button onClick={approveAll} className="px-3 py-1.5 text-xs font-semibold bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition">
-                    ✅ Approve All
-                  </button>
-                  <button onClick={rejectAll} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition">
-                    ❌ Skip All
-                  </button>
+                  <button onClick={approveAll} className="px-3 py-1.5 text-xs font-semibold bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition">✅ Approve All</button>
+                  <button onClick={rejectAll} className="px-3 py-1.5 text-xs font-semibold bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition">❌ Skip All</button>
                 </div>
               </div>
               <div className="overflow-auto max-h-96">
@@ -1001,14 +918,9 @@ export default function OutreachPage() {
                       return (
                         <tr key={i} className={`border-t ${c.approved ? 'bg-green-50' : 'bg-amber-50/30'}`}>
                           <td className="px-3 py-2">
-                            <button
-                              onClick={() => toggleApproval(originalIdx)}
+                            <button onClick={() => toggleApproval(originalIdx)}
                               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                c.approved
-                                  ? 'bg-green-600 text-white hover:bg-green-700'
-                                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                              }`}
-                            >
+                                c.approved ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
                               {c.approved ? '✅ Approved' : 'Skip'}
                             </button>
                           </td>
@@ -1017,17 +929,10 @@ export default function OutreachPage() {
                           <td className="px-3 py-2 text-gray-500 text-xs">{lastSend ? formatDate(lastSend.sent_at) : '—'}</td>
                           <td className="px-3 py-2 text-gray-500 text-xs">{lastSend?.sent_by_email || '—'}</td>
                           <td className="px-3 py-2">
-                            {lastSend && (
-                              <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                                {getCategoryLabel(lastSend.category)}
-                              </span>
-                            )}
+                            {lastSend && <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">{getCategoryLabel(lastSend.category)}</span>}
                           </td>
                           <td className="px-3 py-2">
-                            <button
-                              onClick={() => setHistoryModal(c)}
-                              className="px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
-                            >
+                            <button onClick={() => setHistoryModal(c)} className="px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition">
                               📄 {c.history.length} send{c.history.length > 1 ? 's' : ''}
                             </button>
                           </td>
@@ -1038,24 +943,13 @@ export default function OutreachPage() {
                 </table>
               </div>
             </div>
-
             <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border p-5">
-              <button
-                onClick={() => { setStep('upload'); setContacts([]); setFileName(''); }}
-                className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition"
-              >
-                ← Back to Upload
-              </button>
+              <button onClick={() => { setStep('upload'); setContacts([]); setFileName(''); }}
+                className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">← Back to Upload</button>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-500">
-                  {totalToSend} emails ready to send ({approvedFlagged.length} re-sends)
-                </span>
-                <button
-                  onClick={() => setStep('preview')}
-                  className="px-6 py-2.5 bg-[#2D6A4F] text-white rounded-lg font-semibold hover:bg-[#1B4332] transition"
-                >
-                  Continue to Preview →
-                </button>
+                <span className="text-sm text-gray-500">{totalToSend} emails ready ({approvedFlagged.length} re-sends)</span>
+                <button onClick={() => setStep('preview')}
+                  className="px-6 py-2.5 bg-[#2D6A4F] text-white rounded-lg font-semibold hover:bg-[#1B4332] transition">Continue to Preview →</button>
               </div>
             </div>
           </div>
@@ -1078,6 +972,77 @@ export default function OutreachPage() {
                 <div className="text-3xl font-bold text-red-700">{invalidContacts.length}</div>
                 <div className="text-sm text-red-600 mt-1">Skipped</div>
               </div>
+            </div>
+
+            {/* ===== PROMO CODE SETTINGS PANEL ===== */}
+            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+              <button
+                onClick={() => setPromoEnabled(!promoEnabled)}
+                className={`w-full px-5 py-4 flex items-center justify-between text-left transition ${
+                  promoEnabled ? 'bg-purple-50 hover:bg-purple-100' : 'bg-gray-50 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🎟️</span>
+                  <div>
+                    <div className={`font-semibold text-sm ${promoEnabled ? 'text-purple-900' : 'text-gray-700'}`}>
+                      Include Promo Codes in Emails
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      Auto-generate a unique promo code for each organization. Codes will appear in your Coupon Manager.
+                    </div>
+                  </div>
+                </div>
+                <div className={`w-12 h-7 rounded-full p-1 transition ${promoEnabled ? 'bg-purple-600' : 'bg-gray-300'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${promoEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                </div>
+              </button>
+
+              {promoEnabled && (
+                <div className="px-5 py-4 border-t space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Boost Tier</label>
+                      <select
+                        value={promoBoostTier}
+                        onChange={(e) => setPromoBoostTier(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-300 focus:border-purple-400 outline-none"
+                      >
+                        <option value="spark">Spark ($1.99 / 1 day)</option>
+                        <option value="blaze">Blaze ($4.99 / 3 days)</option>
+                        <option value="inferno">Inferno ($9.99 / 7 days)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Max Uses Per Code</label>
+                      <input
+                        type="number"
+                        value={promoMaxUses}
+                        onChange={(e) => setPromoMaxUses(e.target.value)}
+                        placeholder="Unlimited if empty"
+                        min="1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-300 focus:border-purple-400 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Expires At</label>
+                      <input
+                        type="datetime-local"
+                        value={promoExpiresAt}
+                        onChange={(e) => setPromoExpiresAt(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-300 focus:border-purple-400 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-4 text-sm text-purple-800">
+                    <strong>How it works:</strong> When you click Send, a unique promo code will be generated for each organization
+                    (e.g., YSVETPOST3168742). Each code is a free <strong>{promoBoostTier}</strong> boost
+                    {promoMaxUses ? ` with up to ${promoMaxUses} uses` : ' with unlimited uses'}
+                    {promoExpiresAt ? `, expiring ${formatDate(promoExpiresAt)}` : ''}.
+                    The code is inserted into their email and also shows up in your <strong>Coupon Manager</strong> tab.
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Contacts Table with Edit Button */}
@@ -1103,29 +1068,21 @@ export default function OutreachPage() {
                       const originalIdx = contacts.indexOf(c);
                       const hasCustom = !!(c.customSubject || c.customBody);
                       return (
-                        <tr
-                          key={i}
+                        <tr key={i}
                           className={`border-t cursor-pointer transition ${
                             previewIndex === i ? 'bg-green-50' : 'hover:bg-gray-50'
                           } ${hasCustom ? 'border-l-4 border-l-blue-400' : ''}`}
-                          onClick={() => setPreviewIndex(i)}
-                        >
+                          onClick={() => setPreviewIndex(i)}>
                           <td className="px-3 py-2 font-medium">{c.name}</td>
                           <td className="px-3 py-2 text-gray-600">{c.email}</td>
                           <td className="px-3 py-2 text-gray-500">{c.city}</td>
                           <td className="px-3 py-2 text-gray-500">{c.orgType}</td>
                           <td className="px-3 py-2">
-                            {hasCustom && (
-                              <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                                ✏️ Custom
-                              </span>
-                            )}
+                            {hasCustom && <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">✏️ Custom</span>}
                           </td>
                           <td className="px-3 py-2">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); startEditing(originalIdx); }}
-                              className="px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition"
-                            >
+                            <button onClick={(e) => { e.stopPropagation(); startEditing(originalIdx); }}
+                              className="px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition">
                               ✏️ Edit
                             </button>
                           </td>
@@ -1172,29 +1129,24 @@ export default function OutreachPage() {
                 <div className="px-5 py-3 bg-gray-50 border-b flex items-center justify-between">
                   <h3 className="font-semibold text-[#1B4332]">📧 Email Preview</h3>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setPreviewIndex(Math.max(0, previewIndex - 1))}
+                    <button onClick={() => setPreviewIndex(Math.max(0, previewIndex - 1))}
                       disabled={previewIndex === 0}
-                      className="px-2 py-1 text-sm rounded border hover:bg-gray-100 disabled:opacity-30"
-                    >
-                      ← Prev
-                    </button>
+                      className="px-2 py-1 text-sm rounded border hover:bg-gray-100 disabled:opacity-30">← Prev</button>
                     <span className="text-sm text-gray-500">{previewIndex + 1} of {validContacts.length}</span>
-                    <button
-                      onClick={() => setPreviewIndex(Math.min(validContacts.length - 1, previewIndex + 1))}
+                    <button onClick={() => setPreviewIndex(Math.min(validContacts.length - 1, previewIndex + 1))}
                       disabled={previewIndex >= validContacts.length - 1}
-                      className="px-2 py-1 text-sm rounded border hover:bg-gray-100 disabled:opacity-30"
-                    >
-                      Next →
-                    </button>
+                      className="px-2 py-1 text-sm rounded border hover:bg-gray-100 disabled:opacity-30">Next →</button>
                   </div>
                 </div>
                 <div className="p-5">
-                  {previewContact.customSubject || previewContact.customBody ? (
-                    <div className="mb-3 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 inline-flex items-center gap-1">
-                      ✏️ This email has been customized
-                    </div>
-                  ) : null}
+                  <div className="flex items-center gap-2 mb-3">
+                    {(previewContact.customSubject || previewContact.customBody) && (
+                      <span className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">✏️ Customized</span>
+                    )}
+                    {promoEnabled && (
+                      <span className="px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-800">🎟️ Promo code will be generated on send</span>
+                    )}
+                  </div>
                   <div className="space-y-1 text-sm mb-4">
                     <div><span className="text-gray-500 font-medium">To:</span> {previewContact.email}</div>
                     <div><span className="text-gray-500 font-medium">From:</span> Levi & Gary Erwin — YardShoppers &lt;admin@yardshoppers.com&gt;</div>
@@ -1210,28 +1162,19 @@ export default function OutreachPage() {
             {/* Action Buttons */}
             <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border p-5">
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => {
+                <button onClick={() => {
                     const hasFlagged = contacts.some(c => c.valid && c.flagged);
                     setStep(hasFlagged ? 'review' : 'upload');
                   }}
-                  className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition"
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={() => setShowSaveModal(true)}
-                  className="px-5 py-2.5 border-2 border-blue-300 bg-blue-50 text-blue-800 rounded-lg text-sm font-semibold hover:bg-blue-100 transition flex items-center gap-2"
-                >
+                  className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">← Back</button>
+                <button onClick={() => setShowSaveModal(true)}
+                  className="px-5 py-2.5 border-2 border-blue-300 bg-blue-50 text-blue-800 rounded-lg text-sm font-semibold hover:bg-blue-100 transition flex items-center gap-2">
                   💾 Save for Later
                 </button>
               </div>
-              <button
-                onClick={sendAllEmails}
-                disabled={totalToSend === 0}
-                className="px-8 py-3 bg-[#2D6A4F] text-white rounded-xl font-bold text-lg hover:bg-[#1B4332] transition shadow-md disabled:opacity-50"
-              >
-                📤 Send {totalToSend} Email{totalToSend !== 1 ? 's' : ''}
+              <button onClick={sendAllEmails} disabled={totalToSend === 0}
+                className="px-8 py-3 bg-[#2D6A4F] text-white rounded-xl font-bold text-lg hover:bg-[#1B4332] transition shadow-md disabled:opacity-50">
+                📤 Send {totalToSend} Email{totalToSend !== 1 ? 's' : ''} {promoEnabled && '+ Promo Codes'}
                 <span className="block text-xs font-normal opacity-80">~{Math.ceil(totalToSend * 45 / 60)} min estimated</span>
               </button>
             </div>
@@ -1247,53 +1190,28 @@ export default function OutreachPage() {
                   <h3 className="font-bold text-lg text-[#1B4332]">✏️ Edit Email</h3>
                   <p className="text-sm text-gray-500">{contacts[editingIndex].name} — {contacts[editingIndex].email}</p>
                 </div>
-                <button
-                  onClick={cancelEditing}
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 text-xl"
-                >
-                  ×
-                </button>
+                <button onClick={cancelEditing}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 text-xl">×</button>
               </div>
               <div className="flex-1 overflow-auto p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Subject Line</label>
-                  <input
-                    type="text"
-                    value={editSubject}
-                    onChange={(e) => setEditSubject(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
-                  />
+                  <input type="text" value={editSubject} onChange={(e) => setEditSubject(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Email Body</label>
-                  <textarea
-                    value={editBody}
-                    onChange={(e) => setEditBody(e.target.value)}
-                    rows={18}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none resize-y"
-                  />
+                  <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={18}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none resize-y" />
                 </div>
               </div>
               <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between shrink-0">
-                <button
-                  onClick={resetToDefault}
-                  className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
-                >
-                  🔄 Reset to Template
-                </button>
+                <button onClick={resetToDefault}
+                  className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition">🔄 Reset to Template</button>
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={cancelEditing}
-                    className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={saveEditing}
-                    className="px-6 py-2.5 bg-[#2D6A4F] text-white text-sm font-semibold rounded-lg hover:bg-[#1B4332] transition"
-                  >
-                    ✅ Save Changes
-                  </button>
+                  <button onClick={cancelEditing} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
+                  <button onClick={saveEditing}
+                    className="px-6 py-2.5 bg-[#2D6A4F] text-white text-sm font-semibold rounded-lg hover:bg-[#1B4332] transition">✅ Save Changes</button>
                 </div>
               </div>
             </div>
@@ -1306,51 +1224,32 @@ export default function OutreachPage() {
             <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
               <div className="px-6 py-4 bg-blue-50 border-b">
                 <h3 className="font-bold text-lg text-[#1B4332]">💾 Save Draft for Later</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Save this batch of {validContacts.length} contacts so you or another admin can come back and send later.
-                </p>
+                <p className="text-sm text-gray-500 mt-1">Save this batch of {validContacts.length} contacts so you or another admin can come back and send later.</p>
               </div>
               <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
                     Note <span className="font-normal text-gray-400">(what is this draft waiting for?)</span>
                   </label>
-                  <textarea
-                    value={draftNotes}
-                    onChange={(e) => setDraftNotes(e.target.value)}
+                  <textarea value={draftNotes} onChange={(e) => setDraftNotes(e.target.value)}
                     placeholder="e.g., Waiting for SPF/DKIM setup before sending. Or: Need to review emails for churches over 500 members."
                     rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none resize-none"
-                  />
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none resize-none" />
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600 space-y-1">
                   <div><span className="font-medium">Category:</span> {getCategoryLabel(selectedCategory)}</div>
                   <div><span className="font-medium">File:</span> {fileName}</div>
                   <div><span className="font-medium">Valid contacts:</span> {validContacts.length}</div>
                   <div><span className="font-medium">Custom edits:</span> {contacts.filter(c => c.customSubject || c.customBody).length} emails edited</div>
+                  <div><span className="font-medium">Promo codes:</span> {promoEnabled ? `Enabled (${promoBoostTier})` : 'Disabled'}</div>
                   <div><span className="font-medium">Saved by:</span> {adminEmail}</div>
                 </div>
               </div>
               <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-end gap-3">
-                <button
-                  onClick={() => setShowSaveModal(false)}
-                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveDraft}
-                  disabled={savingDraft}
-                  className="px-6 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
-                >
-                  {savingDraft ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                      Saving...
-                    </>
-                  ) : (
-                    '💾 Save Draft'
-                  )}
+                <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
+                <button onClick={saveDraft} disabled={savingDraft}
+                  className="px-6 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2">
+                  {savingDraft ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />Saving...</>) : '💾 Save Draft'}
                 </button>
               </div>
             </div>
@@ -1363,25 +1262,21 @@ export default function OutreachPage() {
             <h2 className="text-xl font-semibold text-[#1B4332] mb-6 text-center">
               {isSending ? '📤 Sending Emails...' : '✅ Sending Complete'}
             </h2>
-
             <div className="max-w-md mx-auto mb-8">
               <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
                 <span>{sendProgress.current} of {sendProgress.total}</span>
                 <span>{Math.round((sendProgress.current / Math.max(sendProgress.total, 1)) * 100)}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                <div
-                  className="bg-[#2D6A4F] h-full rounded-full transition-all duration-500"
-                  style={{ width: `${(sendProgress.current / Math.max(sendProgress.total, 1)) * 100}%` }}
-                />
+                <div className="bg-[#2D6A4F] h-full rounded-full transition-all duration-500"
+                  style={{ width: `${(sendProgress.current / Math.max(sendProgress.total, 1)) * 100}%` }} />
               </div>
               {isSending && (
                 <p className="text-xs text-gray-400 mt-2 text-center">
-                  45-second delay between emails to protect deliverability. Please keep this tab open.
+                  45-second delay between emails to protect deliverability. {promoEnabled && 'Promo codes are being generated. '}Please keep this tab open.
                 </p>
               )}
             </div>
-
             {results.length > 0 && (
               <div className="overflow-auto max-h-64 rounded-lg border">
                 <table className="w-full text-sm">
@@ -1390,6 +1285,7 @@ export default function OutreachPage() {
                       <th className="px-3 py-2 text-left text-xs text-gray-500">Status</th>
                       <th className="px-3 py-2 text-left text-xs text-gray-500">Organization</th>
                       <th className="px-3 py-2 text-left text-xs text-gray-500">Email</th>
+                      {promoEnabled && <th className="px-3 py-2 text-left text-xs text-gray-500">Promo Code</th>}
                       <th className="px-3 py-2 text-left text-xs text-gray-500">Details</th>
                     </tr>
                   </thead>
@@ -1407,6 +1303,13 @@ export default function OutreachPage() {
                         </td>
                         <td className="px-3 py-2 font-medium">{r.name}</td>
                         <td className="px-3 py-2 text-gray-600">{r.email}</td>
+                        {promoEnabled && (
+                          <td className="px-3 py-2">
+                            {r.promoCode ? (
+                              <span className="inline-block px-2 py-0.5 rounded text-xs font-mono font-semibold bg-purple-100 text-purple-800">{r.promoCode}</span>
+                            ) : '—'}
+                          </td>
+                        )}
                         <td className="px-3 py-2 text-gray-500 text-xs">{r.error || '—'}</td>
                       </tr>
                     ))}
@@ -1437,6 +1340,14 @@ export default function OutreachPage() {
               </div>
             </div>
 
+            {promoEnabled && (
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 max-w-lg mx-auto mb-6">
+                <div className="text-sm text-purple-800">
+                  🎟️ <strong>{results.filter(r => r.promoCode).length} promo codes</strong> were created and are now visible in your <strong>Coupon Manager</strong> tab.
+                </div>
+              </div>
+            )}
+
             {results.length > 0 && (
               <div className="overflow-auto max-h-64 rounded-lg border mt-6 text-left">
                 <table className="w-full text-sm">
@@ -1445,6 +1356,7 @@ export default function OutreachPage() {
                       <th className="px-3 py-2 text-left text-xs text-gray-500">Status</th>
                       <th className="px-3 py-2 text-left text-xs text-gray-500">Organization</th>
                       <th className="px-3 py-2 text-left text-xs text-gray-500">Email</th>
+                      {promoEnabled && <th className="px-3 py-2 text-left text-xs text-gray-500">Promo Code</th>}
                       <th className="px-3 py-2 text-left text-xs text-gray-500">Details</th>
                     </tr>
                   </thead>
@@ -1455,13 +1367,17 @@ export default function OutreachPage() {
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                             r.status === 'sent' ? 'bg-green-100 text-green-800'
                               : r.status === 'skipped' ? 'bg-gray-100 text-gray-600'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
+                              : 'bg-red-100 text-red-800'}`}>
                             {r.status === 'sent' ? '✅ Sent' : r.status === 'skipped' ? '⏭️ Skipped' : '❌ Failed'}
                           </span>
                         </td>
                         <td className="px-3 py-2 font-medium">{r.name}</td>
                         <td className="px-3 py-2 text-gray-600">{r.email}</td>
+                        {promoEnabled && (
+                          <td className="px-3 py-2">
+                            {r.promoCode ? <span className="inline-block px-2 py-0.5 rounded text-xs font-mono font-semibold bg-purple-100 text-purple-800">{r.promoCode}</span> : '—'}
+                          </td>
+                        )}
                         <td className="px-3 py-2 text-gray-500 text-xs">{r.error || '—'}</td>
                       </tr>
                     ))}
@@ -1470,20 +1386,12 @@ export default function OutreachPage() {
               </div>
             )}
 
-            <button
-              onClick={() => {
-                setStep('category');
-                setContacts([]);
-                setFileName('');
-                setResults([]);
-                setPreviewIndex(0);
-                setDraftNotes('');
-                setLoadedDraftId(null);
-                setCampaignId(null);
-                loadSavedDrafts();
+            <button onClick={() => {
+                setStep('category'); setContacts([]); setFileName(''); setResults([]);
+                setPreviewIndex(0); setDraftNotes(''); setLoadedDraftId(null);
+                setCampaignId(null); setPromoEnabled(false); loadSavedDrafts();
               }}
-              className="mt-8 px-8 py-3 bg-[#2D6A4F] text-white rounded-xl font-semibold hover:bg-[#1B4332] transition"
-            >
+              className="mt-8 px-8 py-3 bg-[#2D6A4F] text-white rounded-xl font-semibold hover:bg-[#1B4332] transition">
               ← Start New Outreach
             </button>
           </div>
@@ -1498,12 +1406,8 @@ export default function OutreachPage() {
                   <h3 className="font-bold text-lg text-[#1B4332]">📜 Send History</h3>
                   <p className="text-sm text-gray-500">{historyModal.name} — {historyModal.email}</p>
                 </div>
-                <button
-                  onClick={() => setHistoryModal(null)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 text-xl"
-                >
-                  ×
-                </button>
+                <button onClick={() => setHistoryModal(null)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 text-xl">×</button>
               </div>
               <div className="overflow-auto max-h-96 p-6">
                 {historyModal.history.length === 0 ? (
@@ -1514,8 +1418,7 @@ export default function OutreachPage() {
                       <div key={i} className="border rounded-xl p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            h.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
+                            h.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                             {h.status === 'sent' ? '✅ Sent' : '❌ Failed'}
                           </span>
                           <span className="text-xs text-gray-400">{formatDate(h.sent_at)}</span>
@@ -1534,12 +1437,8 @@ export default function OutreachPage() {
                 )}
               </div>
               <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
-                <button
-                  onClick={() => setHistoryModal(null)}
-                  className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 transition"
-                >
-                  Close
-                </button>
+                <button onClick={() => setHistoryModal(null)}
+                  className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 transition">Close</button>
               </div>
             </div>
           </div>
