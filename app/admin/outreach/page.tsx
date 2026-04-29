@@ -11,6 +11,8 @@ import { createClient } from '@/lib/supabase-browser';
 import { OUTREACH_CATEGORIES, generateEmail } from '@/lib/outreach-templates';
 import { getResearchPrompt } from '@/lib/research-prompts';
 import * as XLSX from 'xlsx';
+import CityTracker from '@/components/CityTracker';
+
 
 // ---- Types ----
 interface SendHistory {
@@ -662,7 +664,10 @@ export default function OutreachPage() {
   // ============================================================
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-[1400px] mx-auto flex gap-6">
+  <CityTracker />
+  <div className="flex-1 min-w-0">
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#1B4332]">📧 Outreach Email System</h1>
@@ -1444,7 +1449,9 @@ export default function OutreachPage() {
           </div>
         )}
 
+              </div>
       </div>
     </div>
   );
 }
+
